@@ -1,0 +1,39 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: p3sgbd-prodv
+    user: root  # <-- Run as root for mssql-tools installation
+    environment:
+      SA_PASSWORD: "D0ckerDb!"
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - p3sgbd_data:/var/opt/mssql
+      - ./backend/docker-db-init:/usr/src/app
+    command:
+      - /bin/bash
+      - -c
+      - |
+        /opt/mssql/bin/sqlservr &
+        # Wait for SQL Server to start
+        sleep 60
+        # Install mssql-tools
+        curl https://packages.microsoft.com/keys/microsoft.asc | apt-add-repository -r -
+        curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list
+        apt-get update
+        ACCEPT_EULA=Y apt-get install -y mssql-tools unixodbc-dev
+        # Run the initialization script
+        /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$$SA_PASSWORD" -d master -i /usr/src/app/init-sql-server.sql
+        # Keep the container running
+        tail -f /dev/null
+    networks:
+      - p3sgbd_network
+
+volumes:
+  p3sgbd_data:
+
+networks:
+  p3sgbd_network:
+    driver: bridge
