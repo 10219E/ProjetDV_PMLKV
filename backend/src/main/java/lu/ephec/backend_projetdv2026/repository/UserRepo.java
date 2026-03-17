@@ -1,38 +1,38 @@
-package lu.ephec.backend_projetdv2026.Repository;
+package lu.ephec.backend_projetdv2026.repository;
 
-import lu.ephec.backend_projetdv2026.Models.User;
-import lu.ephec.backend_projetdv2026.Repository.Interfaces.UserIntRepo;
+import lu.ephec.backend_projetdv2026.models.User;
+import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserRepo;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
 public class UserRepo {
-    private final UserIntRepo userIntRepo;
+    private final JPAUserRepo JPAUserRepo;
 
     // InjDep Interface User
-    public UserRepo(UserIntRepo userIntRepo) {
-        this.userIntRepo = userIntRepo;
+    public UserRepo(JPAUserRepo JPAUserRepo) {
+        this.JPAUserRepo = JPAUserRepo;
     }
 
     //SET User
     public User newUser(User user) {
-        return userIntRepo.save(user);
+        return JPAUserRepo.save(user);
     }
 
     //GET User by Matricule
     public Optional<User> fetchById(String userId) {
-        return userIntRepo.findById(userId);
+        return JPAUserRepo.findById(userId);
     }
 
     //GET User by email
     public Optional<User> fetchByMail(String email) {
-        return userIntRepo.findByEmail(email);
+        return JPAUserRepo.findByEmail(email);
     }
 
     //DELETE User
     public void delUser(String userId) {
-        userIntRepo.deleteById(userId); //No interfacing needed - handled by JPARepo
+        JPAUserRepo.deleteById(userId); //No interfacing needed - handled by JPARepo
     }
 
     /*

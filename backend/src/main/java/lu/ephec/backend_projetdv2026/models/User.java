@@ -1,4 +1,4 @@
-package lu.ephec.backend_projetdv2026.Models;
+package lu.ephec.backend_projetdv2026.models;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "users")
+@Table(name="\"Users\"") //DB is case sensitive, Hibernate for some reason converts to lowercase by default
 public class User {
 
     @Id
