@@ -30,25 +30,55 @@ public class UserRepo {
         return JPAUserRepo.findByEmail(email);
     }
 
+    //GET User by Name or FirstName
+    public Optional<User> fetchByName(String name) {
+        return JPAUserRepo.findByFirstName(name).or(() -> JPAUserRepo.findByLastName(name));
+    }
+
     //DELETE User
     public void delUser(String userId) {
         JPAUserRepo.deleteById(userId); //No interfacing needed - handled by JPARepo
     }
 
-    /*
     //UPDATE User
-    public Optional<User> updUser(Long userId, User updatedUser) {
-        return userIntRepo.findById(userId).map(user -> {
-            if (updatedUser.getName() != null) {
-                user.setName(updatedUser.getName());
+    public Optional<User> updUser(String userId, User updatedUser) {
+        return JPAUserRepo.findById(userId).map(user -> {
+            if (updatedUser.getIsActive() != null) {
+                user.setIsActive(updatedUser.getIsActive());
+            }
+
+            if (updatedUser.getFirstName() != null) {
+                user.setFirstName(updatedUser.getFirstName());
             }
             if (updatedUser.getEmail() != null) {
                 user.setEmail(updatedUser.getEmail());
             }
-            return userIntRepo.save(user);
+
+            if (updatedUser .getLastName() != null) {
+                user.setLastName(updatedUser.getLastName());
+            }
+
+            if (updatedUser.getBirthDate() != null) {
+                user.setBirthDate(updatedUser.getBirthDate());
+            }
+
+            if (updatedUser.getLevel() != null) {
+                user.setLevel(updatedUser.getLevel());
+            }
+
+            if (updatedUser.getAuth() != null) {
+                user.setAuth(updatedUser.getAuth());
+            }
+
+            if (updatedUser.getRoleId() != null) {
+                user.setRoleId(updatedUser.getRoleId());
+            }
+
+            return JPAUserRepo.save(user);
         });
     }
 
+    /*
     //PENALTY
     public Optional<User> addPenalty(Long userId, Penalty penalty) {
         return userIntRepo.findById(userId).map(user -> {
