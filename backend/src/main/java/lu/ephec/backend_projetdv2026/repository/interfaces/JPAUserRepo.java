@@ -18,8 +18,6 @@ public interface JPAUserRepo extends JpaRepository<User, String> {
 
     //Delete user handled by JPA in UserRepo
 
-    //implement some logic for matricules as documented in IDEAs
-
 
 
 }
