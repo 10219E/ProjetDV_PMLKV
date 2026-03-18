@@ -247,7 +247,7 @@ public class UserRepoLiveDbTests {
         userRepo.delUser(matricule1);
         userRepo.delUser(matricule2);
 
-        reporter.publishEntry("info", "sameNameUserSearchTest inserted and verified matricules=" + matricule1 + "," + matricule2);
+        reporter.publishEntry("info", "sameNameUserSearchTest inserted and verified matricules=" + saved1.getMatricule() + "," + saved2.getMatricule());
 
 
     }
