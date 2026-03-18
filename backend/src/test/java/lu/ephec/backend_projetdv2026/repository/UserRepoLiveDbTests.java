@@ -1,5 +1,6 @@
 package lu.ephec.backend_projetdv2026.repository;
 
+import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserRepo;
 import com.github.javafaker.Faker;
@@ -11,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -28,11 +30,18 @@ public class UserRepoLiveDbTests {
 
     private TestReporter reporter; //REPORTER
 
+    private String savedMatricule; //Reusing Matricule for CLEANUP and DELETE Test
+
     private String randomMatricule;
 
     @BeforeAll
-    void initGenMatricule() {
-        randomMatricule = jpaUserRepo.fetchRandomUserId().orElseThrow(() -> new RuntimeException("No users in DB"));
+    void initGenMatricule() { //GET TOP 1
+        randomMatricule = jpaUserRepo.findAll()
+                .stream()
+                .findFirst()
+                .map(User::getMatricule)
+                .orElseThrow(() -> new RuntimeException("No sites in DB"));
+
     }
 
     @BeforeEach
@@ -71,11 +80,10 @@ public class UserRepoLiveDbTests {
         //ASSERT
         assertNotNull(saved);
 
-        //CALL
         Optional<User> fetchedById = userRepo.fetchById(matricule);
         Optional<User> fetchedByEmail = userRepo.fetchByMail(email);
-        Optional<User> fetchedByFirstName = userRepo.fetchByName(firstName);
-        Optional<User> fetchedByLastName = userRepo.fetchByName(lastName);
+        List<User> fetchedByFirstName = userRepo.fetchByName(firstName);
+        List<User> fetchedByLastName  = userRepo.fetchByName(lastName);
 
         assertAll("Verify saved user",
                 () -> assertTrue(fetchedById.isPresent(),
@@ -84,23 +92,31 @@ public class UserRepoLiveDbTests {
                         () -> "User not found by Email: " + email),
                 () -> assertEquals(firstName, fetchedById.get().getFirstName(),
                         () -> "First name mismatch for " + matricule),
-                () -> assertEquals(firstName, fetchedByFirstName.get().getFirstName(),
-                        ()  -> "User not found by First Name: " + firstName),
-                () -> assertEquals(lastName, fetchedByLastName.get().getLastName(),
-                        ()  -> "User not found by Last Name: " + lastName)
+                () -> assertFalse(fetchedByFirstName.isEmpty(),
+                        () -> "User not found by First Name: " + firstName),
+                () -> assertTrue(
+                        fetchedByFirstName.stream().anyMatch(usr -> usr.getMatricule().equals(matricule)),
+                        () -> "Inserted user not found in results for firstName: " + firstName),
+                () -> assertFalse(fetchedByLastName.isEmpty(),
+                        () -> "User not found by Last Name: " + lastName),
+                () -> assertTrue(
+                        fetchedByLastName.stream().anyMatch(usr -> usr.getMatricule().equals(matricule)),
+                        () -> "Inserted user not found in results for lastName: " + lastName)
         );
+
+        this.savedMatricule = saved.getMatricule(); //TO BE USED IN DELETE
 
         reporter.publishEntry("info", "Inserted user matricule=" + saved.getMatricule());
     }
 
 
-    //PROVIDER FOR TEST 2
+    //PROVIDER FOR TEST 2 and 4
     Stream<String> matriculeProvider() {
         return Stream.of(randomMatricule);
     }
 
     @ParameterizedTest
-    @MethodSource("matriculeProvider")
+    @MethodSource("matriculeProvider") //APPLY TOP 1 (MAYBE CORRECT LATER AS LIVE DB)
     @Order(2)
     void UpdateUserDB(String matricule) {
         //ARRANGE
@@ -108,7 +124,7 @@ public class UserRepoLiveDbTests {
         String newEmail = newFirstName.toLowerCase() + "." + Faker.instance().name().lastName().toLowerCase() + "@example.com";
         Short newRoleId = 0;
         String newMatricule = "L"+(int)(Math.random() * 10000);
-        String newLevel = "confirmé"; //Invalid level to test partial update (should not be updated)
+        String newLevel = "confirmé";
         LocalDate newBirthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
 
         //ACT
@@ -150,7 +166,7 @@ public class UserRepoLiveDbTests {
     @Order(3)
     void DeleteUserDB() {
         //ARRANGE
-        String matricule = randomMatricule;
+        String matricule = savedMatricule;
 
         //ACT
         userRepo.delUser(matricule);
@@ -159,6 +175,81 @@ public class UserRepoLiveDbTests {
         assertTrue(userRepo.fetchById(matricule).isEmpty(), "User not deleted: " + matricule);
 
         reporter.publishEntry("info", "Deleted user matricule=" + matricule);
+    }
+
+    @Test
+    @Order(4)
+    void sameNameUserSearchTest() {
+        //ARRANGE
+        // generate a unique matricule such as MXXXX where XXXX is a random 4-digit number
+        String matricule1 = "S" + (int)(Math.random() * 10000);
+        String matricule2 = "L" + (int)(Math.random() * 10000);
+
+        String firstName1 = Faker.instance().name().firstName();
+        String lastName2 = firstName1;
+
+        String firstName2 = Faker.instance().name().firstName();
+        String lastName1 = firstName2;
+
+        String email1 = firstName1.toLowerCase() + "." + lastName1.toLowerCase() + "@example.com";
+        String email2 = firstName2.toLowerCase() + "." + lastName2.toLowerCase() + "@example.com";
+
+        LocalDate birthDate1 = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+        LocalDate birthDate2 = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
+        //ACT
+        User u1 = new User();
+        u1.setMatricule(matricule1);
+        u1.setIsActive(true);
+        u1.setFirstName(firstName1);
+        u1.setLastName(lastName1);
+        u1.setEmail(email1);
+        u1.setBirthDate(birthDate1);
+        u1.setRoleId((short)1);
+        u1.setLevel("débutant");
+        u1.setCreated(LocalDateTime.now());
+        u1.setAuth(null);
+
+        User u2 = new User();
+        u2.setMatricule(matricule2);
+        u2.setIsActive(false);
+        u2.setFirstName(firstName2);
+        u2.setLastName(lastName2);
+        u2.setEmail(email2);
+        u2.setBirthDate(birthDate2);
+        u2.setRoleId((short)2);
+        u2.setLevel("confirmé");
+        u2.setCreated(LocalDateTime.now());
+        u2.setAuth(null);
+
+        //CALL
+        User saved1 = userRepo.newUser(u1);
+        User saved2 = userRepo.newUser(u2);
+
+        // ASSERT
+        //Match firstName1 (which is also lastName of u2)
+        List<User> resultsForName1 = userRepo.fetchByName(firstName1);
+        assertFalse(resultsForName1.isEmpty(), () -> "No results for name: " + firstName1);
+        assertTrue(resultsForName1.stream().anyMatch(u -> u.getMatricule().equals(matricule1)),
+                () -> "Inserted user1 not found when searching for: " + firstName1);
+        assertTrue(resultsForName1.stream().anyMatch(u -> u.getMatricule().equals(matricule2)),
+                () -> "Inserted user2 not found when searching for: " + firstName1);
+
+        //Match firstName2 (which is also lastName of u1)
+        List<User> resultsForName2 = userRepo.fetchByName(firstName2);
+        assertFalse(resultsForName2.isEmpty(), () -> "No results for name: " + firstName2);
+        assertTrue(resultsForName2.stream().anyMatch(u -> u.getMatricule().equals(matricule1)),
+                () -> "Inserted user1 not found when searching for: " + firstName2);
+        assertTrue(resultsForName2.stream().anyMatch(u -> u.getMatricule().equals(matricule2)),
+                () -> "Inserted user2 not found when searching for: " + firstName2);
+
+        //CLEANUP
+        userRepo.delUser(matricule1);
+        userRepo.delUser(matricule2);
+
+        reporter.publishEntry("info", "sameNameUserSearchTest inserted and verified matricules=" + saved1.getMatricule() + "," + saved2.getMatricule());
+
+
     }
 }
 
