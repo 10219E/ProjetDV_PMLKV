@@ -79,7 +79,7 @@ public class UserRepo {
     }
 
     //GET All Users
-    public List<User> findAll() { return jpaUserRepo.findAll(); }
+    public List<User> fetchAll() { return jpaUserRepo.findAll(); }
 
     //GET Users by Role
     public List<User> fetchByRole(String roleName) {
@@ -90,12 +90,12 @@ public class UserRepo {
     }
 
     //GET Active Users
-    public List<User> findAllActive() {
+    public List<User> fetchAllActive() {
         return jpaUserRepo.findAllByIsActiveTrue();
     }
 
     //GET Inactive Users
-    public List<User> findAllInactive() {
+    public List<User> fetchAllInactive() {
         return jpaUserRepo.findAllByIsActiveFalse();
     }
 
@@ -175,7 +175,7 @@ public class UserRepo {
     }
 
     //ALL ACTIVE Penalties
-    public List<UserPenalties> findAllPenalties() { return jpaUserPenaltiesRepo.findAllWithUser(); }
+    public List<UserPenalties> fetchAllPenalties() { return jpaUserPenaltiesRepo.findAllWithUser(); }
 
     //LIST Penalties by reason
     public List<UserPenalties> listAllPenaltiesByReason(String reason) {
@@ -220,14 +220,14 @@ public class UserRepo {
         });
     }
 
-    //DELETE UNIQUE Penalty -- no single penalty delete
-    //public void deletePenalty(Integer penaltyId) {
-    //    jpaUserPenaltiesRepo.deleteById(penaltyId);
-    //}
+    //DELETE UNIQUE Penalty -- Only for Test cleanup
+    public void deletePenalty(Integer penaltyId) {
+        jpaUserPenaltiesRepo.deleteById(penaltyId);
+    }
 
     //DELETE ALL PENALTIES for User by userId (clear history) -- Admin only
     @Transactional //Makes sure the whole method is executed
-    public void deletePenalty(String userId) {
+    public void deleteAllPenaltyForUser(String userId) {
         jpaUserPenaltiesRepo.deleteAllByUserMatricule(userId);
     }
 

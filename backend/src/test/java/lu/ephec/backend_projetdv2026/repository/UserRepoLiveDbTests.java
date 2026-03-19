@@ -1,6 +1,7 @@
 package lu.ephec.backend_projetdv2026.repository;
 
 import lu.ephec.backend_projetdv2026.models.User;
+import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserRepo;
 import com.github.javafaker.Faker;  //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
@@ -34,12 +35,14 @@ public class UserRepoLiveDbTests {
 
     private String savedMatricule; //Reusing Matricule for CLEANUP and DELETE Test
 
-    private String randomMatricule;
+    private Integer savedPenaltyTr;
+
+    //private String randomMatricule; Removing Random as not clean for Live Tests
 
     @PersistenceContext
     private EntityManager em; //TOOL TO Check user roles
 
-    @BeforeAll
+    /*@BeforeAll
     void initGenMatricule() { //GET TOP 1
         randomMatricule = jpaUserRepo.findAll()
                 .stream()
@@ -47,7 +50,7 @@ public class UserRepoLiveDbTests {
                 .map(User::getMatricule)
                 .orElseThrow(() -> new RuntimeException("No sites in DB"));
 
-    }
+    }*/
 
     @BeforeEach
     void initReporter(TestReporter reporter) {
@@ -108,22 +111,24 @@ public class UserRepoLiveDbTests {
                         () -> "Inserted user not found in results for lastName: " + lastName)
         );
 
-        this.savedMatricule = saved.getMatricule(); //TO BE USED IN DELETE
+        savedMatricule = saved.getMatricule(); //TO BE USED IN DELETE
 
         reporter.publishEntry("info", "Inserted user matricule=" + saved.getMatricule());
     }
 
 
     //PROVIDER FOR TEST 2 and 4
-    Stream<String> matriculeProvider() {
+    /*Stream<String> matriculeProvider() {
         return Stream.of(randomMatricule);
-    }
+    }*/
 
-    @ParameterizedTest
-    @MethodSource("matriculeProvider") //APPLY TOP 1 (MAYBE CORRECT LATER AS LIVE DB)
+    //@ParameterizedTest
+    //@MethodSource("matriculeProvider") //APPLY TOP 1 (MAYBE CORRECT LATER AS LIVE DB)
+    @Test
     @Order(2)
-    void updateUserDB(String matricule) {
+    void updateUserDB() {
         //ARRANGE
+        String matricule = savedMatricule;
         String newFirstName = Faker.instance().name().firstName();
         String newEmail = newFirstName.toLowerCase() + "." + Faker.instance().name().lastName().toLowerCase() + "@example.com";
         Short newRoleId = 0;
@@ -155,7 +160,7 @@ public class UserRepoLiveDbTests {
                 () -> assertEquals(newRoleId, updated.getRole().getId(),
                         "Role not updated for: " + matricule),
                 () -> assertNotEquals(newMatricule, updated.getMatricule(),
-                        "Matricule should not have changed for: " + matricule),
+                        "Matricule should not have changed for: " + matricule), //PRIMARY KEY CAN NOT BE UPDATED
                 () -> assertEquals(newBirthDate, updated.getBirthDate(),
                         "Birthdate not updated for: " + matricule),
                 () -> assertEquals(newLevel, updated.getLevel(),
@@ -248,11 +253,125 @@ public class UserRepoLiveDbTests {
 
         //CLEANUP
         userRepo.deleteUser(matricule1);
-        userRepo.deleteUser(matricule2);
+        //userRepo.deleteUser(matricule2); //keeping User2 for further tests
+        savedMatricule = matricule2;
 
         reporter.publishEntry("info", "sameNameUserSearchTest inserted and verified matricules=" + saved1.getMatricule() + "," + saved2.getMatricule());
 
 
     }
+
+    /// PENALTIES TEST
+
+    @Test
+    @Order(5)
+    void insertPenaltyDB() {
+        // ARRANGE
+        String userId = savedMatricule; //Use previous test (4) UserId
+        String reason = "unpaid_balance";
+        Integer matchid = 4;
+        LocalDateTime startDate = LocalDateTime.now();
+        LocalDateTime endDate = LocalDateTime.now().plusDays(30);
+        String description = "Unpaid tournament fee";
+
+        // ACT
+        UserPenalties penalty = new UserPenalties();
+        penalty.setUser(jpaUserRepo.findById(userId).get());
+        penalty.setReason(reason);
+        penalty.setStartDate(startDate);
+        penalty.setEndDate(endDate);
+        penalty.setIsActive(true);
+        penalty.setMatchId(matchid);
+        penalty.setDescription(description);
+
+        UserPenalties saved = userRepo.newPenalty(penalty);
+
+        // ASSERT
+        assertNotNull(saved);
+        assertNotNull(saved.getTr());
+        assertEquals(reason, saved.getReason());
+        assertTrue(saved.getIsActive());
+
+        savedPenaltyTr = saved.getTr(); //TO BE USED IN UPDATE
+
+        reporter.publishEntry("info", "Inserted penalty id=" + saved.getTr());
+    }
+
+    @Test
+    @Order(6)
+    void checkActivePenaltyDB() {
+        // ARRANGE
+        String userId = savedMatricule;
+
+        // ACT
+        boolean hasActivePenalty = userRepo.hasActivePenalty(userId);
+
+        // ASSERT
+        assertTrue(hasActivePenalty,
+                () -> "User should have an active penalty: " + userId);
+
+        reporter.publishEntry("info", "Penalty is active for " + userId);
+    }
+
+    @Test
+    @Order(7)
+    void updatePenaltyDB() { //+DEACTIVATE
+        // ARRANGE
+        Integer penaltyId = savedPenaltyTr;
+        LocalDateTime newEndDate = LocalDateTime.now().plusDays(60);
+        String newDescription = "Updated: Extended penalty period";
+
+        // ACT
+        UserPenalties updatedPenalty = new UserPenalties();
+        updatedPenalty.setEndDate(newEndDate);
+        updatedPenalty.setDescription(newDescription);
+        updatedPenalty.setIsActive(false); // Deactivate
+
+        Optional<UserPenalties> updatedOpt = userRepo.updatePenalty(penaltyId, updatedPenalty);
+
+        // ASSERT
+        assertTrue(updatedOpt.isPresent(), "Penalty not found: " + penaltyId);
+        UserPenalties updated = updatedOpt.get();
+
+        assertAll("Verify updated penalty",
+                () -> assertEquals(newEndDate, updated.getEndDate(),
+                        "EndDate not updated for penalty: " + penaltyId),
+                () -> assertEquals(newDescription, updated.getDescription(),
+                        "Description not updated for penalty: " + penaltyId),
+                () -> assertFalse(updated.getIsActive(),
+                        "Penalty should be inactive for: " + penaltyId)
+        );
+
+        savedPenaltyTr = updated.getTr();
+
+        reporter.publishEntry("info", "Updated penalty id=" + penaltyId);
+
+    }
+
+    @Test
+    @Order(8)
+    void checkInactivePenaltyDB() {
+        // ARRANGE
+        String userId = savedMatricule;
+        Integer penaltyId = savedPenaltyTr;
+
+        // ACT
+        boolean hasActivePenalty = userRepo.hasActivePenalty(userId);
+
+        // ASSERT
+        assertFalse(hasActivePenalty,
+                () -> "User should NOT have an active penalty after deactivation: " + userId);
+
+        //CLEANUP
+        userRepo.deletePenalty(penaltyId);
+        userRepo.deleteUser(userId);
+
+        reporter.publishEntry("info", "User " + userId + " has NO active penalty after deactivation");
+
+    }
+
+
 }
+
+
 
