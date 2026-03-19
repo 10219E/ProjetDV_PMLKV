@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -34,8 +36,8 @@ public class User {
     @Column(name = "bdate")
     private LocalDate birthDate;
 
-    @Column(name = "role_id")
-    private Short roleId;
+    //@Column(name = "role_id") //ManyToOne
+    //private Short roleId;
 
     @Column(name = "lvl", length = 20, nullable = false)
     private String level;
@@ -48,4 +50,11 @@ public class User {
 
     @Column(name = "auth", length = 255)
     private String auth;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", referencedColumnName = "id")
+    private UserRoles role;
+
+    @OneToMany(mappedBy="user", fetch = FetchType.LAZY)
+    private List<UserPenalties> penalties = new ArrayList<>();
 }
