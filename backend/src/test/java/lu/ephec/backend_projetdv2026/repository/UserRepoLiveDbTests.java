@@ -1,9 +1,8 @@
 package lu.ephec.backend_projetdv2026.repository;
 
-import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserRepo;
-import com.github.javafaker.Faker;
+import com.github.javafaker.Faker;  //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -23,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 public class UserRepoLiveDbTests {
 
-    @Autowired //Easier to autowire the repo directly since it's a @Service that depends on the JPA repo, which is also a Spring Bean
+    @Autowired //Easier to AutoWire (@Service SpringBean)
     private UserRepo userRepo;
     @Autowired
     private JPAUserRepo jpaUserRepo;
@@ -51,11 +50,10 @@ public class UserRepoLiveDbTests {
 
     @Test
     @Order(1)
-    void InsertUserDB() {
+    void insertUserDB() {
 
         //ARRANGE
-        // generate a unique matricule such as MXXXX where XXXX is a random 4-digit number
-        String matricule = "S" + (int)(Math.random() * 10000);
+        String matricule = "S" + (int)(Math.random() * 10000); //Generate unique matricule
         String firstName = Faker.instance().name().firstName();
         String lastName = Faker.instance().name().lastName();
         String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@example.com";
@@ -118,7 +116,7 @@ public class UserRepoLiveDbTests {
     @ParameterizedTest
     @MethodSource("matriculeProvider") //APPLY TOP 1 (MAYBE CORRECT LATER AS LIVE DB)
     @Order(2)
-    void UpdateUserDB(String matricule) {
+    void updateUserDB(String matricule) {
         //ARRANGE
         String newFirstName = Faker.instance().name().firstName();
         String newEmail = newFirstName.toLowerCase() + "." + Faker.instance().name().lastName().toLowerCase() + "@example.com";
@@ -133,7 +131,7 @@ public class UserRepoLiveDbTests {
         updatedUser.setEmail(newEmail);
         updatedUser.setRoleId(newRoleId);
         updatedUser.setMatricule(newMatricule);
-        updatedUser.setLevel(newLevel); //should fail as invalid by the DB
+        updatedUser.setLevel(newLevel);
         updatedUser.setBirthDate(newBirthDate);
 
         //CALL
@@ -164,7 +162,7 @@ public class UserRepoLiveDbTests {
 
     @Test
     @Order(3)
-    void DeleteUserDB() {
+    void deleteUserDB() {
         //ARRANGE
         String matricule = savedMatricule;
 
@@ -181,7 +179,6 @@ public class UserRepoLiveDbTests {
     @Order(4)
     void sameNameUserSearchTest() {
         //ARRANGE
-        // generate a unique matricule such as MXXXX where XXXX is a random 4-digit number
         String matricule1 = "S" + (int)(Math.random() * 10000);
         String matricule2 = "L" + (int)(Math.random() * 10000);
 

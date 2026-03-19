@@ -14,7 +14,7 @@ import java.time.LocalTime;
 @Table(name="\"Sites\"") //DB is case sensitive, Hibernate for some reason converts to lowercase by default
 public class Site {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) //makes the value managed by the DB, auto-incremented
+    @GeneratedValue(strategy = GenerationType.IDENTITY) //specifies that the value is managed by the DB, auto-incremented
     @Column(name = "site_id")
     private Integer siteId;
 

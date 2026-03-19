@@ -2,7 +2,7 @@ package lu.ephec.backend_projetdv2026.repository;
 
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.repository.interfaces.JPASitesRepo;
-import com.github.javafaker.Faker;
+import com.github.javafaker.Faker;  //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -48,7 +48,7 @@ public class SitesRepoLiveDbTests {
 
     @Test
     @Order(1)
-    void InsertSiteDB() {
+    void insertSiteDB() {
         // ARRANGE
         String name = Faker.instance().artist().name() + " " + (int)(Math.random() * 10000);
         String address = Faker.instance().address().streetAddress();
@@ -99,11 +99,11 @@ public class SitesRepoLiveDbTests {
     @ParameterizedTest
     @MethodSource("siteIdProvider") //APPLY TOP 1
     @Order(2)
-    void UpdateSiteDB(Integer siteId) {
+    void updateSiteDB(Integer siteId) {
         // ARRANGE
         String newName = Faker.instance().artist().name() + " " + (int)(Math.random() * 10000);
         String newAddress = Faker.instance().address().streetAddress();
-        //Integer newSiteId = (Integer)(Math.random() * 10000); DB HANDLED
+        //Integer newSiteId = (Integer)(Math.random() * 10000); //DB HANDLED
         LocalTime newOpeningTime = LocalTime.of(9, 30);
         LocalTime newClosingTime = LocalTime.of(18, 0);
         Boolean newIsActive = false;
@@ -141,7 +141,7 @@ public class SitesRepoLiveDbTests {
 
     @Test
     @Order(3)
-    void DeleteSiteDB() {
+    void deleteSiteDB() {
         // ARRANGE
         Integer siteId = savedSiteId;
 

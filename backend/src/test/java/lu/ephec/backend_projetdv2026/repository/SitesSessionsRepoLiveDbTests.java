@@ -25,7 +25,7 @@ public class SitesSessionsRepoLiveDbTests {
     @Autowired
     private JPASitesSessionsRepo jpaSitesSessionsRepo;
     @Autowired
-    private JPASitesRepo jpaSitesRepo; // to obtain an existing Site for FK
+    private JPASitesRepo jpaSitesRepo; //To fetch Site
 
     private TestReporter reporter;
 
@@ -39,7 +39,7 @@ public class SitesSessionsRepoLiveDbTests {
 
     @Test
     @Order(1)
-    void InsertSessionDB() {
+    void insertSessionDB() {
         // ARRANGE
         // PICK EXISTING SITE
         Integer site = jpaSitesRepo.findAll()
@@ -88,7 +88,7 @@ public class SitesSessionsRepoLiveDbTests {
 
     @Test
     @Order(2)
-    void UpdateSessionDB() {
+    void updateSessionDB() {
         // ARRANGE
         LocalDateTime newStart = LocalDateTime.now().withNano(0).plusDays(1).plusHours(10);
         LocalDateTime newEnd = newStart.plusHours(3);
@@ -107,7 +107,7 @@ public class SitesSessionsRepoLiveDbTests {
         updatedSession.setEndTime(newEnd);
 
         // CALL
-        SiteSessions saved = sitesSessionsRepo.newSite(updatedSession); // save with id => update
+        SiteSessions saved = sitesSessionsRepo.newSite(updatedSession);
 
         // ASSERT
         assertNotNull(saved, "Updated session returned null for: " + sessionId);
@@ -124,9 +124,9 @@ public class SitesSessionsRepoLiveDbTests {
         reporter.publishEntry("info", "Updated session sessionId=" + sessionId);
     }
 
-    /*@Test
+    @Test
     @Order(3)
-    void DeleteSessionDB() {
+    void deleteSessionDB() {
         // ARRANGE
         Integer sessionId = savedSession;
 
@@ -137,5 +137,5 @@ public class SitesSessionsRepoLiveDbTests {
         assertTrue(sitesSessionsRepo.fetchById(sessionId).isEmpty(), "Session not deleted: " + sessionId);
 
         reporter.publishEntry("info", "Deleted session sessionId=" + sessionId);
-    }*/
+    }
 }
