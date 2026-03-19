@@ -36,7 +36,7 @@ public class SitesRepo {
     public void deleteSite(Integer siteId) { jpaSitesRepo.deleteById(siteId); }
 
     //UPDATE Site
-    public Optional<Site> updSite(Integer siteId, Site updateData) {
+    public Optional<Site> updateSite(Integer siteId, Site updateData) {
         return jpaSitesRepo.findById(siteId).map(site -> {
             if (updateData.getName() != null) {
                 site.setName(updateData.getName());

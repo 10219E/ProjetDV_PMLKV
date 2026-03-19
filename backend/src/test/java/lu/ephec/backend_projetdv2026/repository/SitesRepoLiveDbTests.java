@@ -117,7 +117,7 @@ public class SitesRepoLiveDbTests {
         updatedSite.setIsActive(newIsActive);
 
         // CALL
-        Optional<Site> updatedOpt = sitesRepo.updSite(siteId, updatedSite);
+        Optional<Site> updatedOpt = sitesRepo.updateSite(siteId, updatedSite);
 
         // ASSERT
         assertTrue(updatedOpt.isPresent(), "Site not found for update: " + siteId);
