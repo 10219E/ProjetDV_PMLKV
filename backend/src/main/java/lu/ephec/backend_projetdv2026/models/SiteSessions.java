@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name="\"Sites_Sessions\"") // conserve le même style de quoting que Site.java
+@Table(name="\"Sites_Sessions\"")
 public class SiteSessions {
 
     @Id
