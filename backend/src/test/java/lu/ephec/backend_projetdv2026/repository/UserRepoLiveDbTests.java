@@ -5,8 +5,7 @@ import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserRepo;
 import com.github.javafaker.Faker;  //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import jakarta.persistence.EntityManager;
@@ -17,7 +16,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -276,7 +274,8 @@ public class UserRepoLiveDbTests {
 
         // ACT
         UserPenalties penalty = new UserPenalties();
-        penalty.setUser(jpaUserRepo.findById(userId).get());
+        penalty.setUser(jpaUserRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId)));
         penalty.setReason(reason);
         penalty.setStartDate(startDate);
         penalty.setEndDate(endDate);
