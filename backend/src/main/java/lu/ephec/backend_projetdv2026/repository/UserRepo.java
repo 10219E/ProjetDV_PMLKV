@@ -8,6 +8,7 @@ import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
 import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserPenaltiesRepo;
 import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.repository.validation.ValidationBoiler;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -51,22 +52,21 @@ public class UserRepo {
     //SET User -- with email verification (is unique)
     @Transactional //Makes sure the whole method is executed
     public User newUser(User user) {
-        if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required");
-        }
-        if (jpaUserRepo.existsByEmail(user.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
-        }
+        ValidationBoiler.verifyNotExists(jpaUserRepo.existsById(user.getMatricule()), "User", user.getMatricule());
+        ValidationBoiler.verifyNotEmpty(user.getEmail(), "Email");
+        ValidationBoiler.verifyEmailNotExists(jpaUserRepo.existsByEmail(user.getEmail()), user.getEmail());
         return jpaUserRepo.save(user);
     }
 
     //GET User by Matricule
     public Optional<User> fetchById(String userId) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserRepo.findById(userId);
     }
 
     //GET User by email
     public Optional<User> fetchByMail(String email) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsByEmail(email), "User", email);
         return jpaUserRepo.findByEmail(email);
     }
 
@@ -102,6 +102,7 @@ public class UserRepo {
     //DELETE User -- FOR SUPER ADMIN ONLY
     @Transactional //Makes sure the whole method is executed
     public void deleteUser(String userId) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         jpaUserRepo.deleteById(userId); //No interfacing needed - handled by JPARepo
     }
 
@@ -111,6 +112,7 @@ public class UserRepo {
     //UPDATE User
     @Transactional //Makes sure the whole method is executed
     public Optional<User> updateUser(String userId, User updatedUser) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserRepo.findById(userId).map(user -> {
             if (updatedUser.getIsActive() != null) {
                 user.setIsActive(updatedUser.getIsActive());
@@ -120,6 +122,10 @@ public class UserRepo {
                 user.setFirstName(updatedUser.getFirstName());
             }
             if (updatedUser.getEmail() != null) {
+                //CHECK IF MAIL EXISTS
+                if (!updatedUser.getEmail().equals(user.getEmail())) {
+                    ValidationBoiler.verifyEmailNotExists(jpaUserRepo.existsByEmail(updatedUser.getEmail()), updatedUser.getEmail());
+                }
                 user.setEmail(updatedUser.getEmail());
             }
 
@@ -140,12 +146,10 @@ public class UserRepo {
             }
 
             if (updatedUser.getRole() != null && updatedUser.getRole().getId() != null) {
-                Short newRoleId = updatedUser.getRole().getId(); //No direct method as referenced value - need to get ID from Role object
+                Short newRoleId = updatedUser.getRole().getId();
                 UserRoles roleEntity = em.find(UserRoles.class, newRoleId);
-                if (roleEntity == null) { //Checking User Role exists in DB before updating - otherwise would cause error on save
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid Role: " + newRoleId);
-                }
-                user.setRole(roleEntity); //Updating if no throw
+                ValidationBoiler.verifyExists(roleEntity != null, "Role", newRoleId); //CHECK IF ROLE EXISTS
+                user.setRole(roleEntity);
             }
 
             return jpaUserRepo.save(user);
@@ -156,21 +160,41 @@ public class UserRepo {
 
     //HAS ACTIVE Penalty check
     public boolean hasActivePenalty(String userId) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserPenaltiesRepo.existsActivePenaltyAt(userId, LocalDateTime.now());
     }
 
     //SET PENALTY to User
     @Transactional //Makes sure the whole method is executed
-    public UserPenalties newPenalty(UserPenalties penalty) { return jpaUserPenaltiesRepo.save(penalty);
+    public UserPenalties newPenalty(UserPenalties penalty) {
+        //CHECK USR
+        if (penalty.getUser() == null || penalty.getUser().getMatricule() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is required for penalty");
+        }
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(penalty.getUser().getMatricule()),
+                "User", penalty.getUser().getMatricule());
+
+        //REASON IS MANDATORY
+        ValidationBoiler.verifyNotEmpty(penalty.getReason(), "Penalty reason");
+
+        //DATES ARE MANDATORY AND VALID
+        if (penalty.getStartDate() == null || penalty.getEndDate() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date and end date are required");
+        }
+        ValidationBoiler.verifyDatesValid(penalty.getStartDate(), penalty.getEndDate(), "Penalty dates");
+
+        return jpaUserPenaltiesRepo.save(penalty);
     }
 
     //GET PENALTY for User
     public UserPenalties fetchPenaltyByUser(String userId) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserPenaltiesRepo.findByUserMatriculeWithUser(userId).orElse(null);
     }
 
     //COUNT PENALTY for User
     public long countPenaltiesForUser(String userId) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserPenaltiesRepo.countByUserMatricule(userId);
     }
 
@@ -188,6 +212,7 @@ public class UserRepo {
     //UPDATE Penalty
     @Transactional //Makes sure the whole method is executed
     public Optional<UserPenalties> updatePenalty(Integer penaltyId, UserPenalties updatedPenalty) {
+        ValidationBoiler.verifyExists(jpaUserPenaltiesRepo.existsById(penaltyId), "Penalty", penaltyId);
         return jpaUserPenaltiesRepo.findById(penaltyId).map(penalty -> {
             if (updatedPenalty.getReason() != null) {
                 penalty.setReason(updatedPenalty.getReason());
@@ -203,9 +228,7 @@ public class UserRepo {
 
             // Validate dates after potential update
             if (penalty.getStartDate() != null && penalty.getEndDate() != null) {
-                if (penalty.getStartDate().isAfter(penalty.getEndDate())) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "start_date must be <= end_date");
-                }
+                ValidationBoiler.verifyDatesValid(penalty.getStartDate(), penalty.getEndDate(), "Penalty dates");
             }
 
             if (updatedPenalty.getIsActive() != null) {
@@ -222,12 +245,14 @@ public class UserRepo {
 
     //DELETE UNIQUE Penalty -- Only for Test cleanup
     public void deletePenalty(Integer penaltyId) {
+        ValidationBoiler.verifyExists(jpaUserPenaltiesRepo.existsById(penaltyId), "Penalty", penaltyId);
         jpaUserPenaltiesRepo.deleteById(penaltyId);
     }
 
     //DELETE ALL PENALTIES for User by userId (clear history) -- Admin only
     @Transactional //Makes sure the whole method is executed
-    public void deleteAllPenaltyForUser(String userId) {
+    public void deleteAllPenaltiesForUser(String userId) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         jpaUserPenaltiesRepo.deleteAllByUserMatricule(userId);
     }
 
