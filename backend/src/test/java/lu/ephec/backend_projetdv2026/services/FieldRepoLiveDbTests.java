@@ -1,9 +1,9 @@
-package lu.ephec.backend_projetdv2026.repository;
+package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.Site;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPAFieldRepo;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPASitesRepo;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPAFieldRepo;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesRepo;
 import com.github.javafaker.Faker; //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,7 +1,6 @@
-package lu.ephec.backend_projetdv2026.repository.interfaces;
+package lu.ephec.backend_projetdv2026.services.interfaces;
 
 import lu.ephec.backend_projetdv2026.models.User;
-import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,6 +23,10 @@ public interface JPAUserRepo extends JpaRepository<User, String> {
 
     @Query("SELECT u FROM User u JOIN FETCH u.role WHERE LOWER(u.role.name) = LOWER(:roleName)")
     List<User> findAllWithRoleByName(@Param("roleName") String roleName);
+
+    //FOR MATRICULE HANDLING TO IDENTIFY BY PREFIX (for example L0002, G0001 where prefix would be L or G)
+    @Query("SELECT u FROM User u WHERE u.matricule LIKE :prefix%")
+    List<User> findAllWithMatriculePrefix(@Param("prefix") String prefix);
 
 
     //@Query(value = "SELECT TOP 1 user_id FROM dbo.Users ORDER BY NEWID()", nativeQuery = true)

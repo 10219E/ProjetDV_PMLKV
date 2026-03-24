@@ -1,9 +1,9 @@
-package lu.ephec.backend_projetdv2026.repository;
+package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPASitesRepo;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPASitesSessionsRepo;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesRepo;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesSessionsRepo;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

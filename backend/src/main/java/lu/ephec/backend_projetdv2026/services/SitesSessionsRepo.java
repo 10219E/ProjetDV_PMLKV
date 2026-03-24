@@ -1,13 +1,10 @@
-package lu.ephec.backend_projetdv2026.repository;
+package lu.ephec.backend_projetdv2026.services;
 
-import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPASitesSessionsRepo;
-import org.springframework.cglib.core.Local;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesSessionsRepo;
 import org.springframework.stereotype.Service;
 
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;

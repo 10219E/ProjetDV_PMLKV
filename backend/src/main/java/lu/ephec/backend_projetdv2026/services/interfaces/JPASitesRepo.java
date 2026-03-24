@@ -1,9 +1,7 @@
-package lu.ephec.backend_projetdv2026.repository.interfaces;
+package lu.ephec.backend_projetdv2026.services.interfaces;
 
 import lu.ephec.backend_projetdv2026.models.Site;
-import lu.ephec.backend_projetdv2026.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 
 import java.util.Optional;
 

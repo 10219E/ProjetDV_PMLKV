@@ -1,7 +1,7 @@
-package lu.ephec.backend_projetdv2026.repository;
+package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Field;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPAFieldRepo;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPAFieldRepo;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
