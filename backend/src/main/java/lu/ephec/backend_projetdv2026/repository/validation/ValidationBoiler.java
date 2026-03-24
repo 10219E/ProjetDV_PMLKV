@@ -44,4 +44,42 @@ public class ValidationBoiler {
                     fieldName + " is required");
         }
     }
+
+    //Check if level is valid for User
+    public static void verifyValidLevel(String level) {
+        ValidationBoiler.verifyNotEmpty(level, "Level");
+
+        String[] validLevels = {"débutant", "averti", "confirmé"};
+        boolean isValid = false;
+        for (String validLevel : validLevels) {
+            if (validLevel.equalsIgnoreCase(level.trim())) {
+                isValid = true;
+                break;
+            }
+        }
+
+        if (!isValid) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid level: " + level + ". Valid levels are: débutant, averti, confirmé");
+        }
+    }
+
+    //Check if penalty reason is valid
+    public static void verifyValidPenaltyReason(String reason) {
+        ValidationBoiler.verifyNotEmpty(reason, "Penalty reason");
+
+        String[] validReasons = {"unpaid_balance", "no_show", "insufficient_players"};
+        boolean isValid = false;
+        for (String validReason : validReasons) {
+            if (validReason.equalsIgnoreCase(reason.trim())) {
+                isValid = true;
+                break;
+            }
+        }
+
+        if (!isValid) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid penalty reason: " + reason + ". Valid reasons are: unpaid_balance, no_show, insufficient_players");
+        }
+    }
 }

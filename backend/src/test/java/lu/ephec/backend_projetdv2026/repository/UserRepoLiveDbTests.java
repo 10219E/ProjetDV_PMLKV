@@ -501,6 +501,42 @@ public class UserRepoLiveDbTests {
 
         @Test
         @Order(4)
+        void insertUserWithInvalidLevelDB() {
+            // ARRANGE
+            String matricule = "S" + (int)(Math.random() * 10000);
+            String firstName = Faker.instance().name().firstName();
+            String lastName = Faker.instance().name().lastName();
+            String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@example.com";
+            LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
+            // Try to create user with INVALID level
+            User u = new User();
+            u.setMatricule(matricule);
+            u.setIsActive(true);
+            u.setFirstName(firstName);
+            u.setLastName(lastName);
+            u.setEmail(email);
+            u.setBirthDate(birthDate);
+            u.setRole(em.find(UserRoles.class, (short) 1));
+            u.setLevel("invalid_level"); // SHOULD FAIL - not in (débutant, averti, confirmé)
+            u.setCreated(LocalDateTime.now());
+            u.setAuth(null);
+
+            // ACT & ASSERT
+            assertThrows(ResponseStatusException.class, () -> {
+                userRepo.newUser(u);
+            }, "Should throw BAD_REQUEST when level is invalid");
+
+            // CLEANUP
+            if (jpaUserRepo.existsById(matricule)) {
+                userRepo.deleteUser(matricule);
+            }
+
+            reporter.publishEntry("info", "Invalid level test passed - correctly rejected");
+        }
+
+        @Test
+        @Order(5)
         void updateUserWithDuplicateEmailDB() {
             // ARRANGE
             String matricule = "S" + (int)(Math.random() * 10000);
@@ -543,8 +579,9 @@ public class UserRepoLiveDbTests {
             reporter.publishEntry("info", "Update user with duplicate email test passed - correctly rejected");
         }
 
+
         @Test
-        @Order(5)
+        @Order(6)
         void deleteNonExistentUserDB() {
             // ARRANGE
             String nonExistentUserId = "L000001";
@@ -559,7 +596,7 @@ public class UserRepoLiveDbTests {
 
         /// PENALTIES TEST
         @Test
-        @Order(6)
+        @Order(7)
         void insertPenaltyWithInvalidDatesDB() {
             // ARRANGE
             LocalDateTime endDate = LocalDateTime.now();
@@ -573,7 +610,7 @@ public class UserRepoLiveDbTests {
             UserPenalties penalty = new UserPenalties();
             penalty.setUser(jpaUserRepo.findById(userId)
                     .orElseThrow(() -> new IllegalArgumentException("User not found")));
-            penalty.setReason("test_reason");
+            penalty.setReason("unpaid_balance");
             penalty.setStartDate(startDate); //SHOULD FAIL HERE
             penalty.setEndDate(endDate);
             penalty.setIsActive(true);
@@ -589,7 +626,7 @@ public class UserRepoLiveDbTests {
 
 
         @Test
-        @Order(7)
+        @Order(8)
         void insertPenaltyWithNullReasonDB() {
             // ARRANGE
             String userId = ExcepSavedMatricule;
@@ -598,7 +635,7 @@ public class UserRepoLiveDbTests {
             UserPenalties penalty = new UserPenalties();
             penalty.setUser(jpaUserRepo.findById(userId)
                     .orElseThrow(() -> new IllegalArgumentException("User not found")));
-            penalty.setReason(null); //SHOULD FAIL HERE (no reason provided)
+            penalty.setReason(null); //SHOULD FAIL HERE (no reason provided or invalid reason)
             penalty.setStartDate(LocalDateTime.now());
             penalty.setEndDate(LocalDateTime.now().plusDays(30));
             penalty.setIsActive(true);
@@ -617,7 +654,7 @@ public class UserRepoLiveDbTests {
 
 
         @Test
-        @Order(8)
+        @Order(9)
         void deletePenaltyForNonExistentUserDB() {
             // ARRANGE
             String nonExistentUserId = ExcepSavedMatricule; //DELETED IN PREVIOUS TEST
@@ -631,10 +668,10 @@ public class UserRepoLiveDbTests {
         }
 
         @Test
-        @Order(9)
+        @Order(10)
         void deletePenaltyWithNonExistentIdDB() {
             // ARRANGE
-            Integer nonExistentPenaltyId = 99999; // ID qui n'existe pas en BD
+            Integer nonExistentPenaltyId = 99999; //DOESN'T EXIST
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {

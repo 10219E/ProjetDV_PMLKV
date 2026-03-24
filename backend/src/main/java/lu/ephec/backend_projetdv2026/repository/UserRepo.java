@@ -55,6 +55,7 @@ public class UserRepo {
         ValidationBoiler.verifyNotExists(jpaUserRepo.existsById(user.getMatricule()), "User", user.getMatricule());
         ValidationBoiler.verifyNotEmpty(user.getEmail(), "Email");
         ValidationBoiler.verifyEmailNotExists(jpaUserRepo.existsByEmail(user.getEmail()), user.getEmail());
+        ValidationBoiler.verifyValidLevel(user.getLevel());
         return jpaUserRepo.save(user);
     }
 
@@ -138,6 +139,7 @@ public class UserRepo {
             }
 
             if (updatedUser.getLevel() != null) {
+                ValidationBoiler.verifyValidLevel(updatedUser.getLevel());
                 user.setLevel(updatedUser.getLevel());
             }
 
@@ -176,6 +178,7 @@ public class UserRepo {
 
         //REASON IS MANDATORY
         ValidationBoiler.verifyNotEmpty(penalty.getReason(), "Penalty reason");
+        ValidationBoiler.verifyValidPenaltyReason(penalty.getReason());
 
         //DATES ARE MANDATORY AND VALID
         if (penalty.getStartDate() == null || penalty.getEndDate() == null) {
@@ -215,6 +218,7 @@ public class UserRepo {
         ValidationBoiler.verifyExists(jpaUserPenaltiesRepo.existsById(penaltyId), "Penalty", penaltyId);
         return jpaUserPenaltiesRepo.findById(penaltyId).map(penalty -> {
             if (updatedPenalty.getReason() != null) {
+                ValidationBoiler.verifyValidPenaltyReason(updatedPenalty.getReason());
                 penalty.setReason(updatedPenalty.getReason());
             }
 
