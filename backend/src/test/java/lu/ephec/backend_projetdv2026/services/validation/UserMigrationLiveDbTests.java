@@ -6,9 +6,9 @@ import jakarta.persistence.PersistenceContext;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
-import lu.ephec.backend_projetdv2026.services.UserRepo;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserPenaltiesRepo;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.services.UserService;
+import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class UserMigrationLiveDbTests {
 
     @Autowired
-    private UserRepo userRepo;
+    private UserService userService;
 
     @Autowired
     private JPAUserRepo jpaUserRepo;
@@ -43,9 +43,6 @@ public class UserMigrationLiveDbTests {
     private TestReporter reporter;
 
     private User savedUser; //TO REUSE USER OBJECT
-
-    @Autowired
-    private JPAUserPenaltiesRepo jPAUserPenaltiesRepo;
 
     @BeforeEach
     void initReporter(TestReporter reporter) {
@@ -79,7 +76,7 @@ public class UserMigrationLiveDbTests {
             u.setAuth(null);
 
             //CALL
-            User savedInvite = userRepo.newUser(u);
+            User savedInvite = userService.newUser(u);
 
             // ACT - Migrate L → S (Invite → Subscribed)
             User migratedUser = migrateUserDESTRUCTIVE.migrateUserRole(savedInvite.getMatricule(), (short) 1);
@@ -171,8 +168,8 @@ public class UserMigrationLiveDbTests {
             assertTrue(migratedPenalties.stream().anyMatch(p -> p.getReason().equals("insufficient_players")), "Penalty 3 should exist");
 
             // CLEANUP
-            userRepo.deleteAllPenaltiesForUser(migratedUser.getMatricule());
-            userRepo.deleteUser(migratedUser.getMatricule());
+            userService.deleteAllPenaltiesForUser(migratedUser.getMatricule());
+            userService.deleteUser(migratedUser.getMatricule());
 
             reporter.publishEntry("info", "Migrated user with 3 inactive penalties: " + savedUser.getMatricule() + " → " + migratedUser.getMatricule());
 
@@ -204,7 +201,7 @@ public class UserMigrationLiveDbTests {
             u.setCreated(LocalDateTime.now());
             u.setAuth(null);
 
-            savedUser = userRepo.newUser(u);
+            savedUser = userService.newUser(u);
 
             // ACT & ASSERT - Try to migrate to SAME role
             assertThrows(ResponseStatusException.class, () -> {
@@ -252,7 +249,7 @@ public class UserMigrationLiveDbTests {
             }, "Should throw CONFLICT when user has active penalties");
 
             // CLEANUP
-            userRepo.deleteAllPenaltiesForUser(savedUser.getMatricule());
+            userService.deleteAllPenaltiesForUser(savedUser.getMatricule());
 
             reporter.publishEntry("info", "Active penalty migration test passed - correctly rejected");
         }
@@ -293,7 +290,7 @@ public class UserMigrationLiveDbTests {
             user2.setCreated(LocalDateTime.now());
             user2.setAuth(null);
 
-            User savedUser2 = userRepo.newUser(user2);
+            User savedUser2 = userService.newUser(user2);
             String matricule2 = savedUser2.getMatricule();
 
             // ACT - Migration should succeed (emails are different)
@@ -305,8 +302,8 @@ public class UserMigrationLiveDbTests {
             assertEquals(email2, migratedUser.getEmail(), "Email should be preserved");
 
             // CLEANUP
-            userRepo.deleteUser(user1.getMatricule());
-            userRepo.deleteUser(migratedUser.getMatricule());
+            userService.deleteUser(user1.getMatricule());
+            userService.deleteUser(migratedUser.getMatricule());
 
             reporter.publishEntry("info", "Migration edge case with different emails handled correctly");
         }

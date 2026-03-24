@@ -1,6 +1,6 @@
 package lu.ephec.backend_projetdv2026.services.validation;
 
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import lu.ephec.backend_projetdv2026.models.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;

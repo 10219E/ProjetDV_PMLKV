@@ -1,4 +1,4 @@
-package lu.ephec.backend_projetdv2026.services.interfaces;
+package lu.ephec.backend_projetdv2026.repo;
 
 import lu.ephec.backend_projetdv2026.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface JPAUserRepo extends JpaRepository<User, String> {
     Optional<User> findByEmail(String email);
-    Optional<User> findById(String matricule);
+    //Optional<User> findById(String matricule); //Handled by JPA with findById() method
     List<User> findAllByIsActiveTrue();
     List<User> findAllByIsActiveFalse();
     List<User> findAllByLevelIgnoreCase(String level);
@@ -32,6 +32,6 @@ public interface JPAUserRepo extends JpaRepository<User, String> {
     //@Query(value = "SELECT TOP 1 user_id FROM dbo.Users ORDER BY NEWID()", nativeQuery = true)
     //Optional<String> fetchRandomUserId(); //Wanted to use in tests to fetch random ID -- Done differently in Test as not needed in Prod
 
-    //Delete user handled by JPA in UserRepo
+    //Delete user handled by JPA in UserService
 }
 

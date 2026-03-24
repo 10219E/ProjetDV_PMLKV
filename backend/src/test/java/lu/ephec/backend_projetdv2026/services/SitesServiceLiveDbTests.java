@@ -1,7 +1,7 @@
 package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Site;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASitesRepo;
 import com.github.javafaker.Faker;  //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -18,10 +18,10 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) //Beans Injection to allow @BeforeAll non-static
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class SitesRepoLiveDbTests {
+public class SitesServiceLiveDbTests {
 
     @Autowired
-    private SitesRepo sitesRepo;
+    private SitesService sitesService;
     @Autowired
     private JPASitesRepo jpaSitesRepo;
 
@@ -64,14 +64,14 @@ public class SitesRepoLiveDbTests {
         s.setIsActive(true);
 
         // CALL
-        Site saved = sitesRepo.newSite(s);
+        Site saved = sitesService.newSite(s);
 
         // ASSERT
         assertNotNull(saved);
 
-        Optional<Site> fetchedById = sitesRepo.fetchById(saved.getSiteId());
-        Optional<Site> fetchedByName = sitesRepo.fetchByName(name);
-        Optional<Site> fetchedByAddress = sitesRepo.fetchByAddress(address);
+        Optional<Site> fetchedById = sitesService.fetchById(saved.getSiteId());
+        Optional<Site> fetchedByName = sitesService.fetchByName(name);
+        Optional<Site> fetchedByAddress = sitesService.fetchByAddress(address);
 
         assertAll("Verify saved site",
                 () -> assertTrue(fetchedById.isPresent(),
@@ -117,7 +117,7 @@ public class SitesRepoLiveDbTests {
         updatedSite.setIsActive(newIsActive);
 
         // CALL
-        Optional<Site> updatedOpt = sitesRepo.updateSite(siteId, updatedSite);
+        Optional<Site> updatedOpt = sitesService.updateSite(siteId, updatedSite);
 
         // ASSERT
         assertTrue(updatedOpt.isPresent(), "Site not found for update: " + siteId);
@@ -146,10 +146,10 @@ public class SitesRepoLiveDbTests {
         Integer siteId = savedSiteId;
 
         // ACT
-        sitesRepo.deleteSite(siteId);
+        sitesService.deleteSite(siteId);
 
         // ASSERT
-        assertTrue(sitesRepo.fetchById(siteId).isEmpty(), "Site not deleted: " + siteId);
+        assertTrue(sitesService.fetchById(siteId).isEmpty(), "Site not deleted: " + siteId);
 
         reporter.publishEntry("info", "Deleted site siteId=" + siteId);
     }

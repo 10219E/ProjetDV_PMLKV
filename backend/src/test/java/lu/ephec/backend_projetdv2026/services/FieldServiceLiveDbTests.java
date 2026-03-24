@@ -2,8 +2,8 @@ package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.Site;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAFieldRepo;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASitesRepo;
 import com.github.javafaker.Faker; //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +18,10 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class FieldRepoLiveDbTests {
+public class FieldServiceLiveDbTests {
 
     @Autowired
-    private FieldRepo fieldRepo;
+    private FieldService fieldService;
     @Autowired
     private JPAFieldRepo jpaFieldRepo;
     @Autowired
@@ -69,13 +69,13 @@ public class FieldRepoLiveDbTests {
         f.setMaintenanceToDate(maintenanceTo);
 
         // CALL
-        Field saved = fieldRepo.newField(f);
+        Field saved = fieldService.newField(f);
 
         // ASSERT
         assertNotNull(saved);
 
-        Optional<Field> fetchedById = fieldRepo.fetchById(saved.getFieldId());
-        List<Field> fetchedBySite = fieldRepo.fetchBySite(site.getSiteId());
+        Optional<Field> fetchedById = fieldService.fetchById(saved.getFieldId());
+        List<Field> fetchedBySite = fieldService.fetchBySite(site.getSiteId());
 
         assertAll("Verify saved field",
                 () -> assertTrue(fetchedById.isPresent(),
@@ -119,7 +119,7 @@ public class FieldRepoLiveDbTests {
         updatedField.setMaintenanceToDate(newMaintenanceTo);
 
         // CALL
-        Optional<Field> updatedOpt = fieldRepo.updField(fieldId, updatedField);
+        Optional<Field> updatedOpt = fieldService.updField(fieldId, updatedField);
 
         // ASSERT
         assertTrue(updatedOpt.isPresent(), "Field not found for update: " + fieldId);
@@ -143,10 +143,10 @@ public class FieldRepoLiveDbTests {
         Integer fieldId = savedFieldId;
 
         // ACT
-        fieldRepo.deleteField(fieldId);
+        fieldService.deleteField(fieldId);
 
         // ASSERT
-        assertTrue(fieldRepo.fetchById(fieldId).isEmpty(), "Field not deleted: " + fieldId);
+        assertTrue(fieldService.fetchById(fieldId).isEmpty(), "Field not deleted: " + fieldId);
 
         reporter.publishEntry("info", "Deleted field fieldId=" + fieldId);
     }
@@ -171,13 +171,13 @@ public class FieldRepoLiveDbTests {
         outdoor.setIsActive(Boolean.TRUE);
 
         // ACT
-        Field savedIndoor = fieldRepo.newField(indoor);
-        Field savedOutdoor = fieldRepo.newField(outdoor);
+        Field savedIndoor = fieldService.newField(indoor);
+        Field savedOutdoor = fieldService.newField(outdoor);
 
         try {
             // CALL
-            List<Field> indoorList = fieldRepo.fetchIndoor();
-            List<Field> outdoorList = fieldRepo.fetchOutdoor();
+            List<Field> indoorList = fieldService.fetchIndoor();
+            List<Field> outdoorList = fieldService.fetchOutdoor();
 
             // ASSERT: the lists must contain at least the saved entries
             assertTrue(indoorList.stream().anyMatch(f -> f.getFieldId().equals(savedIndoor.getFieldId())),
@@ -190,8 +190,8 @@ public class FieldRepoLiveDbTests {
 
         } finally {
             // CLEANUP: delete created fields to avoid polluting DB
-            fieldRepo.deleteField(savedIndoor.getFieldId());
-            fieldRepo.deleteField(savedOutdoor.getFieldId());
+            fieldService.deleteField(savedIndoor.getFieldId());
+            fieldService.deleteField(savedOutdoor.getFieldId());
         }
     }
 

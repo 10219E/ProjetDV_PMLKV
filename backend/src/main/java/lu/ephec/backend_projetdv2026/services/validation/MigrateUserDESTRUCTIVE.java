@@ -6,9 +6,9 @@ import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
-import lu.ephec.backend_projetdv2026.services.UserRepo;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserPenaltiesRepo;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.services.UserService;
+import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -27,16 +27,16 @@ public class MigrateUserDESTRUCTIVE {
 
     private final JPAUserRepo jpaUserRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
-    private final UserRepo userRepo;
+    private final UserService userService;
 
     @PersistenceContext
     private EntityManager em;
 
     public MigrateUserDESTRUCTIVE(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo,
-                                  MatriculeHandler matriculeHandler, UserRepo userRepo) {
+                                  MatriculeHandler matriculeHandler, UserService userService) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
-        this.userRepo = userRepo;
+        this.userService = userService;
     }
 
     @Transactional
@@ -50,7 +50,7 @@ public class MigrateUserDESTRUCTIVE {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         // CHECK IF USER HAS ACTIVE PENALTIES - IF YES, ABORT MIGRATION
-        boolean hasActivePenalties = userRepo.hasActivePenalty(oldMatricule);
+        boolean hasActivePenalties = userService.hasActivePenalty(oldMatricule);
         ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, oldMatricule);
 
         // Check if role is different (to avoid unnecessary migration)
@@ -86,7 +86,7 @@ public class MigrateUserDESTRUCTIVE {
         newUser.setRole(newRole);
 
         // 4 - SAVE NEW USER
-        User savedNewUser = userRepo.newUser(newUser);
+        User savedNewUser = userService.newUser(newUser);
         em.flush(); //Ensure new user is saved and has an ID before creating penalties
 
         // 5 - CREATE NEW PENALTY INSTANCES (completely new, not merged)
