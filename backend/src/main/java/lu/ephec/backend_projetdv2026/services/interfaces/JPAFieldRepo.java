@@ -1,4 +1,4 @@
-package lu.ephec.backend_projetdv2026.repository.interfaces;
+package lu.ephec.backend_projetdv2026.services.interfaces;
 
 import lu.ephec.backend_projetdv2026.models.Field;
 import org.springframework.data.jpa.repository.JpaRepository;

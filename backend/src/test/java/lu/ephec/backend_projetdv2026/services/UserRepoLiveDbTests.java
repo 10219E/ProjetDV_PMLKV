@@ -1,10 +1,9 @@
-package lu.ephec.backend_projetdv2026.repository;
+package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserRepo;
 import com.github.javafaker.Faker;  //USING FAKER TO GEN INFO
-import lu.ephec.backend_projetdv2026.repository.validation.ValidationBoiler;
 import org.junit.jupiter.api.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,7 +75,7 @@ public class UserRepoLiveDbTests {
         void insertUserDB() {
 
             //ARRANGE
-            String matricule = "S" + (int) (Math.random() * 10000); //Generate unique matricule
+            //String matricule = "S" + (int) (Math.random() * 10000); //Auto Generated
             String firstName = Faker.instance().name().firstName();
             String lastName = Faker.instance().name().lastName();
             String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@example.com";
@@ -84,19 +83,22 @@ public class UserRepoLiveDbTests {
 
             //ACT
             User u = new User();
-            u.setMatricule(matricule);
+            //u.setMatricule(matricule);
             u.setIsActive(true);
             u.setFirstName(firstName);
             u.setLastName(lastName);
             u.setEmail(email);
             u.setBirthDate(birthDate);
-            u.setRole(em.find(UserRoles.class, (short) 1));
+            u.setRole(em.find(UserRoles.class, (short) 9));
             u.setLevel("débutant");
             u.setCreated(LocalDateTime.now());
             u.setAuth(null);
 
             //CALL
             User saved = userRepo.newUser(u);
+
+            //ARRANGE2
+            String matricule = saved.getMatricule(); //FETCH GENERATED MATRICULE FOR FURTHER TESTS
 
             //ASSERT
             assertNotNull(saved);
@@ -146,7 +148,7 @@ public class UserRepoLiveDbTests {
             String newFirstName = Faker.instance().name().firstName();
             String newEmail = newFirstName.toLowerCase() + "." + Faker.instance().name().lastName().toLowerCase() + "@example.com";
             Short newRoleId = 0;
-            String newMatricule = "L" + (int) (Math.random() * 10000);
+            String newMatricule = "L" + (int) (Math.random() * 10000); //SHOULD NOT UPDATE
             String newLevel = "confirmé";
             LocalDate newBirthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
 
@@ -154,7 +156,7 @@ public class UserRepoLiveDbTests {
             User updatedUser = new User();
             updatedUser.setFirstName(newFirstName);
             updatedUser.setEmail(newEmail);
-            updatedUser.setRole(em.find(UserRoles.class, newRoleId));
+            //updatedUser.setRole(em.find(UserRoles.class, newRoleId));
             updatedUser.setMatricule(newMatricule);
             updatedUser.setLevel(newLevel);
             updatedUser.setBirthDate(newBirthDate);
@@ -171,8 +173,8 @@ public class UserRepoLiveDbTests {
                             "First name not updated for: " + matricule),
                     () -> assertEquals(newEmail, updated.getEmail(),
                             "Email not updated for: " + matricule),
-                    () -> assertEquals(newRoleId, updated.getRole().getId(),
-                            "Role not updated for: " + matricule),
+                    //() -> assertEquals(newRoleId, updated.getRole().getId(),
+                    //        "Role not updated for: " + matricule),
                     () -> assertNotEquals(newMatricule, updated.getMatricule(),
                             "Matricule should not have changed for: " + matricule), //PRIMARY KEY CAN NOT BE UPDATED
                     () -> assertEquals(newBirthDate, updated.getBirthDate(),
@@ -205,8 +207,8 @@ public class UserRepoLiveDbTests {
         @Order(4)
         void sameNameUserSearchTest() {
             //ARRANGE
-            String matricule1 = "S" + (int) (Math.random() * 10000);
-            String matricule2 = "L" + (int) (Math.random() * 10000);
+            //String matricule1 = "S" + (int) (Math.random() * 10000); //AUTO HANDLED
+            //String matricule2 = "L" + (int) (Math.random() * 10000); //AUTO HANDLED
 
             String firstName1 = Faker.instance().name().firstName();
             String lastName2 = firstName1;
@@ -222,7 +224,7 @@ public class UserRepoLiveDbTests {
 
             //ACT
             User u1 = new User();
-            u1.setMatricule(matricule1);
+            //u1.setMatricule(matricule1);
             u1.setIsActive(true);
             u1.setFirstName(firstName1);
             u1.setLastName(lastName1);
@@ -234,7 +236,7 @@ public class UserRepoLiveDbTests {
             u1.setAuth(null);
 
             User u2 = new User();
-            u2.setMatricule(matricule2);
+            //u2.setMatricule(matricule2);
             u2.setIsActive(false);
             u2.setFirstName(firstName2);
             u2.setLastName(lastName2);
@@ -248,6 +250,10 @@ public class UserRepoLiveDbTests {
             //CALL
             User saved1 = userRepo.newUser(u1);
             User saved2 = userRepo.newUser(u2);
+
+            //ARRANGE2
+            String matricule1 = saved1.getMatricule();
+            String matricule2 = saved2.getMatricule();
 
             // ASSERT
             //Match firstName1 (which is also lastName of u2)
@@ -284,7 +290,7 @@ public class UserRepoLiveDbTests {
             // ARRANGE
             String userId = savedMatricule; //Use previous test (4) UserId
             String reason = "unpaid_balance";
-            Integer matchid = 4;
+            Integer matchid = 5;
             LocalDateTime startDate = LocalDateTime.now();
             LocalDateTime endDate = LocalDateTime.now().plusDays(30);
             String description = "Unpaid tournament fee";
@@ -393,11 +399,13 @@ public class UserRepoLiveDbTests {
     @Nested
     @DisplayName("EXCEPTION - UserRepo Tests")
     class NegativeTests {
-        @Test
+
+        //MATRICULE IS AUTO_GENERATE SO THIS TEST IS NOT VALID ANYMORE AS WE CAN NOT FORCE DUPLICATE MATRICULE (PRIMARY KEY)
+        /*@Test
         @Order(1)
         void insertUserWithDuplicateMatriculeDB() {
             // ARRANGE
-            String matricule = "S" + (int)(Math.random() * 10000);
+            //String matricule = "S" + (int)(Math.random() * 10000);
             String firstName1 = Faker.instance().name().firstName();
             String lastName1 = Faker.instance().name().lastName();
             String firstName2 = Faker.instance().name().firstName();
@@ -410,7 +418,7 @@ public class UserRepoLiveDbTests {
 
             // Create first user
             User u1 = new User();
-            u1.setMatricule(matricule);
+            //u1.setMatricule(matricule);
             u1.setIsActive(true);
             u1.setFirstName(firstName1);
             u1.setLastName(lastName1);
@@ -421,7 +429,10 @@ public class UserRepoLiveDbTests {
             u1.setCreated(LocalDateTime.now());
             u1.setAuth(null);
 
-            userRepo.newUser(u1); // Save first user
+            User saved = userRepo.newUser(u1); // Save first user
+
+            //SUB-ARRANGE
+            String matricule = saved.getMatricule();
 
             // Try to create second user with SAME matricule
             User u2 = new User();
@@ -446,31 +457,51 @@ public class UserRepoLiveDbTests {
             ExcepSavedMatricule = matricule; //To be used in further delete
 
             reporter.publishEntry("info", "Duplicate matricule test passed - correctly rejected");
-        }
+        }*/
 
         @Test
-        @Order(2)
+        @Order(1)
         void insertUserWithDuplicateEmailDB() {
             // ARRANGE
-            String matricule = "L" + (int)(Math.random() * 10000);
-            String firstName = Faker.instance().name().firstName();
-            String lastName = Faker.instance().name().lastName();
+            String firstName1 = Faker.instance().name().firstName();
+            String lastName1 = Faker.instance().name().lastName();
+            String firstName2 = Faker.instance().name().firstName();
+            String lastName2 = Faker.instance().name().lastName();
+
+            String email = firstName1.toLowerCase() + "." + lastName1.toLowerCase() + "@example.com";
 
             LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-            String duplicateEmail = ExcepSavedEmail;
+            //String duplicateEmail = ExcepSavedEmail;
+
+            // Create first user
+            User u1 = new User();
+            u1.setIsActive(true);
+            u1.setFirstName(firstName1);
+            u1.setLastName(lastName1);
+            u1.setEmail(email);
+            u1.setBirthDate(birthDate);
+            u1.setRole(em.find(UserRoles.class, (short)1));
+            u1.setLevel("débutant");
+            u1.setCreated(LocalDateTime.now());
+            u1.setAuth(null);
+
+            User saved = userRepo.newUser(u1); //Save user
 
             // Try to create second user with SAME email
             User u = new User();
-            u.setMatricule(matricule);
+            //u.setMatricule(matricule);
             u.setIsActive(true);
-            u.setFirstName(firstName);
-            u.setLastName(lastName);
-            u.setEmail(duplicateEmail); //SHOULD FAIL AS DUPE
+            u.setFirstName(firstName2);
+            u.setLastName(lastName2);
+            u.setEmail(email); //SHOULD FAIL AS DUPE
             u.setBirthDate(birthDate);
             u.setRole(em.find(UserRoles.class, (short)1));
             u.setLevel("confirmé");
             u.setCreated(LocalDateTime.now());
             u.setAuth(null);
+
+            //SUB-ARRANGE
+            //String matricule = u.getMatricule(); Would not work as user is not created yet
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
@@ -478,15 +509,18 @@ public class UserRepoLiveDbTests {
             }, "Should throw CONFLICT when email already exists");
 
             // CLEANUP
-            if (jpaUserRepo.existsById(matricule)) { //CHECK JUST IN CASE IF CREATED
-                userRepo.deleteUser(matricule);
-            }
+            //if (jpaUserRepo.existsById(matricule)) { //CHECK JUST IN CASE IF CREATED
+            //    userRepo.deleteUser(matricule);
+            //}
+
+            ExcepSavedMatricule = saved.getMatricule(); //To be used in further delete
+            ExcepSavedEmail = saved.getEmail();
 
             reporter.publishEntry("info", "Duplicate email test passed - correctly rejected");
         }
 
         @Test
-        @Order(3)
+        @Order(2)
         void fetchByMailNonExistentDB() {
             // ARRANGE
             String nonExistentEmail = "nonexistent@example.com";
@@ -500,10 +534,10 @@ public class UserRepoLiveDbTests {
         }
 
         @Test
-        @Order(4)
+        @Order(3)
         void insertUserWithInvalidLevelDB() {
             // ARRANGE
-            String matricule = "S" + (int)(Math.random() * 10000);
+            //String matricule = "S" + (int)(Math.random() * 10000);
             String firstName = Faker.instance().name().firstName();
             String lastName = Faker.instance().name().lastName();
             String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@example.com";
@@ -511,7 +545,7 @@ public class UserRepoLiveDbTests {
 
             // Try to create user with INVALID level
             User u = new User();
-            u.setMatricule(matricule);
+            //u.setMatricule(matricule);
             u.setIsActive(true);
             u.setFirstName(firstName);
             u.setLastName(lastName);
@@ -522,24 +556,27 @@ public class UserRepoLiveDbTests {
             u.setCreated(LocalDateTime.now());
             u.setAuth(null);
 
+            //Sub-ARRANGE
+            //String matricule = u.getMatricule();
+
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
                 userRepo.newUser(u);
             }, "Should throw BAD_REQUEST when level is invalid");
 
             // CLEANUP
-            if (jpaUserRepo.existsById(matricule)) {
-                userRepo.deleteUser(matricule);
-            }
+            //if (jpaUserRepo.existsById(matricule)) {
+            //    userRepo.deleteUser(matricule);
+            //}
 
             reporter.publishEntry("info", "Invalid level test passed - correctly rejected");
         }
 
         @Test
-        @Order(5)
+        @Order(4)
         void updateUserWithDuplicateEmailDB() {
             // ARRANGE
-            String matricule = "S" + (int)(Math.random() * 10000);
+            //String matricule = "S" + (int)(Math.random() * 10000);
             String firstName = Faker.instance().name().firstName();
             String lastName = Faker.instance().name().lastName();
 
@@ -550,21 +587,24 @@ public class UserRepoLiveDbTests {
 
             //Using SAME EMAIL for update
             User u = new User();
-            u.setMatricule(matricule);
+            //u.setMatricule(matricule);
             u.setIsActive(true);
             u.setFirstName(firstName);
             u.setLastName(lastName);
-            u.setEmail(dummy_email); //SHOULD FAIL AS EXISTS
+            u.setEmail(dummy_email); //BEFORE UPD
             u.setBirthDate(birthDate);
             u.setRole(em.find(UserRoles.class, (short)1));
             u.setLevel("confirmé");
             u.setCreated(LocalDateTime.now());
             u.setAuth(null);
-            userRepo.newUser(u);
+
+            User saved = userRepo.newUser(u);
 
             //TRY EXISTING EMAIL ON NEW USER
             User updateData = new User();
             updateData.setEmail(email); //EMAIL ALREADY IN USE
+
+            String matricule = saved.getMatricule();
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
@@ -581,7 +621,7 @@ public class UserRepoLiveDbTests {
 
 
         @Test
-        @Order(6)
+        @Order(5)
         void deleteNonExistentUserDB() {
             // ARRANGE
             String nonExistentUserId = "L000001";
@@ -596,7 +636,7 @@ public class UserRepoLiveDbTests {
 
         /// PENALTIES TEST
         @Test
-        @Order(7)
+        @Order(6)
         void insertPenaltyWithInvalidDatesDB() {
             // ARRANGE
             LocalDateTime endDate = LocalDateTime.now();
@@ -626,7 +666,7 @@ public class UserRepoLiveDbTests {
 
 
         @Test
-        @Order(8)
+        @Order(7)
         void insertPenaltyWithNullReasonDB() {
             // ARRANGE
             String userId = ExcepSavedMatricule;
@@ -654,7 +694,7 @@ public class UserRepoLiveDbTests {
 
 
         @Test
-        @Order(9)
+        @Order(8)
         void deletePenaltyForNonExistentUserDB() {
             // ARRANGE
             String nonExistentUserId = ExcepSavedMatricule; //DELETED IN PREVIOUS TEST
@@ -668,7 +708,7 @@ public class UserRepoLiveDbTests {
         }
 
         @Test
-        @Order(10)
+        @Order(9)
         void deletePenaltyWithNonExistentIdDB() {
             // ARRANGE
             Integer nonExistentPenaltyId = 99999; //DOESN'T EXIST

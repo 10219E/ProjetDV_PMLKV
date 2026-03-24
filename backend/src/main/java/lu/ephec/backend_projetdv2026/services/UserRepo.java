@@ -1,14 +1,14 @@
-package lu.ephec.backend_projetdv2026.repository;
+package lu.ephec.backend_projetdv2026.services;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
-import lu.ephec.backend_projetdv2026.models.UserRoles;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserPenaltiesRepo;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPAUserRepo;
-import lu.ephec.backend_projetdv2026.repository.validation.ValidationBoiler;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserPenaltiesRepo;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
+import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,11 +23,13 @@ import java.util.Optional;
 public class UserRepo {
     private final JPAUserRepo jpaUserRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
+    private final MatriculeHandler matriculeHandler;
 
     // InjDep Interface User + Penalties
-    public UserRepo(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
+    public UserRepo(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
+        this.matriculeHandler = matriculeHandler;
     }
 
     ////////////USER OPERATIONS
@@ -52,10 +54,16 @@ public class UserRepo {
     //SET User -- with email verification (is unique)
     @Transactional //Makes sure the whole method is executed
     public User newUser(User user) {
+
+        //GENERATE MATRICULE
+        user.setMatricule(matriculeHandler.generateMatricule(user.getRole().getId(), jpaUserRepo));
+
+        //VALIDATE
         ValidationBoiler.verifyNotExists(jpaUserRepo.existsById(user.getMatricule()), "User", user.getMatricule());
         ValidationBoiler.verifyNotEmpty(user.getEmail(), "Email");
         ValidationBoiler.verifyEmailNotExists(jpaUserRepo.existsByEmail(user.getEmail()), user.getEmail());
         ValidationBoiler.verifyValidLevel(user.getLevel());
+
         return jpaUserRepo.save(user);
     }
 
@@ -147,12 +155,13 @@ public class UserRepo {
                 user.setAuth(updatedUser.getAuth());
             }
 
-            if (updatedUser.getRole() != null && updatedUser.getRole().getId() != null) {
+            /*if (updatedUser.getRole() != null && updatedUser.getRole().getId() != null) {
                 Short newRoleId = updatedUser.getRole().getId();
                 UserRoles roleEntity = em.find(UserRoles.class, newRoleId);
                 ValidationBoiler.verifyExists(roleEntity != null, "Role", newRoleId); //CHECK IF ROLE EXISTS
                 user.setRole(roleEntity);
-            }
+            }*/ //Role update is not allowed as it would impact matricule generation and user type -- Admin should create new user with new role instead of updating existing user's role
+            //The user needs to have a clean record in order to be "migrated / recreated"
 
             return jpaUserRepo.save(user);
         });
@@ -189,10 +198,10 @@ public class UserRepo {
         return jpaUserPenaltiesRepo.save(penalty);
     }
 
-    //GET PENALTY for User
-    public UserPenalties fetchPenaltyByUser(String userId) {
+    //GET PENALTIES for User
+    public List<UserPenalties> fetchPenaltyByUser(String userId) {
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
-        return jpaUserPenaltiesRepo.findByUserMatriculeWithUser(userId).orElse(null);
+        return jpaUserPenaltiesRepo.findByUserMatriculeWithUser(userId);
     }
 
     //COUNT PENALTY for User

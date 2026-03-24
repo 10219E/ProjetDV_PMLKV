@@ -1,4 +1,4 @@
-package lu.ephec.backend_projetdv2026.repository.validation;
+package lu.ephec.backend_projetdv2026.services.validation;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -61,6 +61,14 @@ public class ValidationBoiler {
         if (!isValid) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid level: " + level + ". Valid levels are: débutant, averti, confirmé");
+        }
+    }
+
+    // Check if user has active penalties - block migration if yes
+    public static void verifyNoActivePenalties(boolean hasActivePenalties, String userId) {
+        if (hasActivePenalties) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "User " + userId + " has active penalties. Cannot migrate user with active penalties.");
         }
     }
 

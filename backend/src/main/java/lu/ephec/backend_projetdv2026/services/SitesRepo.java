@@ -1,7 +1,7 @@
-package lu.ephec.backend_projetdv2026.repository;
+package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Site;
-import lu.ephec.backend_projetdv2026.repository.interfaces.JPASitesRepo;
+import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesRepo;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

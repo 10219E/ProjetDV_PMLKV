@@ -24,7 +24,7 @@ public class UserPenalties {
     @JoinColumn(name = "match_id", referencedColumnName = "match_id")
     private Match match;*/
 
-    @Column (name="match_id", nullable = false)
+    @Column (name="match_id", nullable = true) //TRUE UNTIL IMPLEMENTED
     private Integer matchId;
 
     @Column(name = "reason", length = 25, nullable = false)
