@@ -2,7 +2,7 @@ package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import com.github.javafaker.Faker;  //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
 
@@ -23,10 +23,10 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) //Beans Injection to allow @BeforeAll non-static
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class UserRepoLiveDbTests {
+public class UserServiceLiveDbTests {
 
     @Autowired //Easier to AutoWire (@Service SpringBean)
-    private UserRepo userRepo;
+    private UserService userService;
     @Autowired
     private JPAUserRepo jpaUserRepo;
 
@@ -47,16 +47,6 @@ public class UserRepoLiveDbTests {
     @PersistenceContext
     private EntityManager em; //TOOL TO Check user roles
 
-    /*@BeforeAll
-    void initGenMatricule() { //GET TOP 1
-        randomMatricule = jpaUserRepo.findAll()
-                .stream()
-                .findFirst()
-                .map(User::getMatricule)
-                .orElseThrow(() -> new RuntimeException("No sites in DB"));
-
-    }*/
-
     @BeforeEach
     void initReporter(TestReporter reporter) {
         this.reporter = reporter;
@@ -66,7 +56,7 @@ public class UserRepoLiveDbTests {
     /////////CRUD TESTS////////
 
     @Nested
-    @DisplayName("CRUD - UserRepo Tests")
+    @DisplayName("CRUD - UserService Tests")
     class CrudTests {
 
         /// USER TEST
@@ -89,13 +79,13 @@ public class UserRepoLiveDbTests {
             u.setLastName(lastName);
             u.setEmail(email);
             u.setBirthDate(birthDate);
-            u.setRole(em.find(UserRoles.class, (short) 9));
+            u.setRole(em.find(UserRoles.class, (short) 0));
             u.setLevel("débutant");
             u.setCreated(LocalDateTime.now());
             u.setAuth(null);
 
             //CALL
-            User saved = userRepo.newUser(u);
+            User saved = userService.newUser(u);
 
             //ARRANGE2
             String matricule = saved.getMatricule(); //FETCH GENERATED MATRICULE FOR FURTHER TESTS
@@ -103,10 +93,10 @@ public class UserRepoLiveDbTests {
             //ASSERT
             assertNotNull(saved);
 
-            Optional<User> fetchedById = userRepo.fetchById(matricule);
-            Optional<User> fetchedByEmail = userRepo.fetchByMail(email);
-            List<User> fetchedByFirstName = userRepo.fetchByName(firstName);
-            List<User> fetchedByLastName = userRepo.fetchByName(lastName);
+            Optional<User> fetchedById = userService.fetchById(matricule);
+            Optional<User> fetchedByEmail = userService.fetchByMail(email);
+            List<User> fetchedByFirstName = userService.fetchByName(firstName);
+            List<User> fetchedByLastName = userService.fetchByName(lastName);
 
             assertAll("Verify saved user",
                     () -> assertTrue(fetchedById.isPresent(),
@@ -147,7 +137,7 @@ public class UserRepoLiveDbTests {
             String matricule = savedMatricule;
             String newFirstName = Faker.instance().name().firstName();
             String newEmail = newFirstName.toLowerCase() + "." + Faker.instance().name().lastName().toLowerCase() + "@example.com";
-            Short newRoleId = 0;
+            //Short newRoleId = 0;
             String newMatricule = "L" + (int) (Math.random() * 10000); //SHOULD NOT UPDATE
             String newLevel = "confirmé";
             LocalDate newBirthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
@@ -162,7 +152,7 @@ public class UserRepoLiveDbTests {
             updatedUser.setBirthDate(newBirthDate);
 
             //CALL
-            Optional<User> updatedOpt = userRepo.updateUser(matricule, updatedUser);
+            Optional<User> updatedOpt = userService.updateUser(matricule, updatedUser);
 
             //ASSERT
             assertTrue(updatedOpt.isPresent(), "User not found for update: " + matricule);
@@ -194,11 +184,11 @@ public class UserRepoLiveDbTests {
             String matricule = savedMatricule;
 
             //ACT
-            userRepo.deleteUser(matricule);
+            userService.deleteUser(matricule);
 
             //ASSERT
-            //assertTrue(userRepo.fetchById(matricule).isEmpty(), "User not deleted: " + matricule); CAN'T USE THAT ANYMORE DUE TO VALIDATION
-            assertFalse(userRepo.userExists(matricule), "User not deleted: " + matricule);
+            //assertTrue(userService.fetchById(matricule).isEmpty(), "User not deleted: " + matricule); CAN'T USE THAT ANYMORE DUE TO VALIDATION
+            assertFalse(userService.userExists(matricule), "User not deleted: " + matricule);
 
             reporter.publishEntry("info", "Deleted user matricule=" + matricule);
         }
@@ -248,8 +238,8 @@ public class UserRepoLiveDbTests {
             u2.setAuth(null);
 
             //CALL
-            User saved1 = userRepo.newUser(u1);
-            User saved2 = userRepo.newUser(u2);
+            User saved1 = userService.newUser(u1);
+            User saved2 = userService.newUser(u2);
 
             //ARRANGE2
             String matricule1 = saved1.getMatricule();
@@ -257,7 +247,7 @@ public class UserRepoLiveDbTests {
 
             // ASSERT
             //Match firstName1 (which is also lastName of u2)
-            List<User> resultsForName1 = userRepo.fetchByName(firstName1);
+            List<User> resultsForName1 = userService.fetchByName(firstName1);
             assertFalse(resultsForName1.isEmpty(), () -> "No results for name: " + firstName1);
             assertTrue(resultsForName1.stream().anyMatch(u -> u.getMatricule().equals(matricule1)),
                     () -> "Inserted user1 not found when searching for: " + firstName1);
@@ -265,7 +255,7 @@ public class UserRepoLiveDbTests {
                     () -> "Inserted user2 not found when searching for: " + firstName1);
 
             //Match firstName2 (which is also lastName of u1)
-            List<User> resultsForName2 = userRepo.fetchByName(firstName2);
+            List<User> resultsForName2 = userService.fetchByName(firstName2);
             assertFalse(resultsForName2.isEmpty(), () -> "No results for name: " + firstName2);
             assertTrue(resultsForName2.stream().anyMatch(u -> u.getMatricule().equals(matricule1)),
                     () -> "Inserted user1 not found when searching for: " + firstName2);
@@ -273,8 +263,8 @@ public class UserRepoLiveDbTests {
                     () -> "Inserted user2 not found when searching for: " + firstName2);
 
             //CLEANUP
-            userRepo.deleteUser(matricule1);
-            //userRepo.deleteUser(matricule2); //keeping User2 for further tests
+            userService.deleteUser(matricule1);
+            //userService.deleteUser(matricule2); //keeping User2 for further tests
             savedMatricule = matricule2;
 
             reporter.publishEntry("info", "sameNameUserSearchTest inserted and verified matricules=" + saved1.getMatricule() + "," + saved2.getMatricule());
@@ -306,7 +296,7 @@ public class UserRepoLiveDbTests {
             penalty.setMatchId(matchid);
             penalty.setDescription(description);
 
-            UserPenalties saved = userRepo.newPenalty(penalty);
+            UserPenalties saved = userService.newPenalty(penalty);
 
             // ASSERT
             assertNotNull(saved);
@@ -326,7 +316,7 @@ public class UserRepoLiveDbTests {
             String userId = savedMatricule;
 
             // ACT
-            boolean hasActivePenalty = userRepo.hasActivePenalty(userId);
+            boolean hasActivePenalty = userService.hasActivePenalty(userId);
 
             // ASSERT
             assertTrue(hasActivePenalty,
@@ -349,7 +339,7 @@ public class UserRepoLiveDbTests {
             updatedPenalty.setDescription(newDescription);
             updatedPenalty.setIsActive(false); // Deactivate
 
-            Optional<UserPenalties> updatedOpt = userRepo.updatePenalty(penaltyId, updatedPenalty);
+            Optional<UserPenalties> updatedOpt = userService.updatePenalty(penaltyId, updatedPenalty);
 
             // ASSERT
             assertTrue(updatedOpt.isPresent(), "Penalty not found: " + penaltyId);
@@ -378,15 +368,15 @@ public class UserRepoLiveDbTests {
             Integer penaltyId = savedPenaltyTr;
 
             // ACT
-            boolean hasActivePenalty = userRepo.hasActivePenalty(userId);
+            boolean hasActivePenalty = userService.hasActivePenalty(userId);
 
             // ASSERT
             assertFalse(hasActivePenalty,
                     () -> "User should NOT have an active penalty after deactivation: " + userId);
 
             //CLEANUP
-            userRepo.deletePenalty(penaltyId);
-            userRepo.deleteUser(userId);
+            userService.deletePenalty(penaltyId);
+            userService.deleteUser(userId);
 
             reporter.publishEntry("info", "User " + userId + " has NO active penalty after deactivation");
 
@@ -397,67 +387,8 @@ public class UserRepoLiveDbTests {
     /////////EXCEPTION TESTS////////
 
     @Nested
-    @DisplayName("EXCEPTION - UserRepo Tests")
+    @DisplayName("EXCEPTION - UserService Tests")
     class NegativeTests {
-
-        //MATRICULE IS AUTO_GENERATE SO THIS TEST IS NOT VALID ANYMORE AS WE CAN NOT FORCE DUPLICATE MATRICULE (PRIMARY KEY)
-        /*@Test
-        @Order(1)
-        void insertUserWithDuplicateMatriculeDB() {
-            // ARRANGE
-            //String matricule = "S" + (int)(Math.random() * 10000);
-            String firstName1 = Faker.instance().name().firstName();
-            String lastName1 = Faker.instance().name().lastName();
-            String firstName2 = Faker.instance().name().firstName();
-            String lastName2 = Faker.instance().name().lastName();
-
-            String email1 = firstName1.toLowerCase() + "." + lastName1.toLowerCase() + "@example.com";
-            String email2 = firstName2.toLowerCase() + "." + lastName2.toLowerCase() + "@example.com";
-
-            LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-
-            // Create first user
-            User u1 = new User();
-            //u1.setMatricule(matricule);
-            u1.setIsActive(true);
-            u1.setFirstName(firstName1);
-            u1.setLastName(lastName1);
-            u1.setEmail(email1);
-            u1.setBirthDate(birthDate);
-            u1.setRole(em.find(UserRoles.class, (short)1));
-            u1.setLevel("débutant");
-            u1.setCreated(LocalDateTime.now());
-            u1.setAuth(null);
-
-            User saved = userRepo.newUser(u1); // Save first user
-
-            //SUB-ARRANGE
-            String matricule = saved.getMatricule();
-
-            // Try to create second user with SAME matricule
-            User u2 = new User();
-            u2.setMatricule(matricule); // THE DUPLICATE THAT SHOULD FAIL
-            u2.setIsActive(true);
-            u2.setFirstName(firstName2);
-            u2.setLastName(lastName2);
-            u2.setEmail(email2);
-            u2.setBirthDate(birthDate);
-            u2.setRole(em.find(UserRoles.class, (short)1));
-            u2.setLevel("confirmé");
-            u2.setCreated(LocalDateTime.now());
-            u2.setAuth(null);
-
-            // ACT & ASSERT
-            assertThrows(ResponseStatusException.class, () -> {
-                userRepo.newUser(u2);
-            }, "Should throw CONFLICT when matricule already exists");
-
-            //SAVE DATA
-            ExcepSavedEmail = email1; //To be used in next test
-            ExcepSavedMatricule = matricule; //To be used in further delete
-
-            reporter.publishEntry("info", "Duplicate matricule test passed - correctly rejected");
-        }*/
 
         @Test
         @Order(1)
@@ -485,7 +416,7 @@ public class UserRepoLiveDbTests {
             u1.setCreated(LocalDateTime.now());
             u1.setAuth(null);
 
-            User saved = userRepo.newUser(u1); //Save user
+            User saved = userService.newUser(u1); //Save user
 
             // Try to create second user with SAME email
             User u = new User();
@@ -505,13 +436,8 @@ public class UserRepoLiveDbTests {
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
-                userRepo.newUser(u);
+                userService.newUser(u);
             }, "Should throw CONFLICT when email already exists");
-
-            // CLEANUP
-            //if (jpaUserRepo.existsById(matricule)) { //CHECK JUST IN CASE IF CREATED
-            //    userRepo.deleteUser(matricule);
-            //}
 
             ExcepSavedMatricule = saved.getMatricule(); //To be used in further delete
             ExcepSavedEmail = saved.getEmail();
@@ -527,7 +453,7 @@ public class UserRepoLiveDbTests {
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
-                userRepo.fetchByMail(nonExistentEmail);
+                userService.fetchByMail(nonExistentEmail);
             }, "Should throw NOT_FOUND when email doesn't exist");
 
             reporter.publishEntry("info", "Fetch by non-existent email test passed - correctly rejected");
@@ -561,13 +487,8 @@ public class UserRepoLiveDbTests {
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
-                userRepo.newUser(u);
+                userService.newUser(u);
             }, "Should throw BAD_REQUEST when level is invalid");
-
-            // CLEANUP
-            //if (jpaUserRepo.existsById(matricule)) {
-            //    userRepo.deleteUser(matricule);
-            //}
 
             reporter.publishEntry("info", "Invalid level test passed - correctly rejected");
         }
@@ -598,7 +519,7 @@ public class UserRepoLiveDbTests {
             u.setCreated(LocalDateTime.now());
             u.setAuth(null);
 
-            User saved = userRepo.newUser(u);
+            User saved = userService.newUser(u);
 
             //TRY EXISTING EMAIL ON NEW USER
             User updateData = new User();
@@ -608,11 +529,11 @@ public class UserRepoLiveDbTests {
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
-                userRepo.updateUser(matricule, updateData);
+                userService.updateUser(matricule, updateData);
             }, "Should throw CONFLICT when trying to update to existing email");
 
             // CLEANUP
-            userRepo.deleteUser(ExcepSavedMatricule);
+            userService.deleteUser(ExcepSavedMatricule);
 
             ExcepSavedMatricule = matricule; //USE FOR PENALTIES
 
@@ -628,7 +549,7 @@ public class UserRepoLiveDbTests {
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
-                userRepo.deleteUser(nonExistentUserId);
+                userService.deleteUser(nonExistentUserId);
             }, "Should throw NOT_FOUND when user doesn't exist");
 
             reporter.publishEntry("info", "Delete non-existent user test passed - correctly rejected");
@@ -658,7 +579,7 @@ public class UserRepoLiveDbTests {
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
-                userRepo.newPenalty(penalty);
+                userService.newPenalty(penalty);
             }, "Should throw BAD_REQUEST when start date > end date");
 
             reporter.publishEntry("info", "Invalid dates test passed - correctly rejected");
@@ -683,11 +604,11 @@ public class UserRepoLiveDbTests {
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
-                userRepo.newPenalty(penalty);
+                userService.newPenalty(penalty);
             }, "Should throw BAD_REQUEST when reason is null");
 
             // CLEANUP
-            userRepo.deleteUser(userId);
+            userService.deleteUser(userId);
 
             reporter.publishEntry("info", "Null reason test passed - correctly rejected");
         }
@@ -701,7 +622,7 @@ public class UserRepoLiveDbTests {
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
-                userRepo.deleteAllPenaltiesForUser(nonExistentUserId);
+                userService.deleteAllPenaltiesForUser(nonExistentUserId);
             }, "Should throw NOT_FOUND when user doesn't exist");
 
             reporter.publishEntry("info", "Delete penalties for non-existent user test passed - correctly rejected");
@@ -715,7 +636,7 @@ public class UserRepoLiveDbTests {
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {
-                userRepo.deletePenalty(nonExistentPenaltyId);
+                userService.deletePenalty(nonExistentPenaltyId);
             }, "Should throw NOT_FOUND when penalty ID doesn't exist");
 
             reporter.publishEntry("info", "Delete non-existent penalty test passed - correctly rejected");

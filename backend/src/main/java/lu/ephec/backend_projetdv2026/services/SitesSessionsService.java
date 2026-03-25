@@ -1,7 +1,7 @@
 package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesSessionsRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASitesSessionsRepo;
 import org.springframework.stereotype.Service;
 
 
@@ -10,12 +10,12 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class SitesSessionsRepo {
+public class SitesSessionsService {
 
     private final JPASitesSessionsRepo jpaSitesSessionsRepo;
 
     // InjDep Interface SitesSessions
-    public SitesSessionsRepo(JPASitesSessionsRepo jpaSitesSessionsRepo) {
+    public SitesSessionsService(JPASitesSessionsRepo jpaSitesSessionsRepo) {
         this.jpaSitesSessionsRepo = jpaSitesSessionsRepo;
     }
 

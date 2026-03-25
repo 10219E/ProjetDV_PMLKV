@@ -2,8 +2,8 @@ package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesRepo;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesSessionsRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASitesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASitesSessionsRepo;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,10 +18,10 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) // Beans Injection to allow @BeforeAll non-static
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class SitesSessionsRepoLiveDbTests {
+public class SitesSessionsServiceLiveDbTests {
 
     @Autowired
-    private SitesSessionsRepo sitesSessionsRepo;
+    private SitesSessionsService sitesSessionsService;
     @Autowired
     private JPASitesSessionsRepo jpaSitesSessionsRepo;
     @Autowired
@@ -59,14 +59,14 @@ public class SitesSessionsRepoLiveDbTests {
         ss.setEndTime(endTime);
 
         // CALL
-        SiteSessions saved = sitesSessionsRepo.newSite(ss);
+        SiteSessions saved = sitesSessionsService.newSite(ss);
 
         // ASSERT
         assertNotNull(saved);
 
-        Optional<SiteSessions> fetchedById = sitesSessionsRepo.fetchById(saved.getSessionId());
-        List<SiteSessions> fetchedByStart = sitesSessionsRepo.getSessionByStartTime(startTime);
-        List<SiteSessions> fetchedByEnd = sitesSessionsRepo.getSessionByEndTime(endTime);
+        Optional<SiteSessions> fetchedById = sitesSessionsService.fetchById(saved.getSessionId());
+        List<SiteSessions> fetchedByStart = sitesSessionsService.getSessionByStartTime(startTime);
+        List<SiteSessions> fetchedByEnd = sitesSessionsService.getSessionByEndTime(endTime);
 
         assertAll("Verify saved session",
                 () -> assertTrue(fetchedById.isPresent(),
@@ -107,12 +107,12 @@ public class SitesSessionsRepoLiveDbTests {
         updatedSession.setEndTime(newEnd);
 
         // CALL
-        SiteSessions saved = sitesSessionsRepo.newSite(updatedSession);
+        SiteSessions saved = sitesSessionsService.newSite(updatedSession);
 
         // ASSERT
         assertNotNull(saved, "Updated session returned null for: " + sessionId);
 
-        Optional<SiteSessions> fetched = sitesSessionsRepo.fetchById(sessionId);
+        Optional<SiteSessions> fetched = sitesSessionsService.fetchById(sessionId);
         assertTrue(fetched.isPresent(), "Session not found after update: " + sessionId);
         SiteSessions updated = fetched.get();
 
@@ -131,10 +131,10 @@ public class SitesSessionsRepoLiveDbTests {
         Integer sessionId = savedSession;
 
         // ACT
-        sitesSessionsRepo.deleteSession(sessionId);
+        sitesSessionsService.deleteSession(sessionId);
 
         // ASSERT
-        assertTrue(sitesSessionsRepo.fetchById(sessionId).isEmpty(), "Session not deleted: " + sessionId);
+        assertTrue(sitesSessionsService.fetchById(sessionId).isEmpty(), "Session not deleted: " + sessionId);
 
         reporter.publishEntry("info", "Deleted session sessionId=" + sessionId);
     }

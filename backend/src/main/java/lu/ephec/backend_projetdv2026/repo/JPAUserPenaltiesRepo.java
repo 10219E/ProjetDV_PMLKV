@@ -1,4 +1,4 @@
-package lu.ephec.backend_projetdv2026.services.interfaces;
+package lu.ephec.backend_projetdv2026.repo;
 
 import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 
-//Methods in UserRepo as closely related
+//Methods in UserService as closely related
 public interface JPAUserPenaltiesRepo extends JpaRepository<UserPenalties, Integer> {
 
     Integer countByUserMatricule(String userId);

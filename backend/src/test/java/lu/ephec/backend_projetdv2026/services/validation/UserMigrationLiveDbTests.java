@@ -6,9 +6,9 @@ import jakarta.persistence.PersistenceContext;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
-import lu.ephec.backend_projetdv2026.services.UserRepo;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserPenaltiesRepo;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.services.UserService;
+import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class UserMigrationLiveDbTests {
 
     @Autowired
-    private UserRepo userRepo;
+    private UserService userService;
 
     @Autowired
     private JPAUserRepo jpaUserRepo;
@@ -43,9 +43,6 @@ public class UserMigrationLiveDbTests {
     private TestReporter reporter;
 
     private User savedUser; //TO REUSE USER OBJECT
-
-    @Autowired
-    private JPAUserPenaltiesRepo jPAUserPenaltiesRepo;
 
     @BeforeEach
     void initReporter(TestReporter reporter) {
@@ -79,7 +76,7 @@ public class UserMigrationLiveDbTests {
             u.setAuth(null);
 
             //CALL
-            User savedInvite = userRepo.newUser(u);
+            User savedInvite = userService.newUser(u);
 
             // ACT - Migrate L → S (Invite → Subscribed)
             User migratedUser = migrateUserDESTRUCTIVE.migrateUserRole(savedInvite.getMatricule(), (short) 1);
@@ -171,11 +168,51 @@ public class UserMigrationLiveDbTests {
             assertTrue(migratedPenalties.stream().anyMatch(p -> p.getReason().equals("insufficient_players")), "Penalty 3 should exist");
 
             // CLEANUP
-            userRepo.deleteAllPenaltiesForUser(migratedUser.getMatricule());
-            userRepo.deleteUser(migratedUser.getMatricule());
+            userService.deleteAllPenaltiesForUser(migratedUser.getMatricule());
+            userService.deleteUser(migratedUser.getMatricule());
 
             reporter.publishEntry("info", "Migrated user with 3 inactive penalties: " + savedUser.getMatricule() + " → " + migratedUser.getMatricule());
 
+        }
+
+        @Test
+        @Order(4)
+        void migrateToAdminDB() {
+            // ARRANGE
+            String firstName = Faker.instance().name().firstName();
+            String lastName = Faker.instance().name().lastName();
+            String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@admin.com";
+            LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
+            User admin = new User();
+            admin.setIsActive(true);
+            admin.setFirstName(firstName);
+            admin.setLastName(lastName);
+            admin.setEmail(email);
+            admin.setBirthDate(birthDate);
+            admin.setRole(em.find(UserRoles.class, (short) 7)); // Site Admin (M)
+            //admin.setLevel("confirmé"); //WILL BE SET TO DEFAULT null
+            admin.setCreated(LocalDateTime.now());
+            admin.setAuth(null);
+
+            User savedAdmin = userService.newUser(admin);
+
+            // ACT - Migrate M(7) → A(9) (Site Admin → Super Admin)
+            User migratedAdmin = migrateUserDESTRUCTIVE.migrateUserRole(savedAdmin.getMatricule(), (short) 9);
+
+            // ASSERT
+            assertNotNull(migratedAdmin);
+            assertTrue(migratedAdmin.getMatricule().startsWith("A"), "Migrated admin should have A prefix");
+            assertNotEquals(savedAdmin.getMatricule(), migratedAdmin.getMatricule(), "Matricule should have changed");
+            assertEquals((short) 9, migratedAdmin.getRole().getId(), "Role should be 9 (Super Admin)");
+            assertEquals(email, migratedAdmin.getEmail(), "Email should be preserved");
+            assertFalse(jpaUserRepo.existsById(savedAdmin.getMatricule()), "Old matricule should be deleted");
+            assertTrue(jpaUserRepo.existsById(migratedAdmin.getMatricule()), "New matricule should exist");
+
+            // CLEANUP
+            userService.deleteUser(migratedAdmin.getMatricule());
+
+            reporter.publishEntry("info", "Admin migration successful: " + savedAdmin.getMatricule() + " → " + migratedAdmin.getMatricule());
         }
     }
 
@@ -204,7 +241,7 @@ public class UserMigrationLiveDbTests {
             u.setCreated(LocalDateTime.now());
             u.setAuth(null);
 
-            savedUser = userRepo.newUser(u);
+            savedUser = userService.newUser(u);
 
             // ACT & ASSERT - Try to migrate to SAME role
             assertThrows(ResponseStatusException.class, () -> {
@@ -252,7 +289,7 @@ public class UserMigrationLiveDbTests {
             }, "Should throw CONFLICT when user has active penalties");
 
             // CLEANUP
-            userRepo.deleteAllPenaltiesForUser(savedUser.getMatricule());
+            userService.deleteAllPenaltiesForUser(savedUser.getMatricule());
 
             reporter.publishEntry("info", "Active penalty migration test passed - correctly rejected");
         }
@@ -279,7 +316,7 @@ public class UserMigrationLiveDbTests {
             // Create second user with different email
             String firstName2 = Faker.instance().name().firstName();
             String lastName2 = Faker.instance().name().lastName();
-            String email2 = firstName2.toLowerCase() + "." + lastName2.toLowerCase() + "dup2@migrate.com";
+            String email2 = firstName2.toLowerCase() + "." + lastName2.toLowerCase() + "@migrate.com";
             LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
 
             User user2 = new User();
@@ -293,7 +330,7 @@ public class UserMigrationLiveDbTests {
             user2.setCreated(LocalDateTime.now());
             user2.setAuth(null);
 
-            User savedUser2 = userRepo.newUser(user2);
+            User savedUser2 = userService.newUser(user2);
             String matricule2 = savedUser2.getMatricule();
 
             // ACT - Migration should succeed (emails are different)
@@ -305,10 +342,44 @@ public class UserMigrationLiveDbTests {
             assertEquals(email2, migratedUser.getEmail(), "Email should be preserved");
 
             // CLEANUP
-            userRepo.deleteUser(user1.getMatricule());
-            userRepo.deleteUser(migratedUser.getMatricule());
+            userService.deleteUser(user1.getMatricule());
+            userService.deleteUser(migratedUser.getMatricule());
 
             reporter.publishEntry("info", "Migration edge case with different emails handled correctly");
+        }
+
+        @Test
+        @Order(7)
+        void migrateNormalToAdminDB() {
+            // ARRANGE
+            String firstName = Faker.instance().name().firstName();
+            String lastName = Faker.instance().name().lastName();
+            String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@migrate.com";
+            LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
+            // Create NORMAL user (not admin)
+            User u = new User();
+            u.setIsActive(true);
+            u.setFirstName(firstName);
+            u.setLastName(lastName);
+            u.setEmail(email);
+            u.setBirthDate(birthDate);
+            u.setRole(em.find(UserRoles.class, (short) 1)); // Subscribed (S) - Normal user
+            u.setLevel("averti");
+            u.setCreated(LocalDateTime.now());
+            u.setAuth(null);
+
+            User savedNormalUser = userService.newUser(u);
+
+            // ACT & ASSERT - Try to migrate S(1) → M(7) (Normal user → Site Admin)
+            assertThrows(ResponseStatusException.class, () -> {
+                migrateUserDESTRUCTIVE.migrateUserRole(savedNormalUser.getMatricule(), (short) 7);
+            }, "Should throw BAD_REQUEST when trying to migrate normal user to admin role");
+
+            // CLEANUP
+            userService.deleteUser(savedNormalUser.getMatricule());
+
+            reporter.publishEntry("info", "Normal to admin role migration test passed - correctly rejected");
         }
     }
 }

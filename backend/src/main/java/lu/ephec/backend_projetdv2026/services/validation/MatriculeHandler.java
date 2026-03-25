@@ -1,6 +1,7 @@
 package lu.ephec.backend_projetdv2026.services.validation;
 
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
+import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import lu.ephec.backend_projetdv2026.models.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -14,34 +15,15 @@ public class MatriculeHandler {
     //Generate matricule based on user role (Admin identifiable by 3 digits, users by 4)
     public static String generateMatricule(Short roleId, JPAUserRepo jpaUserRepo) {
 
-        String prefix;
-        int digitCount;
+        EnumUserRolesType role = EnumUserRolesType.fromId(roleId);
 
-        switch(roleId) {
-            case 0:  //invite
-                prefix = "L";
-                digitCount = 4;
-                break;
-            case 1:  //subscribed --one site
-                prefix = "S";
-                digitCount = 4;
-                break;
-            case 2:  //all_site --VIP
-                prefix = "G";
-                digitCount = 4;
-                break;
-            case 7:  //site_admin
-                prefix = "M";
-                digitCount = 3;
-                break;
-            case 9:  //as_admin
-                prefix = "A";
-                digitCount = 3;
-                break;
-            default:
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Invalid role ID: " + roleId);
+        if (role == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid role ID: " + roleId);
         }
+
+        String prefix = role.getPrefix();  // "L", "S", "G", "M", "A"
+        int digitCount = role.isAdmin() ? 3 : 4;  // Admin = 3 digits, users = 4 digits
 
         // Fetch all matricules starting with the prefix
         List<User> usersWithPrefix = jpaUserRepo.findAllWithMatriculePrefix(prefix);

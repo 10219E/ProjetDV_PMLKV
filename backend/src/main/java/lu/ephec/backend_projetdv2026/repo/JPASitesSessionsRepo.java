@@ -1,4 +1,4 @@
-package lu.ephec.backend_projetdv2026.services.interfaces;
+package lu.ephec.backend_projetdv2026.repo;
 
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
 

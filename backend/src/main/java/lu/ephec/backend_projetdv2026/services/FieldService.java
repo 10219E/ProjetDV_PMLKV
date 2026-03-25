@@ -1,19 +1,19 @@
 package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Field;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAFieldRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
-public class FieldRepo {
+public class FieldService {
 
     private final JPAFieldRepo jpaFieldRepo;
 
     // InjDep Interface Field
-    public FieldRepo(JPAFieldRepo jpaFieldRepo) { this.jpaFieldRepo = jpaFieldRepo;}
+    public FieldService(JPAFieldRepo jpaFieldRepo) { this.jpaFieldRepo = jpaFieldRepo;}
 
     // SET Field
     public Field newField(Field field) {

@@ -1,19 +1,19 @@
 package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Site;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPASitesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASitesRepo;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service //BEAN
-public class SitesRepo {
+public class SitesService {
 
     private final JPASitesRepo jpaSitesRepo;
 
     // InjDep Interface Sites
-    public SitesRepo(JPASitesRepo jpaSitesRepo) {
+    public SitesService(JPASitesRepo jpaSitesRepo) {
         this.jpaSitesRepo = jpaSitesRepo;
     }
 

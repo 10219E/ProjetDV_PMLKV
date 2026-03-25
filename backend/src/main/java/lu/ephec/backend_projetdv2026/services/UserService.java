@@ -1,12 +1,10 @@
 package lu.ephec.backend_projetdv2026.services;
-
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
+import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserPenaltiesRepo;
-import lu.ephec.backend_projetdv2026.services.interfaces.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.springframework.http.HttpStatus;
@@ -20,13 +18,13 @@ import java.util.Optional;
 
 
 @Service //BEAN
-public class UserRepo {
+public class UserService {
     private final JPAUserRepo jpaUserRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
     private final MatriculeHandler matriculeHandler;
 
     // InjDep Interface User + Penalties
-    public UserRepo(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler) {
+    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
         this.matriculeHandler = matriculeHandler;
@@ -62,7 +60,19 @@ public class UserRepo {
         ValidationBoiler.verifyNotExists(jpaUserRepo.existsById(user.getMatricule()), "User", user.getMatricule());
         ValidationBoiler.verifyNotEmpty(user.getEmail(), "Email");
         ValidationBoiler.verifyEmailNotExists(jpaUserRepo.existsByEmail(user.getEmail()), user.getEmail());
-        ValidationBoiler.verifyValidLevel(user.getLevel());
+
+        //Validate Role
+        ValidationBoiler.verifyValidRoleId(user.getRole().getId());
+
+        //For admin roles (M=7, A=9), set level to null; for normal users, validate level
+        if (user.getLevel() != null) {
+            //CHECK NOT admin --admin level should be null
+            ValidationBoiler.verifyNotAdminUser(user.getRole().getId(), user.getMatricule());
+
+            //VALIDATE Level for normal users
+            ValidationBoiler.verifyValidLevel(user.getLevel());
+            user.setLevel(user.getLevel());
+        }
 
         return jpaUserRepo.save(user);
     }
@@ -90,12 +100,16 @@ public class UserRepo {
     //GET All Users
     public List<User> fetchAll() { return jpaUserRepo.findAll(); }
 
-    //GET Users by Role
-    public List<User> fetchByRole(String roleName) {
-        if (roleName == null || roleName.trim().isEmpty()) {
+    //GET Users by ROLE ID
+    public List<User> fetchByRoleId(Short roleId) {
+        if (roleId == null) {
             return Collections.emptyList();
         }
-        return jpaUserRepo.findAllWithRoleByName(roleName);
+
+        // Validate role exists
+        ValidationBoiler.verifyValidRoleId(roleId);
+
+        return jpaUserRepo.findAllByRoleId(roleId);
     }
 
     //GET Active Users
@@ -114,9 +128,6 @@ public class UserRepo {
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         jpaUserRepo.deleteById(userId); //No interfacing needed - handled by JPARepo
     }
-
-    @PersistenceContext
-    private EntityManager em; //Tool to read DB data for User Roles
 
     //UPDATE User
     @Transactional //Makes sure the whole method is executed
@@ -147,6 +158,12 @@ public class UserRepo {
             }
 
             if (updatedUser.getLevel() != null) {
+                //CHECK IF ROLE IS VALID
+                ValidationBoiler.verifyValidRoleId(user.getRole().getId());
+                //CHECK NOT admin --admin level should be null
+                ValidationBoiler.verifyNotAdminUser(user.getRole().getId(), user.getMatricule());
+
+                //VALIDATE Level for normal users
                 ValidationBoiler.verifyValidLevel(updatedUser.getLevel());
                 user.setLevel(updatedUser.getLevel());
             }
@@ -154,14 +171,6 @@ public class UserRepo {
             if (updatedUser.getAuth() != null) {
                 user.setAuth(updatedUser.getAuth());
             }
-
-            /*if (updatedUser.getRole() != null && updatedUser.getRole().getId() != null) {
-                Short newRoleId = updatedUser.getRole().getId();
-                UserRoles roleEntity = em.find(UserRoles.class, newRoleId);
-                ValidationBoiler.verifyExists(roleEntity != null, "Role", newRoleId); //CHECK IF ROLE EXISTS
-                user.setRole(roleEntity);
-            }*/ //Role update is not allowed as it would impact matricule generation and user type -- Admin should create new user with new role instead of updating existing user's role
-            //The user needs to have a clean record in order to be "migrated / recreated"
 
             return jpaUserRepo.save(user);
         });
@@ -184,6 +193,10 @@ public class UserRepo {
         }
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(penalty.getUser().getMatricule()),
                 "User", penalty.getUser().getMatricule());
+
+        //CHECK IF USER IS ADMIN - BLOCK IF YES
+        User penalizedUser = jpaUserRepo.findById(penalty.getUser().getMatricule()).orElseThrow();
+        ValidationBoiler.verifyNotAdminUser(penalizedUser.getRole().getId(), penalty.getUser().getMatricule());
 
         //REASON IS MANDATORY
         ValidationBoiler.verifyNotEmpty(penalty.getReason(), "Penalty reason");
