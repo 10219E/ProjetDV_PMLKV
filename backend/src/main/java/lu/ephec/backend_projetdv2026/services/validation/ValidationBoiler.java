@@ -1,5 +1,6 @@
 package lu.ephec.backend_projetdv2026.services.validation;
 
+import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -93,9 +94,37 @@ public class ValidationBoiler {
 
     // Check if user is admin - admins cannot have penalties, matches, etc
     public static void verifyNotAdminUser(Short roleId, String userId) {
-        if (roleId == 7 || roleId == 9) {  // M(7) or A(9)
+        EnumUserRolesType role = EnumUserRolesType.fromId(roleId);
+        if (role != null && role.isAdmin()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Admin users (roles M, A) cannot have penalties. Penalties are only for regular users (L, S, G).");
+                    "Admin users (roles " + role.getDisplayName() + ") cannot have penalties. Penalties are only for regular users.");
+        }
+    }
+
+    //Validate role
+    public static void verifyValidRoleId(Short roleId) {
+        if (roleId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Role ID is required");
+        }
+
+        EnumUserRolesType role = EnumUserRolesType.fromId(roleId);
+        if (role == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid role ID: " + roleId);
+        }
+    }
+
+    //Verify valid migration -- prevent admin --> normal user and normal --> admin
+    public static void verifyNotMigrationBetweenAdminNormal(Short oldRoleId, Short newRoleId) {
+        EnumUserRolesType oldRole = EnumUserRolesType.fromId(oldRoleId);
+        EnumUserRolesType newRole = EnumUserRolesType.fromId(newRoleId);
+
+        if (oldRole != null && newRole != null) {
+            if (oldRole.isAdmin() != newRole.isAdmin()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Migration between admin and non-admin roles not allowed. Attempted to migrate: " + oldRole.getDisplayName() + " to " + newRole.getDisplayName() + ".");
+            }
         }
     }
 }

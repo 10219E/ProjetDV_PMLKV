@@ -21,17 +21,18 @@ public interface JPAUserRepo extends JpaRepository<User, String> {
     //Optional<User> findByFirstName(String firstName);
     //Optional<User> findByLastName(String lastName);
 
-    @Query("SELECT u FROM User u JOIN FETCH u.role WHERE LOWER(u.role.name) = LOWER(:roleName)")
-    List<User> findAllWithRoleByName(@Param("roleName") String roleName);
-
     //FOR MATRICULE HANDLING TO IDENTIFY BY PREFIX (for example L0002, G0001 where prefix would be L or G)
     @Query("SELECT u FROM User u WHERE u.matricule LIKE :prefix%")
     List<User> findAllWithMatriculePrefix(@Param("prefix") String prefix);
 
+    //FIND ROLE BY ID
+    List<User> findAllByRoleId(Short roleId);
+
+    //FIND ROLE BY NAME
+    //@Query("SELECT u FROM User u JOIN FETCH u.role WHERE LOWER(u.role.name) = LOWER(:roleName)")
+    //List<User> findAllWithRoleByName(@Param("roleName") String roleName);
 
     //@Query(value = "SELECT TOP 1 user_id FROM dbo.Users ORDER BY NEWID()", nativeQuery = true)
     //Optional<String> fetchRandomUserId(); //Wanted to use in tests to fetch random ID -- Done differently in Test as not needed in Prod
-
-    //Delete user handled by JPA in UserService
 }
 
