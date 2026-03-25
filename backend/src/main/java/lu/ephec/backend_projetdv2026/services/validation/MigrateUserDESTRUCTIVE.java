@@ -49,6 +49,16 @@ public class MigrateUserDESTRUCTIVE {
         User oldUser = jpaUserRepo.findById(oldMatricule)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
+        // CHECK IF MIGRATION IS AUTHORIZED (can't migrate admin to normal user and vice versa for security reasons)
+        Short oldRoleId = oldUser.getRole().getId();
+        boolean oldIsAdmin = oldRoleId == 7 || oldRoleId == 9;      // M(7) or A(9)
+        boolean newIsAdmin = newRoleId == 7 || newRoleId == 9;      // M(7) or A(9)
+
+        if (oldIsAdmin != newIsAdmin) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot migrate between admin and non-admin roles. Admin roles (M, A) can only be changed to other admin roles, and regular users (L, S, G) can only be changed to other regular roles.");
+        }
+
         // CHECK IF USER HAS ACTIVE PENALTIES - IF YES, ABORT MIGRATION
         boolean hasActivePenalties = userService.hasActivePenalty(oldMatricule);
         ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, oldMatricule);
@@ -69,7 +79,7 @@ public class MigrateUserDESTRUCTIVE {
         // 2 - DELETE OLD USER (frees up the email and matricule)
         jpaUserPenaltiesRepo.deleteAll(oldPenalties); //1
         jpaUserRepo.deleteById(oldMatricule); //2
-        //MAYBE MATCH + SITE DELETION LATER
+        //MAYBE MATCH + SITE DELETION LATERN
         em.flush(); //Clear session
 
         // 3 - CREATE NEW USER with same data but new role

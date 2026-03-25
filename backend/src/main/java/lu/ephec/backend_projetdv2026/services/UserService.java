@@ -62,7 +62,16 @@ public class UserService {
         ValidationBoiler.verifyNotExists(jpaUserRepo.existsById(user.getMatricule()), "User", user.getMatricule());
         ValidationBoiler.verifyNotEmpty(user.getEmail(), "Email");
         ValidationBoiler.verifyEmailNotExists(jpaUserRepo.existsByEmail(user.getEmail()), user.getEmail());
-        ValidationBoiler.verifyValidLevel(user.getLevel());
+
+        //For admin roles (M=7, A=9), set level to null; for normal users, validate level
+        Short roleId = user.getRole().getId();
+        if (roleId == 7 || roleId == 9) {
+            // Admin role - no level needed
+            user.setLevel(null);
+        } else {
+            // Normal user role - level is required
+            ValidationBoiler.verifyValidLevel(user.getLevel());
+        }
 
         return jpaUserRepo.save(user);
     }
@@ -147,6 +156,14 @@ public class UserService {
             }
 
             if (updatedUser.getLevel() != null) {
+                //Check if user is admin - admins can't have a level
+                Short userRoleId = user.getRole().getId();
+                if (userRoleId == 7 || userRoleId == 9) {
+                    // Admin user - level must stay null
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Admin users cannot have a skill level. Level must remain null.");
+                }
+                //Normal user - validate level
                 ValidationBoiler.verifyValidLevel(updatedUser.getLevel());
                 user.setLevel(updatedUser.getLevel());
             }
@@ -154,14 +171,6 @@ public class UserService {
             if (updatedUser.getAuth() != null) {
                 user.setAuth(updatedUser.getAuth());
             }
-
-            /*if (updatedUser.getRole() != null && updatedUser.getRole().getId() != null) {
-                Short newRoleId = updatedUser.getRole().getId();
-                UserRoles roleEntity = em.find(UserRoles.class, newRoleId);
-                ValidationBoiler.verifyExists(roleEntity != null, "Role", newRoleId); //CHECK IF ROLE EXISTS
-                user.setRole(roleEntity);
-            }*/ //Role update is not allowed as it would impact matricule generation and user type -- Admin should create new user with new role instead of updating existing user's role
-            //The user needs to have a clean record in order to be "migrated / recreated"
 
             return jpaUserRepo.save(user);
         });

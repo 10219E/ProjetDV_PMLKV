@@ -39,7 +39,7 @@ public class User {
     //@Column(name = "role_id") //ManyToOne
     //private Short roleId;
 
-    @Column(name = "lvl", length = 20, nullable = false)
+    @Column(name = "lvl", length = 20, nullable = true) //for admins
     private String level;
 
     @Column(name = "last_login")
