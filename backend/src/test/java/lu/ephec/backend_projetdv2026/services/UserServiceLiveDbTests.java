@@ -79,7 +79,7 @@ public class UserServiceLiveDbTests {
             u.setLastName(lastName);
             u.setEmail(email);
             u.setBirthDate(birthDate);
-            u.setRole(em.find(UserRoles.class, (short) 9));
+            u.setRole(em.find(UserRoles.class, (short) 0));
             u.setLevel("débutant");
             u.setCreated(LocalDateTime.now());
             u.setAuth(null);

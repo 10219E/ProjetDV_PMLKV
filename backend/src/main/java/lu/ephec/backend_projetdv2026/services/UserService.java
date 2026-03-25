@@ -64,13 +64,13 @@ public class UserService {
         ValidationBoiler.verifyEmailNotExists(jpaUserRepo.existsByEmail(user.getEmail()), user.getEmail());
 
         //For admin roles (M=7, A=9), set level to null; for normal users, validate level
-        Short roleId = user.getRole().getId();
-        if (roleId == 7 || roleId == 9) {
-            // Admin role - no level needed
-            user.setLevel(null);
-        } else {
-            // Normal user role - level is required
+        if (user.getLevel() != null) {
+            //CHECK NOT admin --admin level should be null
+            ValidationBoiler.verifyNotAdminUser(user.getRole().getId(), user.getMatricule());
+
+            //VALIDATE Level for normal users
             ValidationBoiler.verifyValidLevel(user.getLevel());
+            user.setLevel(user.getLevel());
         }
 
         return jpaUserRepo.save(user);
@@ -156,14 +156,10 @@ public class UserService {
             }
 
             if (updatedUser.getLevel() != null) {
-                //Check if user is admin - admins can't have a level
-                Short userRoleId = user.getRole().getId();
-                if (userRoleId == 7 || userRoleId == 9) {
-                    // Admin user - level must stay null
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Admin users cannot have a skill level. Level must remain null.");
-                }
-                //Normal user - validate level
+                //CHECK NOT admin --admin level should be null
+                ValidationBoiler.verifyNotAdminUser(user.getRole().getId(), user.getMatricule());
+
+                //VALIDATE Level for normal users
                 ValidationBoiler.verifyValidLevel(updatedUser.getLevel());
                 user.setLevel(updatedUser.getLevel());
             }
@@ -193,6 +189,10 @@ public class UserService {
         }
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(penalty.getUser().getMatricule()),
                 "User", penalty.getUser().getMatricule());
+
+        //CHECK IF USER IS ADMIN - BLOCK IF YES
+        User penalizedUser = jpaUserRepo.findById(penalty.getUser().getMatricule()).orElseThrow();
+        ValidationBoiler.verifyNotAdminUser(penalizedUser.getRole().getId(), penalty.getUser().getMatricule());
 
         //REASON IS MANDATORY
         ValidationBoiler.verifyNotEmpty(penalty.getReason(), "Penalty reason");

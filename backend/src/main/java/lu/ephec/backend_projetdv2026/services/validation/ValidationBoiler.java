@@ -90,4 +90,12 @@ public class ValidationBoiler {
                     "Invalid penalty reason: " + reason + ". Valid reasons are: unpaid_balance, no_show, insufficient_players");
         }
     }
+
+    // Check if user is admin - admins cannot have penalties, matches, etc
+    public static void verifyNotAdminUser(Short roleId, String userId) {
+        if (roleId == 7 || roleId == 9) {  // M(7) or A(9)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Admin users (roles M, A) cannot have penalties. Penalties are only for regular users (L, S, G).");
+        }
+    }
 }
