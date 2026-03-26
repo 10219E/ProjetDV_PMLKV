@@ -3,7 +3,7 @@ package lu.ephec.backend_projetdv2026.services;
 import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
-import lu.ephec.backend_projetdv2026.repo.JPASitesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
 import com.github.javafaker.Faker; //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +25,7 @@ public class FieldServiceLiveDbTests {
     @Autowired
     private JPAFieldRepo jpaFieldRepo;
     @Autowired
-    private JPASitesRepo jpaSitesRepo;
+    private JPASiteRepo jpaSiteRepo;
 
     private TestReporter reporter;
 
@@ -35,7 +35,7 @@ public class FieldServiceLiveDbTests {
     @BeforeAll
     void initGenSiteId() {
         // GET TOP 1 Site (for insertion relation)
-        randomSiteId = jpaSitesRepo.findAll()
+        randomSiteId = jpaSiteRepo.findAll()
                 .stream()
                 .findFirst()
                 .map(Site::getSiteId)
@@ -57,7 +57,7 @@ public class FieldServiceLiveDbTests {
         LocalDate maintenanceTo = maintenanceFrom.plusDays(7);
 
         //CHECK if Site exists
-        Site site = jpaSitesRepo.findById(randomSiteId)
+        Site site = jpaSiteRepo.findById(randomSiteId)
                 .orElseThrow(() -> new RuntimeException("Site not found for id=" + randomSiteId));
 
         // ACT
@@ -155,7 +155,7 @@ public class FieldServiceLiveDbTests {
     @Test
     @Order(4)
     void fetchIndoorOutdoorDB() {
-        Site site = jpaSitesRepo.findById(randomSiteId)
+        Site site = jpaSiteRepo.findById(randomSiteId)
                 .orElseThrow(() -> new RuntimeException("Site not found for id=" + randomSiteId));
 
         //INDOOR

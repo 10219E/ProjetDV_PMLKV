@@ -2,7 +2,7 @@ package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
-import lu.ephec.backend_projetdv2026.repo.JPASitesRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteSessionsRepo;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +25,7 @@ public class SiteSessionsServiceLiveDbTests {
     @Autowired
     private JPASiteSessionsRepo jpaSiteSessionsRepo;
     @Autowired
-    private JPASitesRepo jpaSitesRepo; //To fetch Site
+    private JPASiteRepo jpaSiteRepo; //To fetch Site
 
     private TestReporter reporter;
 
@@ -42,7 +42,7 @@ public class SiteSessionsServiceLiveDbTests {
     void insertSessionDB() {
         // ARRANGE
         // PICK EXISTING SITE
-        Integer site = jpaSitesRepo.findAll()
+        Integer site = jpaSiteRepo.findAll()
                 .stream()
                 .findAny()
                 .map(Site::getSiteId)
