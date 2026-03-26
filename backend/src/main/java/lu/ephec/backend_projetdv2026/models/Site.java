@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -32,4 +33,9 @@ public class Site {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    // OneToMany relationship to closure days
+    @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SiteClosureDays> closureDays;
+
 }

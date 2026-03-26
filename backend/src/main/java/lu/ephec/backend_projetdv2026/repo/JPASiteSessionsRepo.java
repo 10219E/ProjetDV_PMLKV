@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface JPASitesSessionsRepo extends JpaRepository<SiteSessions, Integer> {
+public interface JPASiteSessionsRepo extends JpaRepository<SiteSessions, Integer> {
 
 
     List<SiteSessions> findByStartTime(LocalDateTime startTime);
