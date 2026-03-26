@@ -18,10 +18,10 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) //Beans Injection to allow @BeforeAll non-static
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class SitesServiceLiveDbTests {
+public class SiteServiceLiveDbTests {
 
     @Autowired
-    private SitesService sitesService;
+    private SiteService siteService;
     @Autowired
     private JPASitesRepo jpaSitesRepo;
 
@@ -64,14 +64,14 @@ public class SitesServiceLiveDbTests {
         s.setIsActive(true);
 
         // CALL
-        Site saved = sitesService.newSite(s);
+        Site saved = siteService.newSite(s);
 
         // ASSERT
         assertNotNull(saved);
 
-        Optional<Site> fetchedById = sitesService.fetchById(saved.getSiteId());
-        Optional<Site> fetchedByName = sitesService.fetchByName(name);
-        Optional<Site> fetchedByAddress = sitesService.fetchByAddress(address);
+        Optional<Site> fetchedById = siteService.fetchById(saved.getSiteId());
+        Optional<Site> fetchedByName = siteService.fetchByName(name);
+        Optional<Site> fetchedByAddress = siteService.fetchByAddress(address);
 
         assertAll("Verify saved site",
                 () -> assertTrue(fetchedById.isPresent(),
@@ -117,7 +117,7 @@ public class SitesServiceLiveDbTests {
         updatedSite.setIsActive(newIsActive);
 
         // CALL
-        Optional<Site> updatedOpt = sitesService.updateSite(siteId, updatedSite);
+        Optional<Site> updatedOpt = siteService.updateSite(siteId, updatedSite);
 
         // ASSERT
         assertTrue(updatedOpt.isPresent(), "Site not found for update: " + siteId);
@@ -146,10 +146,10 @@ public class SitesServiceLiveDbTests {
         Integer siteId = savedSiteId;
 
         // ACT
-        sitesService.deleteSite(siteId);
+        siteService.deleteSite(siteId);
 
         // ASSERT
-        assertTrue(sitesService.fetchById(siteId).isEmpty(), "Site not deleted: " + siteId);
+        assertTrue(siteService.fetchById(siteId).isEmpty(), "Site not deleted: " + siteId);
 
         reporter.publishEntry("info", "Deleted site siteId=" + siteId);
     }

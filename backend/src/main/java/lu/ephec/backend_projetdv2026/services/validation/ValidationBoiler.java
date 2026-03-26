@@ -4,7 +4,25 @@ import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Collection;
+
 public class ValidationBoiler {
+
+    // Check if passed object is not null
+    public static void verifyNotNull(Object value, String fieldName) {
+        if (value == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    fieldName + " is required");
+        }
+    }
+
+    // Check if collection is not empty (for List, Set, etc.)
+    public static void verifyListNotEmpty(Collection<?> collection, String fieldName) {
+        if (collection == null || collection.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    fieldName + " is required");
+        }
+    }
 
     //Check if passed object (id String or Integer) exists
     public static void verifyExists(boolean exists, String resourceType, Object id) {

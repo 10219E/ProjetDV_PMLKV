@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -43,9 +44,7 @@ public class UserService {
 
     //FETCH BY LEVEL
     public List<User> fetchByLevel(String level) {
-        if (level == null || level.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
+        ValidationBoiler.verifyValidLevel(level);  // Validates both null/empty AND valid values
         return jpaUserRepo.findAllByLevelIgnoreCase(level);
     }
 
@@ -91,9 +90,7 @@ public class UserService {
 
     //GET User by Name or FirstName --filtering on both as could be multiple users with same name or first name
     public List<User> fetchByName(String gname) {
-        if (gname == null) {
-            return Collections.emptyList();
-        }
+        ValidationBoiler.verifyNotEmpty(gname, "Given Name");
         return jpaUserRepo.findByFirstNameIgnoreCaseOrLastNameIgnoreCase(gname, gname);
     }
 
@@ -102,9 +99,7 @@ public class UserService {
 
     //GET Users by ROLE ID
     public List<User> fetchByRoleId(Short roleId) {
-        if (roleId == null) {
-            return Collections.emptyList();
-        }
+        ValidationBoiler.verifyNotNull(roleId, "Role ID");
 
         // Validate role exists
         ValidationBoiler.verifyValidRoleId(roleId);
@@ -188,9 +183,8 @@ public class UserService {
     @Transactional //Makes sure the whole method is executed
     public UserPenalties newPenalty(UserPenalties penalty) {
         //CHECK USR
-        if (penalty.getUser() == null || penalty.getUser().getMatricule() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is required for penalty");
-        }
+        ValidationBoiler.verifyNotNull(penalty.getUser(), "User");
+        ValidationBoiler.verifyNotNull(penalty.getUser().getMatricule(), "User matricule");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(penalty.getUser().getMatricule()),
                 "User", penalty.getUser().getMatricule());
 
@@ -203,9 +197,8 @@ public class UserService {
         ValidationBoiler.verifyValidPenaltyReason(penalty.getReason());
 
         //DATES ARE MANDATORY AND VALID
-        if (penalty.getStartDate() == null || penalty.getEndDate() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date and end date are required");
-        }
+        ValidationBoiler.verifyNotNull(penalty.getStartDate(), "Penalty start date");
+        ValidationBoiler.verifyNotNull(penalty.getEndDate(), "Penalty end date");
         ValidationBoiler.verifyDatesValid(penalty.getStartDate(), penalty.getEndDate(), "Penalty dates");
 
         return jpaUserPenaltiesRepo.save(penalty);
@@ -226,11 +219,16 @@ public class UserService {
     //ALL ACTIVE Penalties
     public List<UserPenalties> fetchAllPenalties() { return jpaUserPenaltiesRepo.findAllWithUser(); }
 
+    //PENALTIES FOR USER BY Date Range
+    public List<UserPenalties> fetchPenaltiesByUserRange(String userId, LocalDateTime startDate, LocalDateTime endDate) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+        ValidationBoiler.verifyDatesValid(startDate, endDate, "Date range");
+        return jpaUserPenaltiesRepo.fetchPenaltiesByUserAndDateRange(userId, startDate, endDate);
+    }
+
     //LIST Penalties by reason
     public List<UserPenalties> listAllPenaltiesByReason(String reason) {
-        if (reason == null || reason.trim().isEmpty()) {
-            return Collections.emptyList();
-        }
+        ValidationBoiler.verifyNotNull(reason, "Penalty reason");
         return jpaUserPenaltiesRepo.findAllWithUserByReason(reason);
     }
 

@@ -33,4 +33,9 @@ public interface JPAUserPenaltiesRepo extends JpaRepository<UserPenalties, Integ
             "FROM UserPenalties p WHERE p.user.matricule = :userId AND p.isActive = true AND :now BETWEEN p.startDate AND p.endDate")
     boolean existsActivePenaltyAt(@Param("userId") String userId, @Param("now") LocalDateTime now);
 
+    // Find penalties for specific USER by date range
+    @Query("SELECT p FROM UserPenalties p JOIN FETCH p.user WHERE p.user.matricule = :userId AND p.startDate >= :startDate AND p.endDate <= :endDate")
+    List<UserPenalties> fetchPenaltiesByUserAndDateRange(@Param("userId") String userId, @Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+
+
 }

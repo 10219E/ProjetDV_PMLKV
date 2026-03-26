@@ -1,7 +1,7 @@
 package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
-import lu.ephec.backend_projetdv2026.repo.JPASitesSessionsRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASiteSessionsRepo;
 import org.springframework.stereotype.Service;
 
 
@@ -10,35 +10,35 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class SitesSessionsService {
+public class SiteSessionsService {
 
-    private final JPASitesSessionsRepo jpaSitesSessionsRepo;
+    private final JPASiteSessionsRepo jpaSiteSessionsRepo;
 
     // InjDep Interface SitesSessions
-    public SitesSessionsService(JPASitesSessionsRepo jpaSitesSessionsRepo) {
-        this.jpaSitesSessionsRepo = jpaSitesSessionsRepo;
+    public SiteSessionsService(JPASiteSessionsRepo jpaSiteSessionsRepo) {
+        this.jpaSiteSessionsRepo = jpaSiteSessionsRepo;
     }
 
     //SET Session
-    public SiteSessions newSite(SiteSessions session) { return jpaSitesSessionsRepo.save(session); }
+    public SiteSessions newSite(SiteSessions session) { return jpaSiteSessionsRepo.save(session); }
 
     //GET Session by ID
-    public Optional<SiteSessions> fetchById(Integer siteId) { return jpaSitesSessionsRepo.findById(siteId);}
+    public Optional<SiteSessions> fetchById(Integer siteId) { return jpaSiteSessionsRepo.findById(siteId);}
 
     //ALL Sessions
-    public List<SiteSessions> allSessions() { return jpaSitesSessionsRepo.findAll();}
+    public List<SiteSessions> allSessions() { return jpaSiteSessionsRepo.findAll();}
 
     //DELETE Session
-    public void deleteSession(Integer sessionId) { jpaSitesSessionsRepo.deleteById(sessionId); }
+    public void deleteSession(Integer sessionId) { jpaSiteSessionsRepo.deleteById(sessionId); }
 
     //GET ALL Sessions by start time
     public List<SiteSessions> getSessionByStartTime(LocalDateTime startTime) {
-        return jpaSitesSessionsRepo.findByStartTime(startTime);
+        return jpaSiteSessionsRepo.findByStartTime(startTime);
     }
 
     //GET ALL Sessions by end time
     public List<SiteSessions> getSessionByEndTime(LocalDateTime endTime) {
-        return jpaSitesSessionsRepo.findByEndTime(endTime);
+        return jpaSiteSessionsRepo.findByEndTime(endTime);
     }
 
     /*
