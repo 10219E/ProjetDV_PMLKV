@@ -7,11 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface JPASiteSessionsRepo extends JpaRepository<SiteSessions, Integer> {
 
-
-    List<SiteSessions> findByStartTime(LocalDateTime startTime);
-    List<SiteSessions> findByEndTime(LocalDateTime endTime);
+    boolean existsBySite_SiteId(Integer siteId);
+    Optional<SiteSessions> findBySite_SiteId(Integer siteId);
 
 }

@@ -1,4 +1,4 @@
-package lu.ephec.backend_projetdv2026.services;
+/*package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
@@ -138,4 +138,4 @@ public class SiteSessionsServiceLiveDbTests {
 
         reporter.publishEntry("info", "Deleted session sessionId=" + sessionId);
     }
-}
+}*/

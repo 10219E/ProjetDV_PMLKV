@@ -1,4 +1,4 @@
-package lu.ephec.backend_projetdv2026.services;
+/*package lu.ephec.backend_projetdv2026.services;
 
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
 import lu.ephec.backend_projetdv2026.repo.JPASiteSessionsRepo;
@@ -64,5 +64,6 @@ public class SiteSessionsService {
 
     public List<SiteSessions> getSessionByMatch(Integer matchId) {
         return jpaSitesSessionsRepo.findByMatchId(matchId);
-    }*/
+    }
 }
+*/

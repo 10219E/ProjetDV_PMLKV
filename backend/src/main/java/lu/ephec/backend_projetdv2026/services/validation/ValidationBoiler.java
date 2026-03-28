@@ -145,4 +145,31 @@ public class ValidationBoiler {
             }
         }
     }
+
+    // Check if site has enough hours to fit at least one session
+    // Min: 90 min session + 15 min post-session = 105 min
+    // Max pre-session: 30 min, always 15 min post-session required
+    public static void verifyEnoughSiteHours(java.time.LocalTime openingTime, java.time.LocalTime closingTime) {
+        if (openingTime == null || closingTime == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Opening and closing times are required");
+        }
+
+        if (closingTime.isBefore(openingTime) || closingTime.equals(openingTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Closing time must be after opening time");
+        }
+
+        long minutesAvailable = java.time.temporal.ChronoUnit.MINUTES
+                .between(openingTime, closingTime);
+
+        // Min needed: 15 min (min pre-session) + 90 min (session) + 15 min (post-session) = 120 min
+        long minutesNeeded = 120;
+
+        if (minutesAvailable < minutesNeeded) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    String.format("Site hours too short. Need at least %d minutes (15 pre-session + 90 session + 15 post-session), got %d minutes",
+                            minutesNeeded, minutesAvailable));
+        }
+    }
 }
