@@ -20,5 +20,10 @@ ADDED///
           <version>1.0.2</version>
           <scope>test</scope>
         </dependency>
+        ///JSON HANDLER
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
 
 REMOVED///

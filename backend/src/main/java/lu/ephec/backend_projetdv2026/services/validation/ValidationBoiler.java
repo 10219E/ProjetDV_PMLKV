@@ -4,6 +4,8 @@ import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 
 public class ValidationBoiler {
@@ -143,6 +145,55 @@ public class ValidationBoiler {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Migration between admin and non-admin roles not allowed. Attempted to migrate: " + oldRole.getDisplayName() + " to " + newRole.getDisplayName() + ".");
             }
+        }
+    }
+
+    // Min pre-session: 15 min
+    // Max pre-session: 30 min
+    // Min post-session: 15 min
+    // Max post-session: 30 min (avoids business hours being too long for no reason)
+    // Check if site has enough hours to fit at least one session with valid pre/post durations
+    public static void verifyEnoughSiteHours(LocalTime openingTime, LocalTime closingTime) {
+        verifyNotNull(openingTime, "Opening time");
+        verifyNotNull(closingTime, "Closing time");
+        if (!closingTime.isAfter(openingTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Closing time must be after opening time");
+        }
+
+        final int MIN_PRE = 15, MAX_PRE = 30;
+        final int MIN_POST = 15, MAX_POST = 30;
+        final int SESSION = 90;
+        final int BREAK = 15;
+
+        long total = ChronoUnit.MINUTES.between(openingTime, closingTime); //Count all time
+
+        boolean feasible = false;
+        for (int pre = MIN_PRE; pre <= MAX_PRE && !feasible; pre++) {
+            long offset = pre; //Init - Minutes elapsed since opening
+            int count = 0;  //Init - Number of sessions
+            long lastEnd = -1; //Init - End of last session (total minutes) to calculate leftover after last session
+
+            //Populate sessions
+            while (offset + SESSION + MIN_POST <= total) { //Loop through sessions
+                lastEnd = offset + SESSION;       //Add session time to offset to get session end time, store in lastEnd to calculate leftover after last session
+                offset += SESSION + BREAK;        //Adding Sessions + break time to time elapsed
+                count++;
+            }
+
+            if (count == 0) {
+                continue; //No session could fit with this pre-session duration, try next pre-session duration
+            }
+
+            long leftover = total - lastEnd; //Left over after last session of the day
+            if (leftover >= MIN_POST && leftover <= MAX_POST) {
+                feasible = true; //Feasible schedule found with this pre-session duration, no need to check further
+            }
+        }
+
+        if (!feasible) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid site hours: need pre/post between 15 and 30 minutes and at least one 90-minute session fitting the schedule");
         }
     }
 }

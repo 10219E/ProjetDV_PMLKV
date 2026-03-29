@@ -19,19 +19,11 @@ public class SiteSessions {
     @Column(name = "session_id")
     private Integer sessionId;
 
-    @Column(name= "site_id")
-    private Integer siteId;
-
-    @Column(name = "start_time", nullable = false)
-    private LocalDateTime startTime;
-
-    @Column(name = "end_time", nullable = false)
-    private LocalDateTime endTime;
-
-    /*
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "site_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_sitesessions_site"))
-    private Site site;*/
+    private Site site;
+
+    @Column(name = "match_sessions_json", nullable = false, columnDefinition = "NVARCHAR(MAX)")
+    private String matchSessionsJson;
 }

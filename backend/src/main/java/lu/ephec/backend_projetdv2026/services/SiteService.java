@@ -1,9 +1,13 @@
 package lu.ephec.backend_projetdv2026.services;
 
+import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteClosureDays;
+import lu.ephec.backend_projetdv2026.models.SiteSessions;
 import lu.ephec.backend_projetdv2026.repo.JPASiteClosureDaysRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASiteSessionsRepo;
+import lu.ephec.backend_projetdv2026.services.validation.SiteSessionsJsonHandler;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
@@ -13,18 +17,23 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service //BEAN
 public class SiteService {
 
     private final JPASiteRepo jpaSiteRepo;
     private final JPASiteClosureDaysRepo jpaClosureDaysRepo;
+    private final SiteSessionsJsonHandler siteSessionsJsonHandler;
+    private final JPASiteSessionsRepo jpaSiteSessionsRepo;
 
     // InjDep Interface Sites
-    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo) {
+    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo, SiteSessionsJsonHandler siteSessionsJsonHandler, JPASiteSessionsRepo jpaSiteSessionsRepo) {
 
         this.jpaSiteRepo = jpaSiteRepo;
         this.jpaClosureDaysRepo = jpaClosureDaysRepo;
+        this.siteSessionsJsonHandler = siteSessionsJsonHandler;
+        this.jpaSiteSessionsRepo = jpaSiteSessionsRepo;
     }
 
     ////SITES OPERATIONS////
@@ -34,13 +43,35 @@ public class SiteService {
         return jpaSiteRepo.existsById(siteId);
     }
 
-    //SET Site
+    // SET Site
+    @Transactional
     public Site newSite(Site site) {
+        // Validate inputs
         ValidationBoiler.verifyNotEmpty(site.getName(), "Site name");
         ValidationBoiler.verifyNotEmpty(site.getAddress(), "Site address");
         ValidationBoiler.verifyNotNull(site.getOpeningTime(), "Site opening time");
         ValidationBoiler.verifyNotNull(site.getClosingTime(), "Site closing time");
-        return jpaSiteRepo.save(site);
+
+        // Validate site hours are sufficient for at least one session
+        ValidationBoiler.verifyEnoughSiteHours(site.getOpeningTime(), site.getClosingTime());
+
+
+        Site savedSite = jpaSiteRepo.save(site);
+
+        //Check if no hours exist for this site yet
+        ValidationBoiler.verifyNotExists(jpaSiteSessionsRepo.existsBySite_SiteId(savedSite.getSiteId()),
+                "Site Sessions", savedSite.getSiteId());
+
+
+        String sessionsJson = siteSessionsJsonHandler.generateSessionsJson(
+                savedSite.getOpeningTime(),
+                savedSite.getClosingTime()
+        );
+
+        SiteSessions siteSessions = new SiteSessions(null, savedSite, sessionsJson);
+        jpaSiteSessionsRepo.save(siteSessions);
+
+        return savedSite;
     }
 
     //GET Site by ID
@@ -76,17 +107,31 @@ public class SiteService {
     }
 
     //DELETE Site
+    @Transactional
     public void deleteSite(Integer siteId) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
+
+        // DELETE CLOSURES
         List<SiteClosureDays> closures = jpaClosureDaysRepo.findBySiteId(siteId);
-        jpaClosureDaysRepo.deleteAll(closures); //CLEAN DELETE EVEN IF CASCADE
+        jpaClosureDaysRepo.deleteAll(closures);
+
+        // DELETE SESSIONS
+        Optional<SiteSessions> siteSessions = jpaSiteSessionsRepo.findBySite_SiteId(siteId);
+        if (siteSessions.isPresent()) {
+            jpaSiteSessionsRepo.delete(siteSessions.get());
+        }
+
+        // HERE SHOULD SET MATCH AS INACTIVE !!
+
         jpaSiteRepo.deleteById(siteId);
     }
 
-    //UPDATE Site
+    //UPDATE Site + SITE Sessions if hours changed
+    @Transactional
     public Optional<Site> updateSite(Integer siteId, Site updateData) {
 
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
+        AtomicBoolean hoursChanged = new AtomicBoolean(false);
 
         return jpaSiteRepo.findById(siteId).map(site -> {
             if (updateData.getName() != null) {
@@ -95,23 +140,84 @@ public class SiteService {
             if (updateData.getAddress() != null) {
                 site.setAddress(updateData.getAddress());
             }
-            if (updateData.getOpeningTime() != null) {
+            if (updateData.getOpeningTime() != null && !updateData.getOpeningTime().equals(site.getOpeningTime())) {
                 site.setOpeningTime(updateData.getOpeningTime());
+                hoursChanged.set(true);
             }
-            if (updateData.getClosingTime() != null) {
+            if (updateData.getClosingTime() != null && !updateData.getClosingTime().equals(site.getClosingTime())) {
                 site.setClosingTime(updateData.getClosingTime());
+                hoursChanged.set(true);
             }
             if (updateData.getIsActive() != null) {
                 site.setIsActive(updateData.getIsActive());
             }
 
-            return jpaSiteRepo.save(site);
+            Site updatedSite = jpaSiteRepo.save(site);
+
+            //IF HOURS CHANGED, WE MUST REGENERATE SESSIONS
+            if (hoursChanged.get()) {
+                // Validate new hours are sufficient
+                ValidationBoiler.verifyEnoughSiteHours(updatedSite.getOpeningTime(), updatedSite.getClosingTime());
+                //ValidationBoiler.verifyExists(jpaSiteSessionsRepo.existsBySiteId(updatedSite.getSiteId()),
+                //       "Site Sessions", updatedSite.getSiteId()); -- Better to handle with the ELSE and create the sessions if NULL
+
+                // Generate new sessions JSON
+                String newSessionsJson = siteSessionsJsonHandler.generateSessionsJson(
+                        updatedSite.getOpeningTime(),
+                        updatedSite.getClosingTime()
+                );
+
+                // Update or create SiteSessions
+                Optional<SiteSessions> existingSessions = jpaSiteSessionsRepo.findBySite_SiteId(updatedSite.getSiteId());
+
+                if (existingSessions.isPresent()) {
+                    // Update existing sessions
+                    SiteSessions sessions = existingSessions.get();
+                    sessions.setMatchSessionsJson(newSessionsJson);
+                    jpaSiteSessionsRepo.save(sessions);
+                } else {
+                    // Create new sessions (JUST IN CASE IF NEW SITE FAILED ?)
+                    SiteSessions siteSessions = new SiteSessions(null, updatedSite, newSessionsJson);
+                    jpaSiteSessionsRepo.save(siteSessions);
+                }
+            }
+
+            return updatedSite;
         });
+    }
+    ////SESSION TIMES////
+
+    // GET SESSION TIMES FOR A SITE (parsed from JSON)
+    public List<?> getSessionTimesForSite(Integer siteId) {
+        ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
+
+        Optional<SiteSessions> siteSessions = jpaSiteSessionsRepo.findBySite_SiteId(siteId);
+
+        if (siteSessions.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No sessions found for site: " + siteId);
+        }
+
+        try {
+            String jsonString = siteSessions.get().getMatchSessionsJson();
+            com.fasterxml.jackson.databind.JsonNode rootNode = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readTree(jsonString);
+
+            com.fasterxml.jackson.databind.JsonNode sessionsArray = rootNode.get("sessions");
+
+            return new com.fasterxml.jackson.databind.ObjectMapper()
+                    .convertValue(sessionsArray, new com.fasterxml.jackson.core.type.TypeReference<List<?>>() {});
+
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Error parsing session JSON: " + e.getMessage());
+        }
     }
 
     ////CLOSURE DAYS////
 
     // SET MULTIPLE DATES TO ONE SITE
+    @Transactional
     public List<SiteClosureDays> newClosuresOneSite(Integer siteId, List<LocalDate> closureDates, String reason) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
@@ -128,6 +234,7 @@ public class SiteService {
     }
 
     // SET MULTIPLE DATES TO MULTIPLE SITES
+    @Transactional
     public List<SiteClosureDays> newClosureMultiSite(List<Integer> siteIds, List<LocalDate> closureDates, String reason) {
         ValidationBoiler.verifyListNotEmpty(siteIds, "Site IDs");
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
@@ -171,6 +278,7 @@ public class SiteService {
     }
 
     // DELETE CLOSURE DAY for specific Site and Date
+    @Transactional
     public void deleteClosureDayForSite(Integer siteId, LocalDate closureDate) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         ValidationBoiler.verifyNotNull(closureDate, "Closure date");
@@ -184,6 +292,7 @@ public class SiteService {
     }
 
     // DELETE ALL CLOSURES FOR A SITE
+    @Transactional
     public void deleteAllClosuresForSite(Integer siteId) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         List<SiteClosureDays> closures = jpaClosureDaysRepo.findBySiteId(siteId);
@@ -193,6 +302,7 @@ public class SiteService {
     }
 
     // DELETE ALL CLOSURE DAYS for a specific Date (ALL SITES)
+    @Transactional
     public void deleteClosureDayForAllSites(LocalDate closureDate) {
         ValidationBoiler.verifyNotNull(closureDate, "Closure date");
 
