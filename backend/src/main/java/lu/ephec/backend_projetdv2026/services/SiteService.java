@@ -94,6 +94,16 @@ public class SiteService {
     //GET ALL Sites
     public List<Site> fetchAll() { return jpaSiteRepo.findAll(); }
 
+    //GET ALL ACTIVE Sites
+    public List<Site> fetchAllActive() {
+        return jpaSiteRepo.findAllByIsActiveTrue();
+    }
+
+    //GET ALL INACTIVE Sites
+    public List<Site> fetchAllInactive() {
+        return jpaSiteRepo.findAllByIsActiveFalse();
+    }
+
     //GET ALL By Opening TIME
     public List<Site> fetchByOpeningTime(LocalTime openingTime) {
         ValidationBoiler.verifyNotNull(openingTime, "Site opening time");
@@ -188,7 +198,7 @@ public class SiteService {
     ////SESSION TIMES////
 
     // GET SESSION TIMES FOR A SITE (parsed from JSON)
-    public List<?> getSessionTimesForSite(Integer siteId) {
+    public List<?> fetchSessionTimesForSite(Integer siteId) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
 
         Optional<SiteSessions> siteSessions = jpaSiteSessionsRepo.findBySite_SiteId(siteId);

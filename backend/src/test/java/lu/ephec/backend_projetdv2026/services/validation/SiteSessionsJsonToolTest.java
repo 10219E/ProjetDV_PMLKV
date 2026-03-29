@@ -31,7 +31,7 @@ public class SiteSessionsJsonToolTest {
     @Test
     @Order(1)
     @DisplayName("Sessions for 16h00-22h00 hours.")
-    void MultiplePrePost30SessionsJson() throws Exception {
+    void multiplePrePost30SessionsJson() throws Exception {
         // ARRANGE
         LocalTime opening = LocalTime.of(16, 0); //5H 3 SESSIONS
         LocalTime closing = LocalTime.of(22, 0);
@@ -70,7 +70,7 @@ public class SiteSessionsJsonToolTest {
     @Test
     @Order(2)
     @DisplayName("Sessions for 16h30-22h00 hours")
-    void MultiplePrePost15SessionsJson() throws Exception {
+    void multiplePrePost15SessionsJson() throws Exception {
         // ARRANGE
         LocalTime opening = LocalTime.of(16, 30); //4H30 3 SESSIONS
         LocalTime closing = LocalTime.of(22, 0);
@@ -111,7 +111,7 @@ public class SiteSessionsJsonToolTest {
     @Test
     @Order(3)
     @DisplayName("One session for exact 2H window (pre 15min + session 90min + post 15min)")
-    void SingleSessionJson() throws Exception {
+    void singleSessionJson() throws Exception {
         // ARRANGE - Exact minimum: 15min pre + 90min session + 15min post = 120min = 2h
         LocalTime opening = LocalTime.of(16, 30);
         LocalTime closing = LocalTime.of(18, 30);
@@ -133,7 +133,7 @@ public class SiteSessionsJsonToolTest {
     @Test
     @Order(4)
     @DisplayName("Short window that cannot fit a session")
-    void TooShortWindowJson() throws Exception {
+    void tooShortWindowJson() throws Exception {
         // ARRANGE - Only Session long (no pre/post time)
         LocalTime opening = LocalTime.of(14, 0);
         LocalTime closing = LocalTime.of(15, 30);
@@ -154,7 +154,7 @@ public class SiteSessionsJsonToolTest {
     @Test
     @Order(5)
     @DisplayName("Large time window (9h30-19h00)")
-    void LargeWindowJson() throws Exception {
+    void largeWindowJson() throws Exception {
         // ARRANGE -- Start should be then at 10:00, 5 1H30 sessions, ending with 30 minutes (balancing to avoid long waits either pre / or long closure in post)
         LocalTime opening = LocalTime.of(9, 30);
         LocalTime closing = LocalTime.of(19, 0);
@@ -189,7 +189,7 @@ public class SiteSessionsJsonToolTest {
     @Test
     @Order(5)
     @DisplayName("Weird hours test (16h10-21h59)")
-    void WeirdHoursJson() throws Exception {
+    void weirdHoursJson() throws Exception {
         // ARRANGE -- Start is at 16:10, should pick 16:40 for first session and remaining time after last should be 19 minutes
         LocalTime opening = LocalTime.of(16, 10);
         LocalTime closing = LocalTime.of(21, 59);

@@ -108,12 +108,12 @@ public class UserService {
     }
 
     //GET Active Users
-    public List<User> fetchAllActive() {
+    public List<User> fetchAllActiveUsers() {
         return jpaUserRepo.findAllByIsActiveTrue();
     }
 
     //GET Inactive Users
-    public List<User> fetchAllInactive() {
+    public List<User> fetchAllInactiveUsers() {
         return jpaUserRepo.findAllByIsActiveFalse();
     }
 
@@ -210,14 +210,24 @@ public class UserService {
         return jpaUserPenaltiesRepo.findByUserMatriculeWithUser(userId);
     }
 
+    //GET ACTIVE PENALTIES for User
+    public List<UserPenalties> fetchActivePenaltyByUser(String userId) {
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+        return jpaUserPenaltiesRepo.findAllActiveWithUser(userId);
+    }
+
+
     //COUNT PENALTY for User
     public long countPenaltiesForUser(String userId) {
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserPenaltiesRepo.countByUserMatricule(userId);
     }
 
-    //ALL ACTIVE Penalties
-    public List<UserPenalties> fetchAllPenalties() { return jpaUserPenaltiesRepo.findAllWithUser(); }
+    //GET ALL Penalties
+    public List<UserPenalties> fetchAllPenalties() { return jpaUserPenaltiesRepo.findAll(); }
+
+    //GET ALL ACTIVE Penalties
+    public List<UserPenalties> fetchAllActivePenalties() { return jpaUserPenaltiesRepo.findAllByIsActiveTrue(); }
 
     //PENALTIES FOR USER BY Date Range
     public List<UserPenalties> fetchPenaltiesByUserRange(String userId, LocalDateTime startDate, LocalDateTime endDate) {

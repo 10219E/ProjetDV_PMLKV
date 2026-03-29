@@ -14,6 +14,10 @@ public interface JPASiteRepo extends JpaRepository<Site, Integer> {
     List<Site> findByOpeningTime(LocalTime openingTime);
     List <Site> findByClosingTime(LocalTime closingTime);
 
+    List<Site> findAllByIsActiveTrue();
+    List<Site> findAllByIsActiveFalse();
+
+
 
 
 
