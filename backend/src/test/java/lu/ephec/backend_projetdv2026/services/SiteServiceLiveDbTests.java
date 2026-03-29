@@ -98,7 +98,7 @@ public class SiteServiceLiveDbTests {
             String newName = Faker.instance().artist().name() + " " + (int) (Math.random() * 10000);
             String newAddress = Faker.instance().address().streetAddress();
             //Integer newSiteId = (Integer)(Math.random() * 10000); //DB HANDLED
-            LocalTime newOpeningTime = LocalTime.of(9, 30);
+            LocalTime newOpeningTime = LocalTime.of(9, 0);
             LocalTime newClosingTime = LocalTime.of(18, 0);
             Boolean newIsActive = false;
 
@@ -294,14 +294,14 @@ public class SiteServiceLiveDbTests {
             Site s1 = new Site();
             s1.setName(Faker.instance().artist().name() + " " + (int)(Math.random() * 10000));
             s1.setAddress(Faker.instance().address().streetAddress());
-            s1.setOpeningTime(LocalTime.of(8, 0));
-            s1.setClosingTime(LocalTime.of(17, 0));
+            s1.setOpeningTime(LocalTime.of(16, 0));
+            s1.setClosingTime(LocalTime.of(22, 0));
             s1.setIsActive(true);
 
             Site s2 = new Site();
             s2.setName(Faker.instance().artist().name() + " " + (int)(Math.random() * 10000));
             s2.setAddress(Faker.instance().address().streetAddress());
-            s2.setOpeningTime(LocalTime.of(10, 0));
+            s2.setOpeningTime(LocalTime.of(9, 0));
             s2.setClosingTime(LocalTime.of(18, 0));
             s2.setIsActive(true);
 
@@ -334,6 +334,8 @@ public class SiteServiceLiveDbTests {
     @Nested
     @DisplayName("EXCEPTION - SiteService Tests")
     class ExceptionTests {
+
+        /// SITE OPS ///
         @Test
         @Order(1)
         void insertSiteWithEmptyNameDB() {
@@ -351,6 +353,8 @@ public class SiteServiceLiveDbTests {
 
             reporter.publishEntry("info", "Correctly rejected empty site name");
         }
+
+        /// CLOSURE DAYS TESTS ///
 
         @Test
         @Order(2)
@@ -419,6 +423,32 @@ public class SiteServiceLiveDbTests {
             });
 
             reporter.publishEntry("info", "Correctly rejected delete for non-existent site and closure");
+        }
+
+        /// HOURS TESTS ///
+
+        @Test
+        @Order(6)
+        void insertSiteWithInvalidHoursDB() {
+            // ARRANGE: 16:00–23:00 should be rejected (post > 30 min after last session)
+            Site s = new Site();
+            s.setName(Faker.instance().artist().name() + " " + (int)(Math.random() * 10000));
+            s.setAddress(Faker.instance().address().streetAddress());
+            s.setOpeningTime(LocalTime.of(16, 0));
+            s.setClosingTime(LocalTime.of(23, 0));
+            s.setIsActive(true);
+
+            // ACT & ASSERT
+            assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                    () -> siteService.newSite(s),
+                    "Expected invalid hours to be rejected (16:00-23:00)");
+
+            //CLEANUP IN CASE
+            if (s.getSiteId() != null && siteService.siteExists(s.getSiteId())) {
+                siteService.deleteSite(s.getSiteId());
+            }
+
+            reporter.publishEntry("info", "Correctly rejected site with invalid hours (16:00-23:00) for business reasons");
         }
 
     }

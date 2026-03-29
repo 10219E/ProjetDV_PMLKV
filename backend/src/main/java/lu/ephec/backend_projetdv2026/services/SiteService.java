@@ -1,5 +1,6 @@
 package lu.ephec.backend_projetdv2026.services;
 
+import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteClosureDays;
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
@@ -43,6 +44,7 @@ public class SiteService {
     }
 
     // SET Site
+    @Transactional
     public Site newSite(Site site) {
         // Validate inputs
         ValidationBoiler.verifyNotEmpty(site.getName(), "Site name");
@@ -105,6 +107,7 @@ public class SiteService {
     }
 
     //DELETE Site
+    @Transactional
     public void deleteSite(Integer siteId) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
 
@@ -124,6 +127,7 @@ public class SiteService {
     }
 
     //UPDATE Site + SITE Sessions if hours changed
+    @Transactional
     public Optional<Site> updateSite(Integer siteId, Site updateData) {
 
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
@@ -213,6 +217,7 @@ public class SiteService {
     ////CLOSURE DAYS////
 
     // SET MULTIPLE DATES TO ONE SITE
+    @Transactional
     public List<SiteClosureDays> newClosuresOneSite(Integer siteId, List<LocalDate> closureDates, String reason) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
@@ -229,6 +234,7 @@ public class SiteService {
     }
 
     // SET MULTIPLE DATES TO MULTIPLE SITES
+    @Transactional
     public List<SiteClosureDays> newClosureMultiSite(List<Integer> siteIds, List<LocalDate> closureDates, String reason) {
         ValidationBoiler.verifyListNotEmpty(siteIds, "Site IDs");
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
@@ -272,6 +278,7 @@ public class SiteService {
     }
 
     // DELETE CLOSURE DAY for specific Site and Date
+    @Transactional
     public void deleteClosureDayForSite(Integer siteId, LocalDate closureDate) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         ValidationBoiler.verifyNotNull(closureDate, "Closure date");
@@ -285,6 +292,7 @@ public class SiteService {
     }
 
     // DELETE ALL CLOSURES FOR A SITE
+    @Transactional
     public void deleteAllClosuresForSite(Integer siteId) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         List<SiteClosureDays> closures = jpaClosureDaysRepo.findBySiteId(siteId);
@@ -294,6 +302,7 @@ public class SiteService {
     }
 
     // DELETE ALL CLOSURE DAYS for a specific Date (ALL SITES)
+    @Transactional
     public void deleteClosureDayForAllSites(LocalDate closureDate) {
         ValidationBoiler.verifyNotNull(closureDate, "Closure date");
 
