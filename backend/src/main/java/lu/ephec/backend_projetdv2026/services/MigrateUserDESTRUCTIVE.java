@@ -1,4 +1,4 @@
-package lu.ephec.backend_projetdv2026.services.validation;
+package lu.ephec.backend_projetdv2026.services;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -6,9 +6,10 @@ import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
-import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
+import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -48,6 +49,9 @@ public class MigrateUserDESTRUCTIVE {
         // Fetch current user data
         User oldUser = jpaUserRepo.findById(oldMatricule)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        //ONLY ACTIVE USER CAN BE MIGRATED
+        ValidationBoiler.verifyUserActive(oldUser.getIsActive(), oldMatricule);
 
         //CHECK ROLE IS VALID
         ValidationBoiler.verifyValidRoleId(oldUser.getRole().getId());

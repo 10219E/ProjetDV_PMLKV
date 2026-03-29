@@ -23,12 +23,14 @@ public class UserService {
     private final JPAUserRepo jpaUserRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
     private final MatriculeHandler matriculeHandler;
+    private final MigrateUserDESTRUCTIVE migrateUser;
 
     // InjDep Interface User + Penalties
-    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler) {
+    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler,  MigrateUserDESTRUCTIVE migrateUser) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
         this.matriculeHandler = matriculeHandler;
+        this.migrateUser = migrateUser;
     }
 
     ////////////USER OPERATIONS
@@ -46,6 +48,15 @@ public class UserService {
     public List<User> fetchByLevel(String level) {
         ValidationBoiler.verifyValidLevel(level);  // Validates both null/empty AND valid values
         return jpaUserRepo.findAllByLevelIgnoreCase(level);
+    }
+
+    @Transactional
+    //MIGRATE User to new Role -- For Admin USE only
+    public User migrateUserRole(String oldMatricule, Short newRoleId) {
+        ValidationBoiler.verifyNotEmpty(oldMatricule, "User matricule");
+        ValidationBoiler.verifyNotNull(newRoleId, "New role ID");
+
+        return migrateUser.migrateUserRole(oldMatricule, newRoleId);
     }
 
     //SET User -- with email verification (is unique)

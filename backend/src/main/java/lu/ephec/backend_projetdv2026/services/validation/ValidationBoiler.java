@@ -18,6 +18,14 @@ public class ValidationBoiler {
         }
     }
 
+    // Check if user is active
+    public static void verifyUserActive(Boolean isActive, String userId) {
+        if (isActive == null || !isActive) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "User " + userId + " is not active. Only active users can be migrated.");
+        }
+    }
+
     // Check if collection is not empty (for List, Set, etc.)
     public static void verifyListNotEmpty(Collection<?> collection, String fieldName) {
         if (collection == null || collection.isEmpty()) {
