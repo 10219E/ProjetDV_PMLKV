@@ -25,11 +25,17 @@ public class FieldService {
         this.jpaSiteRepo = jpaSiteRepo;
     }
 
+    //CHECK EXISTS
+    public boolean fieldExists(Integer fieldId) {
+        return jpaFieldRepo.existsById(fieldId);
+    }
+
     // SET Field
     @Transactional
     public Field newField(Field field) {
-        ValidationBoiler.verifyNotNull(field.getSiteId(), "Site ID");
-        ValidationBoiler.verifyExists(jpaSiteRepo.existsById(field.getSiteId()), "Site", field.getSiteId());
+        ValidationBoiler.verifyNotNull(field, "Field");
+        ValidationBoiler.verifyNotNull(field.getSite(), "Site");
+        ValidationBoiler.verifyNotNull(field.getSite().getSiteId(), "Site ID");
         ValidationBoiler.verifyDatesValid(field.getMaintenanceFromDate(), field.getMaintenanceToDate(), "Maintenance From / To Date");
 
         return jpaFieldRepo.save(field);
@@ -46,35 +52,34 @@ public class FieldService {
     public List<Field> fetchBySite(Integer siteId) {
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
-        return jpaFieldRepo.findBySiteId(siteId);
+        return jpaFieldRepo.findBySite_SiteId(siteId);
     }
 
     // GET Active Fields By Active Site
     public List<Field> fetchActiveFieldsByActiveSite(Integer siteId) {
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
-        // Vérifier que le site est actif
         jpaSiteRepo.findById(siteId).ifPresent(site -> {
             if (!site.getIsActive()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Site is inactive: " + siteId);
             }
         });
-        return jpaFieldRepo.findBySiteIdAndIsActiveTrue(siteId);
+        return jpaFieldRepo.findBySite_SiteIdAndIsActiveTrue(siteId);
     }
 
     // GET Inactive Fields By Site
     public List<Field> fetchInactiveFieldsBySite(Integer siteId) {
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
-        return jpaFieldRepo.findBySiteIdAndIsActiveFalse(siteId);
+        return jpaFieldRepo.findBySite_SiteIdAndIsActiveFalse(siteId);
     }
 
-    // GET Fields In Maintenance
+    // GET Fields In Maintenance for SiteID
     public List<Field> fetchFieldsInMaintenance(Integer siteId) {
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
-        return jpaFieldRepo.findBySiteIdAndMaintenanceFromDateIsNotNullAndMaintenanceToDateIsNotNull(siteId);
+        return jpaFieldRepo.findBySite_SiteIdAndMaintenanceFromDateIsNotNullAndMaintenanceToDateIsNotNull(siteId);
     }
 
     // GET ALL Fields
@@ -82,17 +87,21 @@ public class FieldService {
         return jpaFieldRepo.findAll();
     }
 
-    //GET ALL indoor Fields
-    public List<Field> fetchIndoor() {
-        return jpaFieldRepo.findByIsIndoorTrue();
+    //GET ALL indoor Fields By Site
+    public List<Field> fetchIndoorBySite(Integer siteId) {
+        ValidationBoiler.verifyNotNull(siteId, "Site ID");
+        ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
+        return jpaFieldRepo.findBySite_SiteIdAndIsIndoorTrue(siteId);
     }
 
-    //GET ALL outdoor Fields
-    public List<Field> fetchOutdoor() {
-        return jpaFieldRepo.findByIsIndoorFalse();
+    //GET ALL outdoor Fields By Site
+    public List<Field> fetchOutdoorBySite(Integer siteId) {
+        ValidationBoiler.verifyNotNull(siteId, "Site ID");
+        ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
+        return jpaFieldRepo.findBySite_SiteIdAndIsIndoorFalse(siteId);
     }
 
-    // DELETE Field
+    // DELETE Field --  -- ONLY SUPER ADMIN
     @Transactional
     public void deleteField(Integer fieldId) {
         ValidationBoiler.verifyNotNull(fieldId, "Field ID");

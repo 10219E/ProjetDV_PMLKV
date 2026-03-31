@@ -22,22 +22,26 @@ import java.util.List;
 // The migration is destructive as it deletes the old user, so it should be used with caution and only when necessary
 // (for example when changing from subscribed to site admin or vice versa).
 //It performs checks such as not migrating to an already assigned role and also requires clear history of penalties, etc
+//EDIT:
+////We can not call newUser() as there will be circular error, so we need to inject directly in the repo and handle the logic in the service, which is more complex but allows us to bypass the circular dependency issue.
+////This happened since we defined migrateUser in UserService (expected)
 
 @Service
 public class MigrateUserDESTRUCTIVE {
 
     private final JPAUserRepo jpaUserRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
-    private final UserService userService;
+    private final MatriculeHandler matriculeHandler;
+
 
     @PersistenceContext
     private EntityManager em;
 
     public MigrateUserDESTRUCTIVE(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo,
-                                  MatriculeHandler matriculeHandler, UserService userService) {
+                                  MatriculeHandler matriculeHandler) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
-        this.userService = userService;
+        this.matriculeHandler = matriculeHandler;
     }
 
     @Transactional
@@ -61,7 +65,8 @@ public class MigrateUserDESTRUCTIVE {
         ValidationBoiler.verifyNotMigrationBetweenAdminNormal(oldUser.getRole().getId(), newRoleId);
 
         // CHECK IF USER HAS ACTIVE PENALTIES - IF YES, ABORT MIGRATION
-        boolean hasActivePenalties = userService.hasActivePenalty(oldMatricule);
+        List<UserPenalties> activePenalties = jpaUserPenaltiesRepo.findAllActiveWithUser(oldMatricule);
+        boolean hasActivePenalties = !activePenalties.isEmpty();
         ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, oldMatricule);
 
         // Check if role is different (to avoid unnecessary migration)
@@ -96,8 +101,12 @@ public class MigrateUserDESTRUCTIVE {
         newUser.setLastLogin(oldUser.getLastLogin());
         newUser.setRole(newRole);
 
+        // GENERATE NEW MATRICULE WITH NEW ROLE
+        String newMatricule = matriculeHandler.generateMatricule(newRoleId, jpaUserRepo);
+        newUser.setMatricule(newMatricule);
+
         // 4 - SAVE NEW USER
-        User savedNewUser = userService.newUser(newUser);
+        User savedNewUser = jpaUserRepo.save(newUser);
         em.flush(); //Ensure new user is saved and has an ID before creating penalties
 
         // 5 - CREATE NEW PENALTY INSTANCES (completely new, not merged)

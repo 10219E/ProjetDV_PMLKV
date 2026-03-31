@@ -19,9 +19,6 @@ public class Field {
     @Column(name = "field_id")
     private Integer fieldId;
 
-    @Column(name = "site_id")
-    private Integer siteId;
-
     @Column(name = "is_indoor", nullable = false)
     private Boolean isIndoor = false; // DB default 0 -> false
 

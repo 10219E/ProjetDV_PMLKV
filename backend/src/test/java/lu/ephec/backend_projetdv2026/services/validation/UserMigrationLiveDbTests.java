@@ -292,6 +292,7 @@ public class UserMigrationLiveDbTests {
             // CLEANUP
             userService.deleteAllPenaltiesForUser(savedUser.getMatricule());
 
+
             reporter.publishEntry("info", "Active penalty migration test passed - correctly rejected");
         }
 

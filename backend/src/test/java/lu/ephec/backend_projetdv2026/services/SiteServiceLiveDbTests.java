@@ -9,6 +9,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import lu.ephec.backend_projetdv2026.models.Field;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -27,7 +28,7 @@ public class SiteServiceLiveDbTests {
     @Autowired
     private SiteService siteService;
     @Autowired
-    private JPASiteRepo jpaSiteRepo;
+    private FieldService fieldService;
 
     private TestReporter reporter;
 
@@ -326,6 +327,83 @@ public class SiteServiceLiveDbTests {
             siteService.deleteSite(saved2.getSiteId());
 
             reporter.publishEntry("info", "Created closures for 2 sites");
+        }
+
+        /// TEST SITE INACTIVATION + FIELDS (+BONUS DELETE) ///
+        @Test
+        @Order(10)
+        void updateSiteToInactiveAndIsFieldInactiveDB() {
+            // ARRANGE - Create a new site with fields
+            Site site = new Site();
+            site.setName(Faker.instance().artist().name() + " " + (int)(Math.random() * 10000));
+            site.setAddress(Faker.instance().address().streetAddress());
+            site.setOpeningTime(LocalTime.of(8, 0));
+            site.setClosingTime(LocalTime.of(17, 0));
+
+            Site savedTestSite = siteService.newSite(site);
+            Integer siteId = savedTestSite.getSiteId();
+
+            // ARRANGE - Create 3 active fields for this site
+            Field f1 = new Field();
+            f1.setSite(savedTestSite);
+            f1.setIsIndoor(true);
+
+            Field f2 = new Field();
+            f2.setSite(savedTestSite);
+            f2.setIsIndoor(false);
+
+            Field f3 = new Field();
+            f3.setSite(savedTestSite);
+            f3.setIsIndoor(true);
+            f3.setMaintenanceFromDate(LocalDate.now().plusDays(5));
+            f3.setMaintenanceToDate(LocalDate.now().plusDays(10));
+
+            fieldService.newField(f1);
+            Integer fieldID1 = f1.getFieldId();
+
+            fieldService.newField(f2);
+            Integer fieldID2 = f2.getFieldId();
+
+            fieldService.newField(f3);
+            Integer fieldID3 = f3.getFieldId();
+
+            // Verify all fields are active
+            List<Field> activeFieldsBefore = fieldService.fetchActiveFieldsByActiveSite(siteId);
+            assertEquals(3, activeFieldsBefore.size(), "Should have 3 active fields before deactivation");
+
+            // ACT - Deactivate the site
+            Site inactivate = new Site();
+            inactivate.setIsActive(false);
+            Optional<Site> updatedSiteOpt = siteService.updateSite(siteId,inactivate);
+
+            // ASSERT - Site is now inactive
+            assertTrue(updatedSiteOpt.isPresent(), "Site should be found after update");
+            assertFalse(updatedSiteOpt.get().getIsActive(), "Site should be inactive");
+
+            // ASSERT - All fields are now inactive
+            List<Field> fields= fieldService.fetchAll().stream()
+                    .filter(f -> f.getFieldId().equals(fieldID1) || f.getFieldId().equals(fieldID2) || f.getFieldId().equals(fieldID3))
+                    .toList();
+
+            assertEquals(0, fields.get(0).getIsActive() ? 1 : 0, "Field 1 should be inactive");
+            assertEquals(0, fields.get(1).getIsActive() ? 1 : 0, "Field 2 should be inactive");
+            assertEquals(0, fields.get(2).getIsActive() ? 1 : 0, "Field 3 should be inactive");
+
+            List<Field> inactiveFieldsAfter = fieldService.fetchInactiveFieldsBySite(siteId);
+            assertEquals(3, inactiveFieldsAfter.size(), "Should have 3 inactive fields after site deactivation");
+
+            //CLEANUP -- SHOULD DELETE ALSO FIELDS
+            siteService.deleteSite(siteId);
+
+            // ASSERT - Site is deleted
+            assertFalse(siteService.siteExists(siteId), "Site not deleted: " + siteId);
+
+            // ASSERT - Fields are deleted (by checking that no fields exist with that site relation)
+            List<Field> allFieldsAfterDelete = fieldService.fetchAll();
+            assertTrue(allFieldsAfterDelete.stream().noneMatch(f -> f.getSite() != null && f.getSite().getSiteId().equals(siteId)),
+                    "Fields should be deleted when site is deleted");
+
+            reporter.publishEntry("info", "Successfully verified that 3 fields were inactivated when site was deactivated");
         }
 
     }

@@ -120,7 +120,7 @@ public class SiteService {
         return jpaSiteRepo.findByClosingTime(closingTime);
     }
 
-    //DELETE Site
+    //DELETE Site -- ONLY SUPER ADMIN
     @Transactional
     public void deleteSite(Integer siteId) {
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
@@ -137,7 +137,7 @@ public class SiteService {
         }
 
         // DELETE FIELDS
-        List<Field> fields = jpaFieldRepo.findBySiteId(siteId);
+        List<Field> fields = jpaFieldRepo.findBySite_SiteId(siteId);
         if (!fields.isEmpty()) {
             jpaFieldRepo.deleteAll(fields);
         }
@@ -186,13 +186,12 @@ public class SiteService {
 
             //DEACTIVATING FIELDS IF SITE IS SET TO INACTIVE
             if (siteDeactivated.get()) {
-                List<Field> fields = jpaFieldRepo.findBySiteId(updatedSite.getSiteId());
+                List<Field> fields = jpaFieldRepo.findBySite_SiteId(updatedSite.getSiteId());
                 fields.forEach(field -> {
                     field.setIsActive(false);
                 });
                 jpaFieldRepo.saveAll(fields);
             }
-
 
             //IF HOURS CHANGED, WE MUST REGENERATE SESSIONS
             if (hoursChanged.get()) {

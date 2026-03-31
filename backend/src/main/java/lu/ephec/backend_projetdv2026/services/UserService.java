@@ -133,6 +133,11 @@ public class UserService {
     public void deleteUser(String userId) {
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        //DELETE PENALTIES
+        jpaUserPenaltiesRepo.deleteAllByUserMatricule(userId); //No interfacing needed - handled by JPARepo
+
+        //DELETE USER
         jpaUserRepo.deleteById(userId); //No interfacing needed - handled by JPARepo
     }
 
