@@ -34,10 +34,8 @@ public class Field {
     @Column(name = "maintenance_to_date")
     private LocalDate maintenanceToDate;
 
-    /*
-    // ManyToOne relation to Site (foreign key site_id). Keep nullable = false if a Field must belong to a Site.
+    //ManyToOne relation to Site (foreign key site_id). Keep nullable = false if a Field must belong to a Site.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", referencedColumnName = "site_id", nullable = false)
     private Site site;
-     */
 }

@@ -52,7 +52,7 @@ public class UserService {
 
     @Transactional
     //MIGRATE User to new Role -- For Admin USE only
-    public User migrateUserRole(String oldMatricule, Short newRoleId) {
+    public User migrateUser(String oldMatricule, Short newRoleId) {
         ValidationBoiler.verifyNotEmpty(oldMatricule, "User matricule");
         ValidationBoiler.verifyNotNull(newRoleId, "New role ID");
 
@@ -131,6 +131,7 @@ public class UserService {
     //DELETE User -- FOR SUPER ADMIN ONLY
     @Transactional //Makes sure the whole method is executed
     public void deleteUser(String userId) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         jpaUserRepo.deleteById(userId); //No interfacing needed - handled by JPARepo
     }
@@ -138,6 +139,8 @@ public class UserService {
     //UPDATE User
     @Transactional //Makes sure the whole method is executed
     public Optional<User> updateUser(String userId, User updatedUser) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyNotNull(updatedUser, "Updated User");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserRepo.findById(userId).map(user -> {
             if (updatedUser.getIsActive() != null) {
@@ -145,17 +148,20 @@ public class UserService {
             }
 
             if (updatedUser.getFirstName() != null) {
+                ValidationBoiler.verifyNotEmpty(updatedUser.getFirstName(), "First name");
                 user.setFirstName(updatedUser.getFirstName());
             }
             if (updatedUser.getEmail() != null) {
                 //CHECK IF MAIL EXISTS
                 if (!updatedUser.getEmail().equals(user.getEmail())) {
+                    ValidationBoiler.verifyNotEmpty(updatedUser.getEmail(), "Email");
                     ValidationBoiler.verifyEmailNotExists(jpaUserRepo.existsByEmail(updatedUser.getEmail()), updatedUser.getEmail());
                 }
                 user.setEmail(updatedUser.getEmail());
             }
 
             if (updatedUser .getLastName() != null) {
+                ValidationBoiler.verifyNotEmpty(updatedUser.getLastName(), "Last name");
                 user.setLastName(updatedUser.getLastName());
             }
 
@@ -223,6 +229,7 @@ public class UserService {
 
     //GET ACTIVE PENALTIES for User
     public List<UserPenalties> fetchActivePenaltyByUser(String userId) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserPenaltiesRepo.findAllActiveWithUser(userId);
     }
@@ -230,6 +237,7 @@ public class UserService {
 
     //COUNT PENALTY for User
     public long countPenaltiesForUser(String userId) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserPenaltiesRepo.countByUserMatricule(userId);
     }
@@ -249,13 +257,16 @@ public class UserService {
 
     //LIST Penalties by reason
     public List<UserPenalties> listAllPenaltiesByReason(String reason) {
-        ValidationBoiler.verifyNotNull(reason, "Penalty reason");
+        ValidationBoiler.verifyNotEmpty(reason, "Reason");
+        ValidationBoiler.verifyValidPenaltyReason(reason);
         return jpaUserPenaltiesRepo.findAllWithUserByReason(reason);
     }
 
     //UPDATE Penalty
     @Transactional //Makes sure the whole method is executed
     public Optional<UserPenalties> updatePenalty(Integer penaltyId, UserPenalties updatedPenalty) {
+        ValidationBoiler.verifyNotNull(penaltyId, "Penalty ID");
+        ValidationBoiler.verifyNotNull(updatedPenalty, "Update data");
         ValidationBoiler.verifyExists(jpaUserPenaltiesRepo.existsById(penaltyId), "Penalty", penaltyId);
         return jpaUserPenaltiesRepo.findById(penaltyId).map(penalty -> {
             if (updatedPenalty.getReason() != null) {
@@ -290,6 +301,7 @@ public class UserService {
 
     //DELETE UNIQUE Penalty -- Only for Test cleanup
     public void deletePenalty(Integer penaltyId) {
+        ValidationBoiler.verifyNotNull(penaltyId, "Penalty ID");
         ValidationBoiler.verifyExists(jpaUserPenaltiesRepo.existsById(penaltyId), "Penalty", penaltyId);
         jpaUserPenaltiesRepo.deleteById(penaltyId);
     }
@@ -297,6 +309,7 @@ public class UserService {
     //DELETE ALL PENALTIES for User by userId (clear history) -- Admin only
     @Transactional //Makes sure the whole method is executed
     public void deleteAllPenaltiesForUser(String userId) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         jpaUserPenaltiesRepo.deleteAllByUserMatricule(userId);
     }
