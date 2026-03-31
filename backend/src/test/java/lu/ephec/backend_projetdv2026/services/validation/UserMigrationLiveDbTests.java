@@ -6,6 +6,7 @@ import jakarta.persistence.PersistenceContext;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
+import lu.ephec.backend_projetdv2026.services.MigrateUserDESTRUCTIVE;
 import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
@@ -290,6 +291,7 @@ public class UserMigrationLiveDbTests {
 
             // CLEANUP
             userService.deleteAllPenaltiesForUser(savedUser.getMatricule());
+
 
             reporter.publishEntry("info", "Active penalty migration test passed - correctly rejected");
         }

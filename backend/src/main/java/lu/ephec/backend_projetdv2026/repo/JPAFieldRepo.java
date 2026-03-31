@@ -6,7 +6,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface JPAFieldRepo extends JpaRepository<Field, Integer> {
-    List<Field> findBySiteId(Integer siteId);
-    List<Field> findByIsIndoorTrue();
-    List<Field> findByIsIndoorFalse();
+    List<Field> findBySite_SiteId(Integer siteId);
+
+    List<Field> findBySite_SiteIdAndIsIndoorTrue(Integer siteId);
+
+    List<Field> findBySite_SiteIdAndIsIndoorFalse(Integer siteId);
+
+    List<Field> findBySite_SiteIdAndIsActiveTrue(Integer siteId);
+
+    List<Field> findBySite_SiteIdAndIsActiveFalse(Integer siteId);
+
+    List<Field> findBySite_SiteIdAndMaintenanceFromDateIsNotNullAndMaintenanceToDateIsNotNull(Integer siteId);
 }

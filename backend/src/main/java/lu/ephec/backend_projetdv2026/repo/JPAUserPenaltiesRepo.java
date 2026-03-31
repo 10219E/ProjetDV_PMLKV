@@ -18,11 +18,16 @@ public interface JPAUserPenaltiesRepo extends JpaRepository<UserPenalties, Integ
     @Query("SELECT p FROM UserPenalties p JOIN FETCH p.user WHERE p.user.matricule = :userId") //Fetching user info while in transacation
     List<UserPenalties> findByUserMatriculeWithUser(@Param("userId") String userId);
 
-    @Query("SELECT p FROM UserPenalties p JOIN FETCH p.user")//""
-    List<UserPenalties> findAllWithUser();
+    @Query("SELECT p FROM UserPenalties p JOIN FETCH p.user WHERE p.user.matricule = :userId AND p.isActive = true")
+    List<UserPenalties> findAllActiveWithUser(@Param("userId") String userId);
 
     @Query("SELECT p FROM UserPenalties p JOIN FETCH p.user WHERE LOWER(p.reason) = LOWER(:reason)")
     List<UserPenalties> findAllWithUserByReason(@Param("reason") String reason);
+
+    List<UserPenalties> findAll();
+
+    List<UserPenalties> findAllByIsActiveTrue();
+
 
     @Modifying
     @Transactional

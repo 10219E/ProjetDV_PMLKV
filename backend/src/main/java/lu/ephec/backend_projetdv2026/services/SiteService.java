@@ -1,9 +1,11 @@
 package lu.ephec.backend_projetdv2026.services;
 
 import jakarta.transaction.Transactional;
+import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteClosureDays;
 import lu.ephec.backend_projetdv2026.models.SiteSessions;
+import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteClosureDaysRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteSessionsRepo;
@@ -26,14 +28,16 @@ public class SiteService {
     private final JPASiteClosureDaysRepo jpaClosureDaysRepo;
     private final SiteSessionsJsonHandler siteSessionsJsonHandler;
     private final JPASiteSessionsRepo jpaSiteSessionsRepo;
+    private final JPAFieldRepo jpaFieldRepo;
 
     // InjDep Interface Sites
-    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo, SiteSessionsJsonHandler siteSessionsJsonHandler, JPASiteSessionsRepo jpaSiteSessionsRepo) {
+    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo, SiteSessionsJsonHandler siteSessionsJsonHandler, JPASiteSessionsRepo jpaSiteSessionsRepo, FieldService fieldService, JPAFieldRepo jpaFieldRepo) {
 
         this.jpaSiteRepo = jpaSiteRepo;
         this.jpaClosureDaysRepo = jpaClosureDaysRepo;
         this.siteSessionsJsonHandler = siteSessionsJsonHandler;
         this.jpaSiteSessionsRepo = jpaSiteSessionsRepo;
+        this.jpaFieldRepo = jpaFieldRepo;
     }
 
     ////SITES OPERATIONS////
@@ -94,6 +98,16 @@ public class SiteService {
     //GET ALL Sites
     public List<Site> fetchAll() { return jpaSiteRepo.findAll(); }
 
+    //GET ALL ACTIVE Sites
+    public List<Site> fetchAllActive() {
+        return jpaSiteRepo.findAllByIsActiveTrue();
+    }
+
+    //GET ALL INACTIVE Sites
+    public List<Site> fetchAllInactive() {
+        return jpaSiteRepo.findAllByIsActiveFalse();
+    }
+
     //GET ALL By Opening TIME
     public List<Site> fetchByOpeningTime(LocalTime openingTime) {
         ValidationBoiler.verifyNotNull(openingTime, "Site opening time");
@@ -106,9 +120,10 @@ public class SiteService {
         return jpaSiteRepo.findByClosingTime(closingTime);
     }
 
-    //DELETE Site
+    //DELETE Site -- ONLY SUPER ADMIN
     @Transactional
     public void deleteSite(Integer siteId) {
+        ValidationBoiler.verifyNotNull(siteId, "Site ID");
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
 
         // DELETE CLOSURES
@@ -121,6 +136,12 @@ public class SiteService {
             jpaSiteSessionsRepo.delete(siteSessions.get());
         }
 
+        // DELETE FIELDS
+        List<Field> fields = jpaFieldRepo.findBySite_SiteId(siteId);
+        if (!fields.isEmpty()) {
+            jpaFieldRepo.deleteAll(fields);
+        }
+
         // HERE SHOULD SET MATCH AS INACTIVE !!
 
         jpaSiteRepo.deleteById(siteId);
@@ -129,15 +150,19 @@ public class SiteService {
     //UPDATE Site + SITE Sessions if hours changed
     @Transactional
     public Optional<Site> updateSite(Integer siteId, Site updateData) {
-
+        ValidationBoiler.verifyNotNull(siteId, "Site ID");
+        ValidationBoiler.verifyNotNull(updateData, "Update data");
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         AtomicBoolean hoursChanged = new AtomicBoolean(false);
+        AtomicBoolean siteDeactivated = new AtomicBoolean(false);
 
         return jpaSiteRepo.findById(siteId).map(site -> {
             if (updateData.getName() != null) {
+                ValidationBoiler.verifyNotEmpty(updateData.getName(), "Site name");
                 site.setName(updateData.getName());
             }
             if (updateData.getAddress() != null) {
+                ValidationBoiler.verifyNotEmpty(updateData.getAddress(), "Site address");
                 site.setAddress(updateData.getAddress());
             }
             if (updateData.getOpeningTime() != null && !updateData.getOpeningTime().equals(site.getOpeningTime())) {
@@ -148,11 +173,25 @@ public class SiteService {
                 site.setClosingTime(updateData.getClosingTime());
                 hoursChanged.set(true);
             }
+
+            if (updateData.getIsActive() != null && updateData.getIsActive() == false && site.getIsActive() == true) {
+                siteDeactivated.set(true);
+            }
+
             if (updateData.getIsActive() != null) {
                 site.setIsActive(updateData.getIsActive());
             }
 
             Site updatedSite = jpaSiteRepo.save(site);
+
+            //DEACTIVATING FIELDS IF SITE IS SET TO INACTIVE
+            if (siteDeactivated.get()) {
+                List<Field> fields = jpaFieldRepo.findBySite_SiteId(updatedSite.getSiteId());
+                fields.forEach(field -> {
+                    field.setIsActive(false);
+                });
+                jpaFieldRepo.saveAll(fields);
+            }
 
             //IF HOURS CHANGED, WE MUST REGENERATE SESSIONS
             if (hoursChanged.get()) {
@@ -188,7 +227,7 @@ public class SiteService {
     ////SESSION TIMES////
 
     // GET SESSION TIMES FOR A SITE (parsed from JSON)
-    public List<?> getSessionTimesForSite(Integer siteId) {
+    public List<?> fetchSessionTimesForSite(Integer siteId) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
 
         Optional<SiteSessions> siteSessions = jpaSiteSessionsRepo.findBySite_SiteId(siteId);
@@ -221,6 +260,7 @@ public class SiteService {
     public List<SiteClosureDays> newClosuresOneSite(Integer siteId, List<LocalDate> closureDates, String reason) {
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
+        ValidationBoiler.verifyNotEmpty(reason, "Closure reason");
 
         return closureDates.stream()
                 .peek(date -> {
@@ -238,6 +278,7 @@ public class SiteService {
     public List<SiteClosureDays> newClosureMultiSite(List<Integer> siteIds, List<LocalDate> closureDates, String reason) {
         ValidationBoiler.verifyListNotEmpty(siteIds, "Site IDs");
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
+        ValidationBoiler.verifyNotEmpty(reason, "Closure reason");
 
 
         closureDates.forEach(date -> {

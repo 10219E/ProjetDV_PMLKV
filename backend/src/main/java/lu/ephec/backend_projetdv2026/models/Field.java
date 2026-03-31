@@ -19,9 +19,6 @@ public class Field {
     @Column(name = "field_id")
     private Integer fieldId;
 
-    @Column(name = "site_id")
-    private Integer siteId;
-
     @Column(name = "is_indoor", nullable = false)
     private Boolean isIndoor = false; // DB default 0 -> false
 
@@ -34,10 +31,8 @@ public class Field {
     @Column(name = "maintenance_to_date")
     private LocalDate maintenanceToDate;
 
-    /*
-    // ManyToOne relation to Site (foreign key site_id). Keep nullable = false if a Field must belong to a Site.
+    //ManyToOne relation to Site (foreign key site_id). Keep nullable = false if a Field must belong to a Site.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", referencedColumnName = "site_id", nullable = false)
     private Site site;
-     */
 }
