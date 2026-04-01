@@ -1,9 +1,11 @@
 package lu.ephec.backend_projetdv2026.services.validation;
 
 import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
+import lu.ephec.backend_projetdv2026.models.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -58,7 +60,7 @@ public class ValidationBoiler {
         }
     }
 
-    //Check if toDate is superior
+    //Check if toDate or toTime is superior
     public static <T extends Comparable<T>> void verifyDatesValid(T fromDate, T toDate, String fieldName) {
         if (fromDate != null && toDate != null && fromDate.compareTo(toDate) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -204,4 +206,68 @@ public class ValidationBoiler {
                     "Invalid site hours: need pre/post between 15 and 30 minutes and at least one 90-minute session fitting the schedule");
         }
     }
+
+    // Validate match type (private or public)
+    public static void verifyValidMatchType(String type) {
+        verifyNotEmpty(type, "Match type");
+        if (!type.equals("private") && !type.equals("public")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Match type must be 'private' or 'public'. Received: " + type);
+        }
+    }
+
+    // Private matches must have an organiser, public matches must not
+    public static void verifyOrganizerConsistency(String matchType, User organiser) {
+        verifyNotEmpty(matchType, "Match type");
+
+        if (matchType.equals("private")) {
+            if (organiser == null || organiser.getMatricule() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Private match must have an organiser");
+            }
+        } else if (matchType.equals("public")) {
+            if (organiser != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Public match must not have an organiser (must be NULL)");
+            }
+        }
+    }
+
+    // Validate status consistency with match type
+    // Public matches: pubStatus must be valid, privStatus must be null
+    // Private matches: privStatus must be valid, pubStatus must be null
+    public static void verifyMatchStatusConsistency(String matchType, String pubStatus, String privStatus) {
+        verifyNotEmpty(matchType, "Match type");
+
+        if (matchType.equals("public")) {
+            if (pubStatus == null || pubStatus.trim().isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Public match must have a public status");
+            }
+            if (privStatus != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Public match must not have a private status");
+            }
+            if (!pubStatus.equals("open") && !pubStatus.equals("closed") &&
+                    !pubStatus.equals("completed") && !pubStatus.equals("cancelled")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Public status must be one of: 'open', 'closed', 'completed', 'cancelled'. Received: " + pubStatus);
+            }
+        } else if (matchType.equals("private")) {
+            if (privStatus == null || privStatus.trim().isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Private match must have a private status");
+            }
+            if (pubStatus != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Private match must not have a public status");
+            }
+            if (!privStatus.equals("awaiting") && !privStatus.equals("confirmed") &&
+                    !privStatus.equals("completed") && !privStatus.equals("cancelled")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Private status must be one of: 'awaiting', 'confirmed', 'completed', 'cancelled'. Received: " + privStatus);
+            }
+        }
+    }
+
 }

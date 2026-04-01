@@ -128,7 +128,7 @@ public class FieldServiceLiveDbTests {
             uField.setMaintenanceToDate(newMaintenanceTo);
 
             // CALL
-            Optional<Field> updatedOpt = fieldService.updField(fieldId, uField);
+            Optional<Field> updatedOpt = fieldService.updateField(fieldId, uField);
 
             // ASSERT
             assertTrue(updatedOpt.isPresent(), "Field not found for update: " + fieldId);
