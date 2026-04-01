@@ -2,7 +2,6 @@ package lu.ephec.backend_projetdv2026.services;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.*;
 import lu.ephec.backend_projetdv2026.repo.*;
 import com.github.javafaker.Faker;
