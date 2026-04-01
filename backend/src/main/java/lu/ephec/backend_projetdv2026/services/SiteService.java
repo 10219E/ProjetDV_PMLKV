@@ -1,14 +1,8 @@
 package lu.ephec.backend_projetdv2026.services;
 
 import jakarta.transaction.Transactional;
-import lu.ephec.backend_projetdv2026.models.Field;
-import lu.ephec.backend_projetdv2026.models.Site;
-import lu.ephec.backend_projetdv2026.models.SiteClosureDays;
-import lu.ephec.backend_projetdv2026.models.SiteSessions;
-import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
-import lu.ephec.backend_projetdv2026.repo.JPASiteClosureDaysRepo;
-import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
-import lu.ephec.backend_projetdv2026.repo.JPASiteSessionsRepo;
+import lu.ephec.backend_projetdv2026.models.*;
+import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.SiteSessionsJsonHandler;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -29,15 +23,17 @@ public class SiteService {
     private final SiteSessionsJsonHandler siteSessionsJsonHandler;
     private final JPASiteSessionsRepo jpaSiteSessionsRepo;
     private final JPAFieldRepo jpaFieldRepo;
+    private final JPAMatchRepo jpaMatchRepo;
 
     // InjDep Interface Sites
-    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo, SiteSessionsJsonHandler siteSessionsJsonHandler, JPASiteSessionsRepo jpaSiteSessionsRepo, FieldService fieldService, JPAFieldRepo jpaFieldRepo) {
+    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo, SiteSessionsJsonHandler siteSessionsJsonHandler, JPASiteSessionsRepo jpaSiteSessionsRepo, FieldService fieldService, JPAFieldRepo jpaFieldRepo, JPAMatchRepo jpaMatchRepo) {
 
         this.jpaSiteRepo = jpaSiteRepo;
         this.jpaClosureDaysRepo = jpaClosureDaysRepo;
         this.siteSessionsJsonHandler = siteSessionsJsonHandler;
         this.jpaSiteSessionsRepo = jpaSiteSessionsRepo;
         this.jpaFieldRepo = jpaFieldRepo;
+        this.jpaMatchRepo = jpaMatchRepo;
     }
 
     ////SITES OPERATIONS////
@@ -142,7 +138,16 @@ public class SiteService {
             jpaFieldRepo.deleteAll(fields);
         }
 
-        // HERE SHOULD SET MATCH AS INACTIVE !!
+        // SET ALL MATCHES ON THIS SITE AS "Cancelled"
+        List<Match> matchesOnSite = jpaMatchRepo.findBySiteId(siteId);
+        matchesOnSite.forEach(match -> {
+            if (match.getType().equals("public")) {
+                match.setPubStatus("cancelled");
+            } else if (match.getType().equals("private")) {
+                match.setPrivStatus("cancelled");
+            }
+        });
+        jpaMatchRepo.saveAll(matchesOnSite);
 
         jpaSiteRepo.deleteById(siteId);
     }
@@ -184,14 +189,28 @@ public class SiteService {
 
             Site updatedSite = jpaSiteRepo.save(site);
 
-            //DEACTIVATING FIELDS IF SITE IS SET TO INACTIVE
+            //IF SITE IS SET TO INACTIVE
             if (siteDeactivated.get()) {
+                //DEACTIVATING FIELDS
                 List<Field> fields = jpaFieldRepo.findBySite_SiteId(updatedSite.getSiteId());
                 fields.forEach(field -> {
                     field.setIsActive(false);
                 });
                 jpaFieldRepo.saveAll(fields);
+
+                // SET ALL MATCHES ON THIS SITE AS "Cancelled"
+                List<Match> matchesOnSite = jpaMatchRepo.findBySiteId(siteId);
+                matchesOnSite.forEach(match -> {
+                    if (match.getType().equals("public")) {
+                        match.setPubStatus("cancelled");
+                    } else if (match.getType().equals("private")) {
+                        match.setPrivStatus("cancelled");
+                    }
+                });
+                jpaMatchRepo.saveAll(matchesOnSite);
             }
+
+
 
             //IF HOURS CHANGED, WE MUST REGENERATE SESSIONS
             if (hoursChanged.get()) {

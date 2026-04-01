@@ -2,7 +2,9 @@ package lu.ephec.backend_projetdv2026.services;
 
 import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.Field;
+import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.apache.el.util.Validation;
@@ -12,17 +14,21 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class FieldService {
 
     private final JPAFieldRepo jpaFieldRepo;
     private final JPASiteRepo jpaSiteRepo;
+    private final JPAMatchRepo jpaMatchRepo;
 
 
     // InjDep Interface Field
-    public FieldService(JPAFieldRepo jpaFieldRepo, JPASiteRepo jpaSiteRepo) { this.jpaFieldRepo = jpaFieldRepo;
+    public FieldService(JPAFieldRepo jpaFieldRepo, JPASiteRepo jpaSiteRepo, JPAMatchRepo jpaMatchRepo) {
+        this.jpaFieldRepo = jpaFieldRepo;
         this.jpaSiteRepo = jpaSiteRepo;
+        this.jpaMatchRepo = jpaMatchRepo;
     }
 
     //CHECK EXISTS
@@ -106,21 +112,41 @@ public class FieldService {
     public void deleteField(Integer fieldId) {
         ValidationBoiler.verifyNotNull(fieldId, "Field ID");
         ValidationBoiler.verifyExists(jpaFieldRepo.existsById(fieldId), "Field", fieldId);
+
+        // SET ALL MATCHES ON THIS FIELD AS "Cancelled"
+        List<Match> matchesOnField = jpaMatchRepo.findByField_FieldId(fieldId);
+        matchesOnField.forEach(match -> {
+            if (match.getType().equals("public")) {
+                match.setPubStatus("cancelled");
+            } else if (match.getType().equals("private")) {
+                match.setPrivStatus("cancelled");
+            }
+        });
+        jpaMatchRepo.saveAll(matchesOnField);
+
         jpaFieldRepo.deleteById(fieldId);
     }
 
     // UPDATE Field
     @Transactional
-    public Optional<Field> updField(Integer fieldId, Field updateData) {
+    public Optional<Field> updateField(Integer fieldId, Field updateData) {
         ValidationBoiler.verifyExists(jpaFieldRepo.existsById(fieldId), "Field", fieldId);
+        AtomicBoolean fieldDeactivated = new AtomicBoolean(false);
+
 
         return jpaFieldRepo.findById(fieldId).map(field -> {
             if (updateData.getIsIndoor() != null) {
                 field.setIsIndoor(updateData.getIsIndoor());
             }
+
+            if (updateData.getIsActive() != null && updateData.getIsActive() == false && field.getIsActive() == true) {
+                fieldDeactivated.set(true);
+            }
+
             if (updateData.getIsActive() != null) {
                 field.setIsActive(updateData.getIsActive());
             }
+
             if (updateData.getMaintenanceFromDate() != null) {
                 field.setMaintenanceFromDate(updateData.getMaintenanceFromDate());
             }
@@ -131,6 +157,21 @@ public class FieldService {
 
             if  (updateData.getMaintenanceFromDate() != null && updateData.getMaintenanceToDate() != null) {
                 ValidationBoiler.verifyDatesValid(field.getMaintenanceFromDate(), field.getMaintenanceToDate(), "Maintenance From / To Date");
+            }
+
+            //IF FIELD IS SET TO INACTIVE
+            if (fieldDeactivated.get()) {
+
+                // SET ALL MATCHES ON THIS FIELD AS "Cancelled"
+                List<Match> matchesOnField = jpaMatchRepo.findByField_FieldId(fieldId);
+                matchesOnField.forEach(match -> {
+                    if (match.getType().equals("public")) {
+                        match.setPubStatus("cancelled");
+                    } else if (match.getType().equals("private")) {
+                        match.setPrivStatus("cancelled");
+                    }
+                });
+                jpaMatchRepo.saveAll(matchesOnField);
             }
 
             return jpaFieldRepo.save(field);
