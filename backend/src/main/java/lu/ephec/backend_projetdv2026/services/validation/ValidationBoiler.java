@@ -130,7 +130,7 @@ public class ValidationBoiler {
         EnumUserRolesType role = EnumUserRolesType.fromId(roleId);
         if (role != null && role.isAdmin()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Admin users (roles " + role.getDisplayName() + ") cannot have penalties. Penalties are only for regular users.");
+                    "Admin user " + userId + " (roles " + role.getDisplayName() + ") cannot have penalties. Penalties are only for regular users.");
         }
     }
 
