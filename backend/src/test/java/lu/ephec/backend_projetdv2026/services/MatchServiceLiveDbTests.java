@@ -521,5 +521,33 @@ public class MatchServiceLiveDbTests {
 
         }
 
+        @Test
+        @Order(11)
+        void insertMatchOnFieldUnderMaintenanceDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+
+            // Set maintenance period
+            LocalDate maintenanceStart = LocalDate.now().plusDays(5);
+            LocalDate maintenanceEnd = LocalDate.now().plusDays(10);
+            field.setMaintenanceFromDate(maintenanceStart);
+            field.setMaintenanceToDate(maintenanceEnd);
+            fieldService.updateField(field.getFieldId(), field);
+
+            Match match = createPublicMatch(field);
+            match.setMatchDate(maintenanceStart.plusDays(2)); // Try to create match during maintenance
+
+            // ACT & ASSERT
+            assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> {
+                matchService.newMatch(match);
+            });
+
+            // CLEANUP
+            siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match on field under maintenance from " + maintenanceStart + " to " + maintenanceEnd);
+        }
+
     }
 }

@@ -1,6 +1,7 @@
 package lu.ephec.backend_projetdv2026.services.validation;
 
 import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
+import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.repo.JPASiteClosureDaysRepo;
 import org.springframework.http.HttpStatus;
@@ -281,6 +282,23 @@ public class ValidationBoiler {
         if (jpaSiteClosureDaysRepo.existsBySiteIdAndClosureDate(siteId, matchDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Cannot create match on " + matchDate + ": site is closed on this date");
+        }
+    }
+
+    // Validate match date is not during field maintenance period
+    public static void verifyFieldNotUnderMaintenance(LocalDate matchDate, Field field) {
+        verifyNotNull(matchDate, "Match date");
+        verifyNotNull(field, "Field");
+
+        LocalDate maintenanceFromDate = field.getMaintenanceFromDate();
+        LocalDate maintenanceToDate = field.getMaintenanceToDate();
+
+        // If both maintenance dates are set, check if match date falls within the range
+        if (maintenanceFromDate != null && maintenanceToDate != null) {
+            if (!matchDate.isBefore(maintenanceFromDate) && !matchDate.isAfter(maintenanceToDate)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cannot create match on " + matchDate + ": field is under maintenance from " + maintenanceFromDate + " to " + maintenanceToDate);
+            }
         }
     }
 

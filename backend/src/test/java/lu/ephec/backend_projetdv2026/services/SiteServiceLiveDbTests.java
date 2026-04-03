@@ -1,5 +1,6 @@
 package lu.ephec.backend_projetdv2026.services;
 
+import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteClosureDays;
 import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
@@ -29,6 +30,9 @@ public class SiteServiceLiveDbTests {
     private SiteService siteService;
     @Autowired
     private FieldService fieldService;
+
+    @Autowired
+    private MatchService matchService;
 
     private TestReporter reporter;
 
@@ -329,7 +333,7 @@ public class SiteServiceLiveDbTests {
             reporter.publishEntry("info", "Created closures for 2 sites");
         }
 
-        /// TEST SITE INACTIVATION + FIELDS (+BONUS DELETE) ///
+        /// TEST SITE INACTIVATION + FIELDS + MATCH (+BONUS DELETE) ///
         @Test
         @Order(10)
         void updateSiteToInactiveAndIsFieldInactiveDB() {
@@ -367,9 +371,26 @@ public class SiteServiceLiveDbTests {
             fieldService.newField(f3);
             Integer fieldID3 = f3.getFieldId();
 
+            //ARRANGE NEW PUBLIC MATCH
+            Match publicMatch = new Match();
+            publicMatch.setType("public");
+            publicMatch.setMatchDate(LocalDate.now().plusDays(5));
+            publicMatch.setStartTime(LocalTime.of(10, 0));
+            publicMatch.setEndTime(LocalTime.of(11, 30));
+            publicMatch.setField(f1);
+            publicMatch.setOrganiser(null);
+            publicMatch.setPubStatus("open");
+            publicMatch.setPrivStatus(null);
+            Match savedMatch = matchService.newMatch(publicMatch);
+
             // Verify all fields are active
             List<Field> activeFieldsBefore = fieldService.fetchActiveFieldsByActiveSite(siteId);
             assertEquals(3, activeFieldsBefore.size(), "Should have 3 active fields before deactivation");
+
+            //MATCH TEST
+            Optional<Match> matchBefore = matchService.fetchById(savedMatch.getMatchId());
+            assertTrue(matchBefore.isPresent(), "Match should exist");
+            assertEquals("open", matchBefore.get().getPubStatus(), "Match should be open before deactivation");
 
             // ACT - Deactivate the site
             Site inactivate = new Site();
@@ -392,8 +413,15 @@ public class SiteServiceLiveDbTests {
             List<Field> inactiveFieldsAfter = fieldService.fetchInactiveFieldsBySite(siteId);
             assertEquals(3, inactiveFieldsAfter.size(), "Should have 3 inactive fields after site deactivation");
 
-            //CLEANUP -- SHOULD DELETE ALSO FIELDS
-            siteService.deleteSite(siteId);
+            // ASSERT - Match is now cancelled
+            Optional<Match> matchAfter = matchService.fetchById(savedMatch.getMatchId());
+            assertTrue(matchAfter.isPresent(), "Match should exist after deactivation");
+            assertEquals("cancelled", matchAfter.get().getPubStatus(),
+                    "Public match should be cancelled after site deactivation");
+
+            //CLEANUP
+            siteService.deleteSite(siteId); //-- SHOULD DELETE ALSO FIELDS
+            matchService.deleteMatch(savedMatch.getMatchId());
 
             // ASSERT - Site is deleted
             assertFalse(siteService.siteExists(siteId), "Site not deleted: " + siteId);
@@ -403,7 +431,7 @@ public class SiteServiceLiveDbTests {
             assertTrue(allFieldsAfterDelete.stream().noneMatch(f -> f.getSite() != null && f.getSite().getSiteId().equals(siteId)),
                     "Fields should be deleted when site is deleted");
 
-            reporter.publishEntry("info", "Successfully verified that 3 fields were inactivated when site was deactivated");
+            reporter.publishEntry("info", "Successfully verified that 3 fields were inactivated and match set to 'cancelled' when site was deactivated");
         }
 
     }

@@ -57,10 +57,11 @@ public class MatchService {
         ValidationBoiler.verifyDatesValid(LocalDate.now(), match.getMatchDate(), "Match date");
         ValidationBoiler.verifyDatesValid(match.getStartTime(), match.getEndTime(), "Match start/end time");
 
-        //Validate field exists and get site ID for closure day check
+        //Validate field exists, not on maintenance and get site ID for closure day check
         Field fullField = jpaFieldRepo.findById(match.getField().getFieldId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Field not found with id: " + match.getField().getFieldId()));
+        ValidationBoiler.verifyFieldNotUnderMaintenance(match.getMatchDate(), fullField); //Validate field is not under maintenance
         ValidationBoiler.verifyMatchDateNotOnClosureDay(match.getMatchDate(),
                 fullField.getSite().getSiteId(), jpaSiteClosureDaysRepo);
 
@@ -232,6 +233,7 @@ public class MatchService {
                 if (updateData.getField().getFieldId() != null) {
                     ValidationBoiler.verifyExists(jpaFieldRepo.existsById(updateData.getField().getFieldId()),
                             "Field", updateData.getField().getFieldId());
+                    ValidationBoiler.verifyFieldNotUnderMaintenance(match.getMatchDate(), updateData.getField()); //Validate field is not under maintenance
                     match.setField(updateData.getField());
                 }
             }
@@ -242,7 +244,8 @@ public class MatchService {
                 Field fullField = jpaFieldRepo.findById(match.getField().getFieldId())
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                                 "Field not found with id: " + match.getField().getFieldId()));
-                ValidationBoiler.verifyMatchDateNotOnClosureDay(match.getMatchDate(),
+                ValidationBoiler.verifyFieldNotUnderMaintenance(match.getMatchDate(), fullField); //field not under maintenance
+                ValidationBoiler.verifyMatchDateNotOnClosureDay(match.getMatchDate(), //not on closure day
                         fullField.getSite().getSiteId(), jpaSiteClosureDaysRepo);
                 ValidationBoiler.verifyDatesValid(LocalDate.now(), match.getMatchDate(), "Match date");
                 match.setMatchDate(updateData.getMatchDate());
