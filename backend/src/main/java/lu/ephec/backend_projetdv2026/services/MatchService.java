@@ -1,8 +1,10 @@
 package lu.ephec.backend_projetdv2026.services;
 
 import jakarta.transaction.Transactional;
+import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
+import lu.ephec.backend_projetdv2026.repo.JPASiteClosureDaysRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
@@ -20,12 +22,14 @@ public class MatchService {
     private final JPAMatchRepo jpaMatchRepo;
     private final JPAUserRepo jpaUserRepo;
     private final JPAFieldRepo jpaFieldRepo;
+    private final JPASiteClosureDaysRepo jpaSiteClosureDaysRepo;
 
     // Dependency Injection
-    public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo) {
+    public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo, JPASiteClosureDaysRepo jpaSiteClosureDaysRepo) {
         this.jpaMatchRepo = jpaMatchRepo;
         this.jpaUserRepo = jpaUserRepo;
         this.jpaFieldRepo = jpaFieldRepo;
+        this.jpaSiteClosureDaysRepo = jpaSiteClosureDaysRepo;
     }
 
 
@@ -49,13 +53,16 @@ public class MatchService {
         //Validate match type (private or public)
         ValidationBoiler.verifyValidMatchType(match.getType());
 
-        //Validate time and date
-        ValidationBoiler.verifyDatesValid(match.getStartTime(), match.getEndTime(), "Match start/end time");
+        //Validate times and match date
         ValidationBoiler.verifyDatesValid(LocalDate.now(), match.getMatchDate(), "Match date");
+        ValidationBoiler.verifyDatesValid(match.getStartTime(), match.getEndTime(), "Match start/end time");
 
-        //Validate field exists
-        ValidationBoiler.verifyExists(jpaFieldRepo.existsById(match.getField().getFieldId()),
-                    "Field", match.getField().getFieldId());
+        //Validate field exists and get site ID for closure day check
+        Field fullField = jpaFieldRepo.findById(match.getField().getFieldId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Field not found with id: " + match.getField().getFieldId()));
+        ValidationBoiler.verifyMatchDateNotOnClosureDay(match.getMatchDate(),
+                fullField.getSite().getSiteId(), jpaSiteClosureDaysRepo);
 
         //Validate organiser
         //Validate that organiser is not wrongly assigned (public=null/private=user)
@@ -186,11 +193,6 @@ public class MatchService {
                 }
             }
 
-            // Update match date if provided
-            if (updateData.getMatchDate() != null) {
-                ValidationBoiler.verifyDatesValid(LocalDate.now(), match.getMatchDate(), "Match date");
-                match.setMatchDate(updateData.getMatchDate());
-            }
 
             // Update times if provided
             if (updateData.getStartTime() != null || updateData.getEndTime() != null) {
@@ -232,6 +234,18 @@ public class MatchService {
                             "Field", updateData.getField().getFieldId());
                     match.setField(updateData.getField());
                 }
+            }
+
+            // Update match date if provided -- AFTER FIELD FOR CLOSURE CHECK
+            if (updateData.getMatchDate() != null) {
+                //Validate field exists and get site ID for closure day check
+                Field fullField = jpaFieldRepo.findById(match.getField().getFieldId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "Field not found with id: " + match.getField().getFieldId()));
+                ValidationBoiler.verifyMatchDateNotOnClosureDay(match.getMatchDate(),
+                        fullField.getSite().getSiteId(), jpaSiteClosureDaysRepo);
+                ValidationBoiler.verifyDatesValid(LocalDate.now(), match.getMatchDate(), "Match date");
+                match.setMatchDate(updateData.getMatchDate());
             }
 
             // Update organiser if provided - BUT force NULL for public matches

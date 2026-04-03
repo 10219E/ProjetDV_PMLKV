@@ -33,6 +33,9 @@ public class MatchServiceLiveDbTests {
     private SiteService siteService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private JPASiteClosureDaysRepo jpaSiteClosureDaysRepo;
+
 
     private TestReporter reporter;
 
@@ -168,10 +171,10 @@ public class MatchServiceLiveDbTests {
             Optional<Match> fetched = matchService.fetchById(saved.getMatchId());
             assertTrue(fetched.isPresent());
 
-            reporter.publishEntry("info", "Inserted private match matchId=" + saved.getMatchId());
-
             savedOrganiser = organiser;
             savedPrivMatch = saved;
+
+            reporter.publishEntry("info", "Inserted private match matchId=" + saved.getMatchId());
         }
 
 
@@ -247,7 +250,6 @@ public class MatchServiceLiveDbTests {
             assertTrue(publicMatches.stream().allMatch(m -> m.getType().equals("public")));
             assertTrue(privateMatches.stream().allMatch(m -> m.getType().equals("private")));
 
-            reporter.publishEntry("info", "Fetched " + publicMatches.size() + " public and " + privateMatches.size() + " private matches");
 
             //TO USE IN FURTHER TEST
             savedPrivMatch = privateMatch;
@@ -255,6 +257,8 @@ public class MatchServiceLiveDbTests {
             savedOrganiser = organiser;
             savedField = field;
             savedSite = site;
+
+            reporter.publishEntry("info", "Fetched " + publicMatches.size() + " public and " + privateMatches.size() + " private matches");
 
         }
 
@@ -305,13 +309,13 @@ public class MatchServiceLiveDbTests {
             assertTrue(organiserMatches.stream()
                     .allMatch(m -> m.getOrganiser().getMatricule().equals(organiser.getMatricule())));
 
-            reporter.publishEntry("info", "Fetched " + organiserMatches.size() + " matches for organiser=" + organiser.getMatricule());
-
             // CLEANUP
             matchService.deleteMatch(savedPrivMatch.getMatchId());
             matchService.deleteMatch(savedPubMatch.getMatchId());
             siteService.deleteSite(savedSite.getSiteId());
             userService.deleteUser(organiser.getMatricule());
+
+            reporter.publishEntry("info", "Fetched " + organiserMatches.size() + " matches for organiser=" + organiser.getMatricule());
         }
     }
 
@@ -335,10 +339,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected match with empty type");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match with empty type");
         }
 
         @Test
@@ -356,10 +360,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected match with invalid type");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match with invalid type");
         }
 
         @Test
@@ -377,10 +381,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected match with past date");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match with past date");
         }
 
         @Test
@@ -399,10 +403,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected match with invalid times (end before start)");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match with invalid times (end before start)");
         }
 
         @Test
@@ -436,10 +440,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected private match without organiser");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected private match without organiser");
         }
 
         @Test
@@ -458,11 +462,11 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected public match with organiser");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
             userService.deleteUser(organiser.getMatricule());
+
+            reporter.publishEntry("info", "Correctly rejected public match with organiser");
         }
 
         @Test
@@ -486,5 +490,36 @@ public class MatchServiceLiveDbTests {
 
             reporter.publishEntry("info", "Correctly rejected fetch for non-existent site");
         }
+
+        @Test
+        @Order(10)
+        void insertMatchOnSiteClosureDayDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+
+            // Create a closure day for the site
+            LocalDate closureDate = LocalDate.now().plusDays(5);
+            SiteClosureDays closure = new SiteClosureDays();
+            closure.setSiteId(site.getSiteId());
+            closure.setClosureDate(closureDate);
+            closure.setReason("Maintenance");
+            jpaSiteClosureDaysRepo.save(closure); // Save closure day
+
+            Match match = createPublicMatch(field);
+            match.setMatchDate(closureDate); // Try to create match on closure day
+
+            // ACT & ASSERT
+            assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> {
+                matchService.newMatch(match);
+            });
+
+            // CLEANUP
+            siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match on site closure day: " + closureDate);
+
+        }
+
     }
 }

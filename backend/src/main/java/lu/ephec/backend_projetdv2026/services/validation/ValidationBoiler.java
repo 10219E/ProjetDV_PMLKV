@@ -2,10 +2,12 @@ package lu.ephec.backend_projetdv2026.services.validation;
 
 import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import lu.ephec.backend_projetdv2026.models.User;
+import lu.ephec.backend_projetdv2026.repo.JPASiteClosureDaysRepo;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -269,5 +271,19 @@ public class ValidationBoiler {
             }
         }
     }
+
+    // Validate match date is not on a site closure day
+    public static void verifyMatchDateNotOnClosureDay(LocalDate matchDate, Integer siteId,
+                                                      JPASiteClosureDaysRepo jpaSiteClosureDaysRepo) {
+        verifyNotNull(matchDate, "Match date");
+        verifyNotNull(siteId, "Site ID");
+
+        if (jpaSiteClosureDaysRepo.existsBySiteIdAndClosureDate(siteId, matchDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot create match on " + matchDate + ": site is closed on this date");
+        }
+    }
+
+
 
 }
