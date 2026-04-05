@@ -221,15 +221,25 @@ public class MatchService {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "Match type must be 'private' or 'public'. Received: " + updateData.getType());
                 }
+
+                if (updateData.getType().equals("private") && match.getType().equals("public")) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Match can not be migrated from public to private");
+                }
+
                 match.setType(updateData.getType());
 
                 // If changing to public, organiser must be null and clean privStatus
                 if (updateData.getType().equals("public")) {
+                    /// MATCH PLAYERS Reset pending/declined slots to open for public, but keep approved players
+                    resetMatchPlayersForPublic(matchId);
+
                     match.setOrganiser(null);
                     match.setPrivStatus(null);  //CLEANUP OLD STATUS TO AVOID CONSTRAINT if public
-                } else if (updateData.getType().equals("private")) {
+                    match.setPubStatus("open"); //Setting Match Open
+                } /*else if (updateData.getType().equals("private")) { //CAN NOIT
                     match.setPubStatus(null);   //CLEANUP OLD STATUS TO AVOID CONSTRAINT if private
-                }
+                }*/ // For now no pub can be changed to private
             }
 
 
@@ -335,7 +345,7 @@ public class MatchService {
                                     "User not found with id: " + userIdToInvite)); //DOUBLE CHECK JUST IN CASE
 
                     player.setUser(user);
-                    player.setStatus("invited");
+                    player.setStatus("pending");
                 }
             }
             // For public matches: all roles are pending with no user assigned
@@ -347,5 +357,107 @@ public class MatchService {
             jpaMatchPlayersRepo.save(player);
         }
     }
+
+    // RESET SPECIFIC SLOTS FOR PUBLIC MATCH
+    // Keep approved players, reset declined/pending slots to pending with null user
+    @Transactional
+    protected void resetMatchPlayersForPublic(Integer matchId) {
+        List<MatchPlayers> players = jpaMatchPlayersRepo.findByMatch_MatchId(matchId);
+
+        for (MatchPlayers player : players) {
+            // Keep approved players as-is (already booked)
+            if (player.getStatus().equals("approved")) {
+                continue;
+            }
+
+            // Reset declined and pending slots for public filling
+            if ((player.getStatus().equals("declined") || player.getStatus().equals("pending")) && player.getUser() != null) {
+                player.setUser(null);
+                player.setStatus("pending");
+            }
+        }
+
+        jpaMatchPlayersRepo.saveAll(players);
+    }
+
+    // FETCH ALL PLAYERS FOR A MATCH
+    public List<MatchPlayers> fetchAllForMatch(Integer matchId) {
+        ValidationBoiler.verifyNotNull(matchId, "Match ID");
+        ValidationBoiler.verifyExists(jpaMatchRepo.existsById(matchId), "Match", matchId);
+
+        List<MatchPlayers> players = jpaMatchPlayersRepo.findByMatch_MatchId(matchId);
+        if (players.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No players found for match: " + matchId);
+        }
+        return players;
+    }
+
+    // UPDATE PLAYER TO MATCH -- autohandling of available role
+    // For public matches: fills the first available "pending" slot
+    // For private matches: can replace "declined" players
+    @Transactional
+    public Optional<MatchPlayers> updateMatchPlayer(Integer matchId, String userId, String newStatus) {
+        ValidationBoiler.verifyNotNull(matchId, "Match ID");
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyNotEmpty(newStatus, "Status");
+
+        // Verify match exists
+        Match match = jpaMatchRepo.findById(matchId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Match not found with id: " + matchId));
+
+        // Verify user exists
+        var user = jpaUserRepo.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "User not found with id: " + userId));
+
+        // Validate status
+        if (!newStatus.matches("^(approved|pending|invited|declined)$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid status. Must be approved, pending, invited, or declined. Received: " + newStatus);
+        }
+
+        // Check user is not already in another role in this match
+        Optional<MatchPlayers> existingUserInMatch = jpaMatchPlayersRepo
+                .findByMatch_MatchIdAndUser_Matricule(matchId, userId);
+
+        if (existingUserInMatch.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "User " + userId + " is already assigned to role " + existingUserInMatch.get().getPlayerRole()
+                            + " in match " + matchId);
+        }
+
+        List<MatchPlayers> players = jpaMatchPlayersRepo.findByMatch_MatchId(matchId);
+        MatchPlayers slotToFill = null;
+
+        // For public matches: find first "pending" slot
+        if (match.getType().equals("public")) {
+            slotToFill = players.stream()
+                    .filter(p -> p.getStatus().equals("pending") && p.getUser() == null)
+                    .findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
+                            "No available slots (pending) in public match " + matchId));
+        }
+        // For private matches: filling "declined" slots
+        else if (match.getType().equals("private")) {
+            slotToFill = players.stream()
+                    .filter(p -> p.getStatus().equals("declined"))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        if (slotToFill == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No available slot found in match " + matchId);
+        }
+
+        // Assign the user to the slot
+        slotToFill.setUser(user);
+        slotToFill.setStatus(newStatus);
+
+        return Optional.of(jpaMatchPlayersRepo.save(slotToFill));
+    }
+
 
 }

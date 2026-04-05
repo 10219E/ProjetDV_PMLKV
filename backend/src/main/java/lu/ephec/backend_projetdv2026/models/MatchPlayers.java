@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "\"Sites_Match_Players\"")
+@Table(name = "\"Match_Players\"")
 public class MatchPlayers {
 
     @Id
@@ -22,7 +22,7 @@ public class MatchPlayers {
     private Match match;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", referencedColumnName = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", referencedColumnName = "user_id", nullable = true)  //to pre-create record for any match
     private User user;
 
     @Column(name = "status", length = 15, nullable = false)
