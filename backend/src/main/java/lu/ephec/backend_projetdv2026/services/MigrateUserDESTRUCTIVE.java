@@ -3,9 +3,9 @@ package lu.ephec.backend_projetdv2026.services;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
-import lu.ephec.backend_projetdv2026.models.User;
-import lu.ephec.backend_projetdv2026.models.UserPenalties;
-import lu.ephec.backend_projetdv2026.models.UserRoles;
+import lu.ephec.backend_projetdv2026.models.*;
+import lu.ephec.backend_projetdv2026.repo.JPAMatchPlayersRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.UUID;
 
 //This class allows the migration of users from one role to another by creating a new user with the same data but a new matricule and role,
 //then copying penalties to the new user and finally deleting the old user.
@@ -32,16 +33,20 @@ public class MigrateUserDESTRUCTIVE {
     private final JPAUserRepo jpaUserRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
     private final MatriculeHandler matriculeHandler;
+    private final JPAMatchRepo jpaMatchRepo;
+    private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
 
 
     @PersistenceContext
     private EntityManager em;
 
     public MigrateUserDESTRUCTIVE(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo,
-                                  MatriculeHandler matriculeHandler) {
+                                  MatriculeHandler matriculeHandler, JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
         this.matriculeHandler = matriculeHandler;
+        this.jpaMatchRepo = jpaMatchRepo;
+        this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
     }
 
     @Transactional
@@ -79,21 +84,19 @@ public class MigrateUserDESTRUCTIVE {
         UserRoles newRole = em.find(UserRoles.class, newRoleId);
         ValidationBoiler.verifyExists(newRole != null, "Role", newRoleId);
 
-        // 1 - FETCH PENALTIES BEFORE DELETING OLD USER
+        // 1 - FETCH DATA
         List<UserPenalties> oldPenalties = jpaUserPenaltiesRepo.findByUserMatriculeWithUser(oldMatricule);
+        List<MatchPlayers> oldMatchPlayers = jpaMatchPlayersRepo.findByUser_Matricule(oldMatricule);
+        List<Match> organizedMatches = jpaMatchRepo.findByOrganiser_Matricule(oldMatricule);
+        String oldEmail = oldUser.getEmail();
 
-        // 2 - DELETE OLD USER (frees up the email and matricule)
-        jpaUserPenaltiesRepo.deleteAll(oldPenalties); //1
-        jpaUserRepo.deleteById(oldMatricule); //2
-        //MAYBE MATCH + SITE DELETION LATERN
-        em.flush(); //Clear session
 
-        // 3 - CREATE NEW USER with same data but new role
+        // 2 - CREATE NEW USER with same data but new role
         User newUser = new User();
         newUser.setIsActive(oldUser.getIsActive());
         newUser.setFirstName(oldUser.getFirstName());
         newUser.setLastName(oldUser.getLastName());
-        newUser.setEmail(oldUser.getEmail());
+        newUser.setEmail("temp-" + oldUser.getMatricule() + UUID.randomUUID() + "@temp.tmp"); //temp email to avoid conflicts
         newUser.setBirthDate(oldUser.getBirthDate());
         newUser.setLevel(oldUser.getLevel());
         newUser.setAuth(oldUser.getAuth());
@@ -105,11 +108,29 @@ public class MigrateUserDESTRUCTIVE {
         String newMatricule = matriculeHandler.generateMatricule(newRoleId, jpaUserRepo);
         newUser.setMatricule(newMatricule);
 
-        // 4 - SAVE NEW USER
+        // 3 - SAVE NEW USER
         User savedNewUser = jpaUserRepo.save(newUser);
         em.flush(); //Ensure new user is saved and has an ID before creating penalties
+        
+        // 4 - UPDATE MATCH OCCURENCES TO NEW USER
+        organizedMatches.forEach(match -> match.setOrganiser(savedNewUser));
+        jpaMatchRepo.saveAll(organizedMatches);
 
-        // 5 - CREATE NEW PENALTY INSTANCES (completely new, not merged)
+        // 5 - UPDATE MATCH PLAYERS OCCURENCES TO NEW USER
+        oldMatchPlayers.forEach(matchPlayer -> matchPlayer.setUser(savedNewUser));
+        jpaMatchPlayersRepo.saveAll(oldMatchPlayers);
+
+        // 7 - DELETE OLD USER (frees up the email and matricule)
+        jpaUserPenaltiesRepo.deleteAll(oldPenalties); //1
+        jpaUserRepo.deleteById(oldMatricule); //2
+        em.flush(); //Clear session
+
+        // 8 - UPDATE USER EMAIL
+        savedNewUser.setEmail(oldEmail);
+        jpaUserRepo.save(savedNewUser);
+        em.flush(); //FLUSH TO ENSURE ALL CHANGES ARE COMMITTED
+
+        // 9 - CREATE NEW PENALTY INSTANCES (completely new, not merged)
         oldPenalties.forEach(oldPenalty -> {
             UserPenalties newPenalty = new UserPenalties();
             newPenalty.setUser(savedNewUser);  // Link to new user

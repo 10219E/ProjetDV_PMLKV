@@ -710,9 +710,58 @@ public class MatchServiceLiveDbTests {
             reporter.publishEntry("info", "Correctly rejected match on field under maintenance from " + maintenanceStart + " to " + maintenanceEnd);
         }
 
-        /// MATCH PLAYER OPS EXCEPTION TESTS///
         @Test
         @Order(12)
+        void insertPrivateMatchAsAdminOrganizerDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+
+            // Create admin user (role 7 = Site Admin)
+            User adminUser = new User();
+            String firstName = Faker.instance().name().firstName();
+            String lastName = Faker.instance().name().lastName();
+            String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@admin.com";
+            LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
+            adminUser.setIsActive(true);
+            adminUser.setFirstName(firstName);
+            adminUser.setLastName(lastName);
+            adminUser.setEmail(email);
+            adminUser.setBirthDate(birthDate);
+            adminUser.setRole(em.find(UserRoles.class, (short) 9)); // Role 9 = Super Admin
+            adminUser.setCreated(LocalDateTime.now());
+            adminUser.setAuth(null);
+
+            User savedAdmin = userService.newUser(adminUser);
+
+            // Create 3 regular invited users
+            User p2 = createTestUser();
+            User p3 = createTestUser();
+            User p4 = createTestUser();
+
+            List<String> usersToInvite = List.of(p2.getMatricule(), p3.getMatricule(), p4.getMatricule());
+
+            Match match = createPrivateMatch(field, savedAdmin);
+
+            // ACT & ASSERT - Admin cannot create match as organiser
+            assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> {
+                matchService.newMatch(match, usersToInvite);
+            });
+
+            // CLEANUP
+            siteService.deleteSite(site.getSiteId());
+            userService.deleteUser(savedAdmin.getMatricule());
+            userService.deleteUser(p2.getMatricule());
+            userService.deleteUser(p3.getMatricule());
+            userService.deleteUser(p4.getMatricule());
+
+            reporter.publishEntry("info", "Correctly rejected admin user from creating match as organiser");
+        }
+
+        /// MATCH PLAYER OPS EXCEPTION TESTS///
+        @Test
+        @Order(13)
         void updateMatchPlayerWhenAllSlotsFullDB() {
             // ARRANGE
             Site site = createTestSite();

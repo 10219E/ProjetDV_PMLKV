@@ -80,6 +80,9 @@ public class MatchService {
         if (match.getOrganiser() != null && match.getOrganiser().getMatricule() != null) {
             ValidationBoiler.verifyExists(jpaUserRepo.existsById(match.getOrganiser().getMatricule()),
                     "User", match.getOrganiser().getMatricule());
+
+            var organizer = jpaUserRepo.findById(match.getOrganiser().getMatricule()).orElseThrow();
+            ValidationBoiler.verifyNotAdminUser(organizer.getRole().getId(), organizer.getMatricule());
         }
 
         //Validate status consistency
@@ -306,6 +309,10 @@ public class MatchService {
                 if (updateData.getOrganiser().getMatricule() != null) {
                     ValidationBoiler.verifyExists(jpaUserRepo.existsById(updateData.getOrganiser().getMatricule()),
                             "User", updateData.getOrganiser().getMatricule());
+
+                    var organizer = jpaUserRepo.findById(updateData.getOrganiser().getMatricule()).orElseThrow();
+                    ValidationBoiler.verifyNotAdminUser(organizer.getRole().getId(), organizer.getMatricule()); // Check if admin
+
                     match.setOrganiser(updateData.getOrganiser());
                 }
             }
@@ -343,6 +350,9 @@ public class MatchService {
                     var user = jpaUserRepo.findById(userIdToInvite)
                             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                                     "User not found with id: " + userIdToInvite)); //DOUBLE CHECK JUST IN CASE
+
+                    //Check user is not admin
+                    ValidationBoiler.verifyNotAdminUser(user.getRole().getId(), user.getMatricule());
 
                     player.setUser(user);
                     player.setStatus("pending");
@@ -411,6 +421,8 @@ public class MatchService {
         var user = jpaUserRepo.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "User not found with id: " + userId));
+
+        ValidationBoiler.verifyNotAdminUser(user.getRole().getId(), user.getMatricule()); //Check not admin
 
         // Validate status
         if (!newStatus.matches("^(approved|pending|invited|declined)$")) {
