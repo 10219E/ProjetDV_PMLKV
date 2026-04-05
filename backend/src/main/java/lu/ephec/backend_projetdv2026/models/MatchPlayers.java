@@ -5,19 +5,17 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "\"Reservations\"")
-public class Reservations {
+@Table(name = "\"Sites_Match_Players\"")
+public class MatchPlayers {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "reservation_id")
-    private Integer reservationId;
+    @Column(name = "tr")
+    private Integer matchPlayerId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "match_id", referencedColumnName = "match_id", nullable = false)
@@ -27,9 +25,9 @@ public class Reservations {
     @JoinColumn(name = "user_id", referencedColumnName = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "reservation_time", nullable = false)
-    private LocalDateTime reservationTime;
-
     @Column(name = "status", length = 15, nullable = false)
-    private String status; // confirmed, pending, cancelled
+    private String status; // approved, pending, declined
+
+    @Column(name = "p_role", length = 2, nullable = false)
+    private String playerRole; // p1, p2, p3, p4
 }

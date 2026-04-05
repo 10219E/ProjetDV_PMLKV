@@ -3,10 +3,8 @@ package lu.ephec.backend_projetdv2026.services;
 import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.Match;
-import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
-import lu.ephec.backend_projetdv2026.repo.JPASiteClosureDaysRepo;
-import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
-import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
+import lu.ephec.backend_projetdv2026.models.MatchPlayers;
+import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -23,15 +21,19 @@ public class MatchService {
     private final JPAUserRepo jpaUserRepo;
     private final JPAFieldRepo jpaFieldRepo;
     private final JPASiteClosureDaysRepo jpaSiteClosureDaysRepo;
+    private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
 
     // Dependency Injection
-    public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo, JPASiteClosureDaysRepo jpaSiteClosureDaysRepo) {
+    public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo, JPASiteClosureDaysRepo jpaSiteClosureDaysRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo) {
         this.jpaMatchRepo = jpaMatchRepo;
         this.jpaUserRepo = jpaUserRepo;
         this.jpaFieldRepo = jpaFieldRepo;
         this.jpaSiteClosureDaysRepo = jpaSiteClosureDaysRepo;
+        this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
     }
 
+
+    /// MATCH OPS ///
 
     //CHECK EXISTS
     public boolean matchExists(Integer matchId) {
@@ -40,8 +42,15 @@ public class MatchService {
 
 
     //SET MATCH
+    //FOR PUB MATCHES LIST WILL NOT BE PASSED //OVERCHARGE
     @Transactional
     public Match newMatch(Match match) {
+        return newMatch(match, null);
+    }
+
+    //FOR PRIVATE MATCHES USING THIS
+    @Transactional
+    public Match newMatch(Match match, List <String> usersToInvite) {
         //Validations
         ValidationBoiler.verifyNotNull(match, "Match");
         ValidationBoiler.verifyNotEmpty(match.getType(), "Match type");
@@ -78,7 +87,32 @@ public class MatchService {
         String privStatus = match.getPrivStatus();
         ValidationBoiler.verifyMatchStatusConsistency(match.getType(), pubStatus, privStatus);
 
-        return jpaMatchRepo.save(match);
+        // VALIDATE ALL INVITED USERS EXIST BEFORE CREATING THE MATCH (PRIVATE)
+        if (match.getType().equals("private")) {
+            // Validate that we have exactly 3 invites (p2, p3, p4 - p1 is organiser)
+            int requiredInvites = 3;
+            int availableInvites = (usersToInvite != null) ? usersToInvite.size() : 0;
+
+            if (availableInvites < requiredInvites) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Private match requires exactly 3 invited players (p2, p3, p4). " +
+                                "Provided: " + availableInvites + ", Required: " + requiredInvites);
+            }
+
+            // Validate all invited users exist and are not empty
+            for (String userId : usersToInvite) {
+                ValidationBoiler.verifyNotEmpty(userId, "User ID in invite list");
+                ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+            }
+        }
+
+        // SAVE THE MATCH FIRST (to get the auto-generated match_id)
+        Match savedMatch = jpaMatchRepo.save(match);
+
+        // NOW INITIALIZE MATCH PLAYERS WITH THE SAVED MATCH (which has an ID)
+        initializeMatchPlayers(savedMatch, usersToInvite);
+
+        return savedMatch;
     }
 
     //GET MATCH BY ID
@@ -157,11 +191,15 @@ public class MatchService {
         return matches;
     }
 
-    //DELETE -- ADMIN ONLY
+    //DELETE -- ONLY FOR TESTS
     @Transactional
     public void deleteMatch(Integer matchId) {
         ValidationBoiler.verifyNotNull(matchId, "Match ID");
         ValidationBoiler.verifyExists(jpaMatchRepo.existsById(matchId), "Match", matchId);
+
+        // Delete associated Match Players first (due to FK constraint)
+        jpaMatchPlayersRepo.deleteByMatch_MatchId(matchId);
+
         jpaMatchRepo.deleteById(matchId);
     }
 
@@ -264,6 +302,50 @@ public class MatchService {
 
             return jpaMatchRepo.save(match);
         });
+    }
+
+
+    ////MATCH PLAYERS OPS////
+
+    // INITIALIZE ALL 4 PLAYER SLOTS FOR A MATCH
+    @Transactional
+    protected void initializeMatchPlayers(Match match, List<String> usersToInvite) {
+        String[] roles = {"p1", "p2", "p3", "p4"};
+
+        for (int i = 0; i < roles.length; i++) {
+            String role = roles[i];
+            MatchPlayers player = new MatchPlayers();
+            player.setMatch(match);
+            player.setPlayerRole(role);
+
+            // For private matches
+            if (match.getType().equals("private")) {
+                if (role.equals("p1") && match.getOrganiser() != null) {
+                    // P1 is the organiser with approved status
+                    player.setUser(match.getOrganiser());
+                    player.setStatus("approved");
+                } else {
+                    // Invite the next user in the list to this slot
+                    int inviteIndex = i - 1; // Convert role index to invite index (p2->0, p3->1, p4->2)
+                    String userIdToInvite = usersToInvite.get(inviteIndex);
+
+                    // Verify user exists
+                    var user = jpaUserRepo.findById(userIdToInvite)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                    "User not found with id: " + userIdToInvite)); //DOUBLE CHECK JUST IN CASE
+
+                    player.setUser(user);
+                    player.setStatus("invited");
+                }
+            }
+            // For public matches: all roles are pending with no user assigned
+            else {
+                player.setUser(null);
+                player.setStatus("pending");
+            }
+
+            jpaMatchPlayersRepo.save(player);
+        }
     }
 
 }

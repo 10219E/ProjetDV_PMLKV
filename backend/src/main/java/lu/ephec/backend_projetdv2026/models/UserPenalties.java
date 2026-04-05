@@ -24,7 +24,7 @@ public class UserPenalties {
     @JoinColumn(name = "match_id", referencedColumnName = "match_id")
     private Match match;*/
 
-    @Column (name="match_id", nullable = true) //TRUE UNTIL IMPLEMENTED
+    @Column (name="match_id", nullable = true) //TRUE UNTIL IMPLEMENTED / MANY TO ONE FOR NOW INDEF. POSTPONED - SEEING HOW MUCH TIME REMAINING
     private Integer matchId;
 
     @Column(name = "reason", length = 25, nullable = false)
