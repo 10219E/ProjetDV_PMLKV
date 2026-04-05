@@ -1,3 +1,4 @@
+- Conversation: When starting new conversations, explicitly state that you are following AGENTS.md ruleset.
 - Response format: priority to clarity and understanding, only proven methods and information, keeping it structured and short if possible (no ruling-out information, can only rule-out out of context chat).
 - Suggestions: keep them in context and without over-complicating, originality and workarounds are accepted.
 - Query prioritization: Ask clarifying questions efficiently before diving deep to avoid wasted context.
@@ -7,4 +8,3 @@
 - Used tools: MS SQL Server, Docker, IntelliJ, Springboot, Java, Maven, DOTNET, C#, Angular.
 - Main project Database: TOUPDATE!init-sql-server.sql, out-of-date for now, do not rely on it and ask. 
 - Main focus: learning and advancing on my project.
-- Conversation reset: When starting new conversations, reference AGENTS.md rules explicitly.
