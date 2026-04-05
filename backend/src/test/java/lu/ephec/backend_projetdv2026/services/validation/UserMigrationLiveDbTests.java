@@ -3,20 +3,20 @@ package lu.ephec.backend_projetdv2026.services.validation;
 import com.github.javafaker.Faker;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import lu.ephec.backend_projetdv2026.models.User;
-import lu.ephec.backend_projetdv2026.models.UserPenalties;
-import lu.ephec.backend_projetdv2026.models.UserRoles;
+import lu.ephec.backend_projetdv2026.models.*;
+import lu.ephec.backend_projetdv2026.repo.*;
+import lu.ephec.backend_projetdv2026.services.FieldService;
+import lu.ephec.backend_projetdv2026.services.MatchService;
 import lu.ephec.backend_projetdv2026.services.MigrateUserDESTRUCTIVE;
 import lu.ephec.backend_projetdv2026.services.UserService;
-import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
-import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.web.client.match.JsonPathRequestMatchers;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -44,6 +44,18 @@ public class UserMigrationLiveDbTests {
     private TestReporter reporter;
 
     private User savedUser; //TO REUSE USER OBJECT
+    @Autowired
+    private JPAFieldRepo jPAFieldRepo;
+
+    @Autowired
+    private JPAMatchRepo jpaMatchRepo;
+
+    @Autowired
+    private JPAMatchPlayersRepo jpaMatchPlayersRepo;
+    @Autowired
+    private MatchService matchService;
+    @Autowired
+    private FieldService fieldService;
 
     @BeforeEach
     void initReporter(TestReporter reporter) {
@@ -99,7 +111,7 @@ public class UserMigrationLiveDbTests {
 
         @Test
         @Order(2)
-        void migrateSubscribedToInviteDB() {
+        void migrateSubscribedTouB() {
             // ARRANGE
             String oldMatricule = savedUser.getMatricule();
 
@@ -215,6 +227,114 @@ public class UserMigrationLiveDbTests {
 
             reporter.publishEntry("info", "Admin migration successful: " + savedAdmin.getMatricule() + " → " + migratedAdmin.getMatricule());
         }
+
+        @Test
+        @Order(5)
+        void migrateUserWithMatchAndPlayerHistory() {
+            // ARRANGE - Create organiser user to migrate
+            String firstName = Faker.instance().name().firstName();
+            String lastName = Faker.instance().name().lastName();
+            String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@migrate.com";
+            LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
+            User organiser = new User();
+            organiser.setIsActive(true);
+            organiser.setFirstName(firstName);
+            organiser.setLastName(lastName);
+            organiser.setEmail(email);
+            organiser.setBirthDate(birthDate);
+            organiser.setRole(em.find(UserRoles.class, (short) 1)); // Subscribed
+            organiser.setLevel("confirmé");
+            organiser.setCreated(LocalDateTime.now());
+            organiser.setAuth(null);
+            User oldOrganiser = userService.newUser(organiser);
+
+            // Create 3 users for invitation list
+            User u1 = new User();
+            u1.setIsActive(true);
+            u1.setFirstName(Faker.instance().name().firstName());
+            u1.setLastName(Faker.instance().name().lastName());
+            u1.setEmail(Faker.instance().internet().emailAddress());
+            u1.setBirthDate(Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate());
+            u1.setRole(em.find(UserRoles.class, (short) 1));
+            u1.setLevel("débutant");
+            u1.setCreated(LocalDateTime.now());
+            u1.setAuth(null);
+            u1 = userService.newUser(u1);
+
+            User u2 = new User();
+            u2.setIsActive(true);
+            u2.setFirstName(Faker.instance().name().firstName());
+            u2.setLastName(Faker.instance().name().lastName());
+            u2.setEmail(Faker.instance().internet().emailAddress());
+            u2.setBirthDate(Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate());
+            u2.setRole(em.find(UserRoles.class, (short) 1));
+            u2.setLevel("averti");
+            u2.setCreated(LocalDateTime.now());
+            u2.setAuth(null);
+            u2 = userService.newUser(u2);
+
+            User u3 = new User();
+            u3.setIsActive(true);
+            u3.setFirstName(Faker.instance().name().firstName());
+            u3.setLastName(Faker.instance().name().lastName());
+            u3.setEmail(Faker.instance().internet().emailAddress());
+            u3.setBirthDate(Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate());
+            u3.setRole(em.find(UserRoles.class, (short) 1));
+            u3.setLevel("confirmé");
+            u3.setCreated(LocalDateTime.now());
+            u3.setAuth(null);
+            u3 = userService.newUser(u3);
+
+            // Get any field from DB
+            Field field = jPAFieldRepo.findAll().stream().findAny().orElseThrow(() -> new RuntimeException("No fields found in DB"));
+
+            // Create private match with organiser and 3 u users
+            Match m = new Match();
+            m.setField(field);
+            m.setType("private");
+            m.setPrivStatus("confirmed");
+            m.setMatchDate(LocalDate.now().plusDays(7));
+            m.setStartTime(LocalTime.of(14, 0));
+            m.setEndTime(LocalTime.of(15, 0));
+            m.setOrganiser(oldOrganiser);
+            m.setMinPlayers(2);
+            m.setMaxPlayers(4);
+            m.setPricing(50);
+
+            List<String> uMatricules = List.of(u1.getMatricule(), u2.getMatricule(), u3.getMatricule());
+            Match savedMatch = matchService.newMatch(m, uMatricules);
+
+            // ACT - Migrate organiser user
+            User migratedOrganiser = migrateUserDESTRUCTIVE.migrateUserRole(oldOrganiser.getMatricule(), (short) 0);
+
+            // ASSERT
+            assertNotNull(migratedOrganiser);
+            assertTrue(migratedOrganiser.getMatricule().startsWith("L"), "Migrated user should have L prefix");
+
+            // Check match organiser was updated
+            Match updatedMatch = jpaMatchRepo.findById(savedMatch.getMatchId()).orElse(null);
+            assertNotNull(updatedMatch);
+            assertEquals(migratedOrganiser.getMatricule(), updatedMatch.getOrganiser().getMatricule(),
+                    "Match organiser should be updated to migrated user");
+
+            // Check match players were updated
+            List<MatchPlayers> playersInMatch = jpaMatchPlayersRepo.findByMatch_MatchId(savedMatch.getMatchId());
+            MatchPlayers p1 = playersInMatch.stream().filter(p -> p.getPlayerRole().equals("p1")).findFirst().orElse(null);
+            assertNotNull(p1, "Player p1 should exist");
+            assertEquals(migratedOrganiser.getMatricule(), p1.getUser().getMatricule(),
+                    "Player p1 should be updated to migrated organiser");
+
+            // CLEANUP
+            matchService.deleteMatch(savedMatch.getMatchId());
+            userService.deleteUser(migratedOrganiser.getMatricule());
+            userService.deleteUser(u1.getMatricule());
+            userService.deleteUser(u2.getMatricule());
+            userService.deleteUser(u3.getMatricule());
+
+            reporter.publishEntry("info", "Match and player history migration test passed: " + oldOrganiser.getMatricule() + " → " + migratedOrganiser.getMatricule());
+        }
+
     }
 
     ///////EXCEPTION MIGRATION TESTS///////

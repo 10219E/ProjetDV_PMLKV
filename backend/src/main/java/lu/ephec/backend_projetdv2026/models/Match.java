@@ -42,11 +42,14 @@ public class Match {
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
 
-    @Column(name = "min_players", nullable = true)
+    @Column(name = "min_players", nullable = false)
     private Integer minPlayers = 4;
 
-    @Column(name = "max_players", nullable = true)
+    @Column(name = "max_players", nullable = false)
     private Integer maxPlayers = 4;
+
+    @Column(name = "pricing", nullable = false)
+    private Integer pricing = 60;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organiser_id", referencedColumnName = "user_id")

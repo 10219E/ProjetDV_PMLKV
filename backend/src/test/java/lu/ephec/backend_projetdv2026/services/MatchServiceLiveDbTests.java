@@ -5,6 +5,7 @@ import jakarta.persistence.PersistenceContext;
 import lu.ephec.backend_projetdv2026.models.*;
 import lu.ephec.backend_projetdv2026.repo.*;
 import com.github.javafaker.Faker;
+import org.hibernate.sql.Delete;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,6 +35,9 @@ public class MatchServiceLiveDbTests {
     private SiteService siteService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private JPASiteClosureDaysRepo jpaSiteClosureDaysRepo;
+
 
     private TestReporter reporter;
 
@@ -40,7 +45,8 @@ public class MatchServiceLiveDbTests {
     private Match savedPrivMatch;
     private Field savedField;
     private Site savedSite;
-    private User savedOrganiser;
+    //private User savedOrganiser;
+    private Map<String, User> usersMatchMap  = new java.util.HashMap<>(); ;
 
     @BeforeEach
     void initReporter(TestReporter reporter) {
@@ -65,7 +71,7 @@ public class MatchServiceLiveDbTests {
         return fieldService.newField(field);
     }
 
-    private User createTestOrganiser() {
+    private User createTestUser() {
         User user = new User();
         String firstName = Faker.instance().name().firstName();
         String lastName = Faker.instance().name().lastName();
@@ -115,6 +121,7 @@ public class MatchServiceLiveDbTests {
     @DisplayName("CRUD - MatchService Tests")
     class CrudQueryTests {
 
+        ///MATCH OPS///
         @Test
         @Order(1)
         void insertPublicMatchDB() {
@@ -150,11 +157,20 @@ public class MatchServiceLiveDbTests {
         void insertPrivateMatchDB() {
             // ARRANGE
             Field field = savedField;
-            User organiser = createTestOrganiser();
+            User organiser = createTestUser();
+            User p2 = createTestUser();
+            User p3 = createTestUser();
+            User p4 = createTestUser();
+
+            List<String> usersToInvite = java.util.List.of(
+                    p2.getMatricule(),
+                    p3.getMatricule(),
+                    p4.getMatricule()
+            );
 
             // ACT
             Match match = createPrivateMatch(field, organiser);
-            Match saved = matchService.newMatch(match);
+            Match saved = matchService.newMatch(match, usersToInvite);
 
             // ASSERT
             assertNotNull(saved);
@@ -167,11 +183,16 @@ public class MatchServiceLiveDbTests {
 
             Optional<Match> fetched = matchService.fetchById(saved.getMatchId());
             assertTrue(fetched.isPresent());
+            
+            savedPrivMatch = saved;
+
+            // SAVE ALL MATCH PLAYERS -- for further tests
+            usersMatchMap.put("p1", organiser);
+            usersMatchMap.put("p2", p2);
+            usersMatchMap.put("p3", p3);
+            usersMatchMap.put("p4", p4);
 
             reporter.publishEntry("info", "Inserted private match matchId=" + saved.getMatchId());
-
-            savedOrganiser = organiser;
-            savedPrivMatch = saved;
         }
 
 
@@ -179,7 +200,7 @@ public class MatchServiceLiveDbTests {
         @Order(3)
         void updateMatchTypeAndOrganiserDB() {
             // ARRANGE
-            User newOrganiser = createTestOrganiser();
+            User newOrganiser = createTestUser();
             Match updateData = new Match();
             updateData.setType("public");
             updateData.setOrganiser(newOrganiser); //SHOULD NOT UPDATE
@@ -196,9 +217,7 @@ public class MatchServiceLiveDbTests {
             assertNull(updated.getPrivStatus());
             assertNull(updated.getOrganiser()); //Organiser should be null when changing to public// Organiser should be removed when changing to public
 
-            //CLEANUP
-            userService.deleteUser(savedOrganiser.getMatricule()); //CAN DELETE AS MATCH NOT LINKED TO PREVIOUS OR ANY USER
-            userService.deleteUser(newOrganiser.getMatricule());
+            usersMatchMap.put("neworg", newOrganiser); //For further delete
 
             reporter.publishEntry("info", "Updated match to PUBLIC with organiser that is auto-set to NULL");
 
@@ -219,6 +238,10 @@ public class MatchServiceLiveDbTests {
             // CLEANUP
             siteService.deleteSite(savedSite.getSiteId()); //ALSO DELETES FIELDS
 
+            // CLEANUP - Delete all users from list
+            usersMatchMap.values().forEach(user -> userService.deleteUser(user.getMatricule()));
+            usersMatchMap.clear();
+
             reporter.publishEntry("info", "Deleted match matchId=" + matchId);
         }
 
@@ -228,13 +251,22 @@ public class MatchServiceLiveDbTests {
             // ARRANGE
             Site site = createTestSite();
             Field field = createTestField(site);
-            User organiser = createTestOrganiser();
+            User organiser = createTestUser();
+            User p2 = createTestUser();
+            User p3 = createTestUser();
+            User p4 = createTestUser();
+
+            List<String> usersToInvite = List.of(
+                    p2.getMatricule(),
+                    p3.getMatricule(),
+                    p4.getMatricule()
+            );
 
             Match publicMatch = createPublicMatch(field);
             Match privateMatch = createPrivateMatch(field, organiser);
 
             matchService.newMatch(publicMatch);
-            matchService.newMatch(privateMatch);
+            matchService.newMatch(privateMatch, usersToInvite);
 
             // ACT
             List<Match> publicMatches = matchService.fetchByType("public");
@@ -247,14 +279,21 @@ public class MatchServiceLiveDbTests {
             assertTrue(publicMatches.stream().allMatch(m -> m.getType().equals("public")));
             assertTrue(privateMatches.stream().allMatch(m -> m.getType().equals("private")));
 
-            reporter.publishEntry("info", "Fetched " + publicMatches.size() + " public and " + privateMatches.size() + " private matches");
 
             //TO USE IN FURTHER TEST
             savedPrivMatch = privateMatch;
             savedPubMatch = publicMatch;
-            savedOrganiser = organiser;
             savedField = field;
             savedSite = site;
+
+            // SAVE ALL MATCH PLAYERS
+            usersMatchMap.put("p1", organiser);
+            usersMatchMap.put("p2", p2);
+            usersMatchMap.put("p3", p3);
+            usersMatchMap.put("p4", p4);
+            
+
+            reporter.publishEntry("info", "Fetched " + publicMatches.size() + " public and " + privateMatches.size() + " private matches");
 
         }
 
@@ -294,7 +333,7 @@ public class MatchServiceLiveDbTests {
         @Order(8)
         void fetchByOrganiserDB() {
             // ARRANGE
-            User organiser = savedOrganiser;
+            User organiser = usersMatchMap.get("p1");
 
             // ACT
             List<Match> organiserMatches = matchService.fetchByOrganiser(organiser.getMatricule());
@@ -305,21 +344,147 @@ public class MatchServiceLiveDbTests {
             assertTrue(organiserMatches.stream()
                     .allMatch(m -> m.getOrganiser().getMatricule().equals(organiser.getMatricule())));
 
-            reporter.publishEntry("info", "Fetched " + organiserMatches.size() + " matches for organiser=" + organiser.getMatricule());
-
             // CLEANUP
             matchService.deleteMatch(savedPrivMatch.getMatchId());
             matchService.deleteMatch(savedPubMatch.getMatchId());
             siteService.deleteSite(savedSite.getSiteId());
+
+            //Delete all players from list
+            usersMatchMap.values().forEach(user -> userService.deleteUser(user.getMatricule()));
+            usersMatchMap.clear();
+
+            reporter.publishEntry("info", "Fetched " + organiserMatches.size() + " matches for organiser=" + organiser.getMatricule());
+        }
+
+        /// MATCH PLAYER OPS TESTS///
+
+        @Test
+        @Order(9)
+        void fetchAllPlayersForPublicMatchDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+            Match pubMatch = createPublicMatch(field);
+            Match saved = matchService.newMatch(pubMatch);
+
+            // ACT
+            List<MatchPlayers> players = matchService.fetchAllForMatch(saved.getMatchId());
+
+            // ASSERT
+            assertNotNull(players);
+            assertEquals(4, players.size());
+            assertTrue(players.stream().allMatch(p -> p.getStatus().equals("pending")));
+            assertTrue(players.stream().allMatch(p -> p.getUser() == null));
+            assertTrue(players.stream().map(MatchPlayers::getPlayerRole)
+                    .allMatch(role -> role.matches("^p[1-4]$")));
+
+            // CLEANUP
+            matchService.deleteMatch(saved.getMatchId());
+            siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Fetched 4 pending players for public match");
+        }
+
+        @Test
+        @Order(10)
+        void fetchAllPlayersForPrivateMatchDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+            User organiser = createTestUser();
+            User p2 = createTestUser();
+            User p3 = createTestUser();
+            User p4 = createTestUser();
+
+            List<String> usersToInvite = List.of(p2.getMatricule(), p3.getMatricule(), p4.getMatricule());
+            Match privMatch = createPrivateMatch(field, organiser);
+            Match saved = matchService.newMatch(privMatch, usersToInvite);
+
+            // ACT
+            List<MatchPlayers> players = matchService.fetchAllForMatch(saved.getMatchId());
+
+            // ASSERT
+            assertNotNull(players);
+            assertEquals(4, players.size());
+
+            // Verify p1 (organiser) is approved
+            MatchPlayers p1 = players.stream()
+                    .filter(p -> p.getPlayerRole().equals("p1"))
+                    .findFirst()
+                    .orElse(null);
+            assertNotNull(p1);
+            assertEquals("approved", p1.getStatus());
+            assertEquals(organiser.getMatricule(), p1.getUser().getMatricule());
+
+            // Verify p2, p3, p4 are pending
+            long invitedCount = players.stream()
+                    .filter(p -> p.getStatus().equals("pending"))
+                    .count();
+            assertEquals(3, invitedCount);
+
+            // CLEANUP
+            matchService.deleteMatch(saved.getMatchId());
+            siteService.deleteSite(site.getSiteId());
             userService.deleteUser(organiser.getMatricule());
+            userService.deleteUser(p2.getMatricule());
+            userService.deleteUser(p3.getMatricule());
+            userService.deleteUser(p4.getMatricule());
+
+            reporter.publishEntry("info", "Fetched 4 players for private match (1 approved organiser, 3 invited)");
+        }
+
+        @Test
+        @Order(11)
+        void addPlayersToPublicMatchDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+            Match pubMatch = createPublicMatch(field);
+            Match saved = matchService.newMatch(pubMatch);
+
+            User player1 = createTestUser();
+            User player2 = createTestUser();
+            User player3 = createTestUser();
+
+            // ACT
+            Optional<MatchPlayers> updated1 = matchService.updateMatchPlayer(
+                    saved.getMatchId(), player1.getMatricule(), "approved");
+            Optional<MatchPlayers> updated2 = matchService.updateMatchPlayer(
+                    saved.getMatchId(), player2.getMatricule(), "approved");
+            Optional<MatchPlayers> updated3 = matchService.updateMatchPlayer(
+                    saved.getMatchId(), player3.getMatricule(), "pending");
+
+            // ASSERT
+            assertTrue(updated1.isPresent());
+            assertTrue(updated2.isPresent());
+            assertTrue(updated3.isPresent());
+            assertEquals("approved", updated1.get().getStatus());
+            assertEquals("approved", updated2.get().getStatus());
+            assertEquals("pending", updated3.get().getStatus());
+
+            List<MatchPlayers> allPlayers = matchService.fetchAllForMatch(saved.getMatchId());
+            long approvedCount = allPlayers.stream()
+                    .filter(p -> p.getStatus().equals("approved") && p.getUser() != null)
+                    .count();
+            assertEquals(2, approvedCount);
+
+            // CLEANUP
+            matchService.deleteMatch(saved.getMatchId());
+            siteService.deleteSite(site.getSiteId());
+            userService.deleteUser(player1.getMatricule());
+            userService.deleteUser(player2.getMatricule());
+            userService.deleteUser(player3.getMatricule());
+
+            reporter.publishEntry("info", "Added 3 players to public match");
         }
     }
-
 
     @Nested
     @DisplayName("EXCEPTION - MatchService Tests")
     class ExceptionTests {
 
+
+        ///MATCH OPS EXCEPTION///
         @Test
         @Order(1)
         void insertMatchWithEmptyTypeDB() {
@@ -335,10 +500,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected match with empty type");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match with empty type");
         }
 
         @Test
@@ -356,10 +521,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected match with invalid type");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match with invalid type");
         }
 
         @Test
@@ -377,10 +542,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected match with past date");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match with past date");
         }
 
         @Test
@@ -399,10 +564,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected match with invalid times (end before start)");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match with invalid times (end before start)");
         }
 
         @Test
@@ -436,10 +601,10 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected private match without organiser");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected private match without organiser");
         }
 
         @Test
@@ -448,7 +613,7 @@ public class MatchServiceLiveDbTests {
             // ARRANGE
             Site site = createTestSite();
             Field field = createTestField(site);
-            User organiser = createTestOrganiser();
+            User organiser = createTestUser();
 
             Match match = createPublicMatch(field);
             match.setOrganiser(organiser);
@@ -458,11 +623,11 @@ public class MatchServiceLiveDbTests {
                 matchService.newMatch(match);
             });
 
-            reporter.publishEntry("info", "Correctly rejected public match with organiser");
-
             // CLEANUP
             siteService.deleteSite(site.getSiteId());
             userService.deleteUser(organiser.getMatricule());
+
+            reporter.publishEntry("info", "Correctly rejected public match with organiser");
         }
 
         @Test
@@ -486,5 +651,152 @@ public class MatchServiceLiveDbTests {
 
             reporter.publishEntry("info", "Correctly rejected fetch for non-existent site");
         }
+
+        @Test
+        @Order(10)
+        void insertMatchOnSiteClosureDayDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+
+            // Create a closure day for the site
+            LocalDate closureDate = LocalDate.now().plusDays(5);
+            SiteClosureDays closure = new SiteClosureDays();
+            closure.setSiteId(site.getSiteId());
+            closure.setClosureDate(closureDate);
+            closure.setReason("Maintenance");
+            jpaSiteClosureDaysRepo.save(closure); // Save closure day
+
+            Match match = createPublicMatch(field);
+            match.setMatchDate(closureDate); // Try to create match on closure day
+
+            // ACT & ASSERT
+            assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> {
+                matchService.newMatch(match);
+            });
+
+            // CLEANUP
+            siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match on site closure day: " + closureDate);
+
+        }
+
+        @Test
+        @Order(11)
+        void insertMatchOnFieldUnderMaintenanceDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+
+            // Set maintenance period
+            LocalDate maintenanceStart = LocalDate.now().plusDays(5);
+            LocalDate maintenanceEnd = LocalDate.now().plusDays(10);
+            field.setMaintenanceFromDate(maintenanceStart);
+            field.setMaintenanceToDate(maintenanceEnd);
+            fieldService.updateField(field.getFieldId(), field);
+
+            Match match = createPublicMatch(field);
+            match.setMatchDate(maintenanceStart.plusDays(2)); // Try to create match during maintenance
+
+            // ACT & ASSERT
+            assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> {
+                matchService.newMatch(match);
+            });
+
+            // CLEANUP
+            siteService.deleteSite(site.getSiteId());
+
+            reporter.publishEntry("info", "Correctly rejected match on field under maintenance from " + maintenanceStart + " to " + maintenanceEnd);
+        }
+
+        @Test
+        @Order(12)
+        void insertPrivateMatchAsAdminOrganizerDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+
+            // Create admin user (role 7 = Site Admin)
+            User adminUser = new User();
+            String firstName = Faker.instance().name().firstName();
+            String lastName = Faker.instance().name().lastName();
+            String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@admin.com";
+            LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
+            adminUser.setIsActive(true);
+            adminUser.setFirstName(firstName);
+            adminUser.setLastName(lastName);
+            adminUser.setEmail(email);
+            adminUser.setBirthDate(birthDate);
+            adminUser.setRole(em.find(UserRoles.class, (short) 9)); // Role 9 = Super Admin
+            adminUser.setCreated(LocalDateTime.now());
+            adminUser.setAuth(null);
+
+            User savedAdmin = userService.newUser(adminUser);
+
+            // Create 3 regular invited users
+            User p2 = createTestUser();
+            User p3 = createTestUser();
+            User p4 = createTestUser();
+
+            List<String> usersToInvite = List.of(p2.getMatricule(), p3.getMatricule(), p4.getMatricule());
+
+            Match match = createPrivateMatch(field, savedAdmin);
+
+            // ACT & ASSERT - Admin cannot create match as organiser
+            assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> {
+                matchService.newMatch(match, usersToInvite);
+            });
+
+            // CLEANUP
+            siteService.deleteSite(site.getSiteId());
+            userService.deleteUser(savedAdmin.getMatricule());
+            userService.deleteUser(p2.getMatricule());
+            userService.deleteUser(p3.getMatricule());
+            userService.deleteUser(p4.getMatricule());
+
+            reporter.publishEntry("info", "Correctly rejected admin user from creating match as organiser");
+        }
+
+        /// MATCH PLAYER OPS EXCEPTION TESTS///
+        @Test
+        @Order(13)
+        void updateMatchPlayerWhenAllSlotsFullDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+            Match pubMatch = createPublicMatch(field);
+            Match saved = matchService.newMatch(pubMatch);
+
+            User player1 = createTestUser();
+            User player2 = createTestUser();
+            User player3 = createTestUser();
+            User player4 = createTestUser();
+            User player5 = createTestUser(); // 5th player - should fail
+
+            // Fill all 4 slots
+            matchService.updateMatchPlayer(saved.getMatchId(), player1.getMatricule(), "approved");
+            matchService.updateMatchPlayer(saved.getMatchId(), player2.getMatricule(), "approved");
+            matchService.updateMatchPlayer(saved.getMatchId(), player3.getMatricule(), "approved");
+            matchService.updateMatchPlayer(saved.getMatchId(), player4.getMatricule(), "approved");
+
+            // ACT & ASSERT - Try to add 5th player
+            assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> {
+                matchService.updateMatchPlayer(saved.getMatchId(), player5.getMatricule(), "approved");
+            });
+
+            // CLEANUP
+            matchService.deleteMatch(saved.getMatchId());
+            siteService.deleteSite(site.getSiteId());
+            userService.deleteUser(player1.getMatricule());
+            userService.deleteUser(player2.getMatricule());
+            userService.deleteUser(player3.getMatricule());
+            userService.deleteUser(player4.getMatricule());
+            userService.deleteUser(player5.getMatricule());
+
+            reporter.publishEntry("info", "Correctly rejected adding player to full match (all 4 slots occupied)");
+        }
+
     }
 }
