@@ -3,6 +3,7 @@ import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
+import lu.ephec.backend_projetdv2026.repo.JPAMatchPaymentsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
@@ -27,15 +28,17 @@ public class UserService {
     private final MigrateUserDESTRUCTIVE migrateUser;
     private final PaymentService paymentService;
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
+    private final JPAMatchPaymentsRepo jPAMatchPaymentsRepo;
 
     // InjDep Interface User + Penalties
-    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jPAUserAccountsRepo) {
+    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jPAUserAccountsRepo, JPAMatchPaymentsRepo jPAMatchPaymentsRepo) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
         this.matriculeHandler = matriculeHandler;
         this.migrateUser = migrateUser;
         this.paymentService = paymentService;
         this.jpaUserAccountsRepo = jPAUserAccountsRepo;
+        this.jPAMatchPaymentsRepo = jPAMatchPaymentsRepo;
     }
 
     ////////////USER OPERATIONS
@@ -139,7 +142,7 @@ public class UserService {
         return jpaUserRepo.findAllByIsActiveFalse();
     }
 
-    //DELETE User -- FOR SUPER ADMIN ONLY
+    //DELETE User -- FOR SUPER ADMIN ONLY AND GENERALLY SHOULD NOT BE USED
     @Transactional //Makes sure the whole method is executed
     public void deleteUser(String userId) {
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
@@ -150,6 +153,9 @@ public class UserService {
 
         //DELETE ACCOUNT
         jpaUserAccountsRepo.deleteByUser_Matricule(userId);
+
+        //DELETE MATCH PAYMENTS
+        jPAMatchPaymentsRepo.deleteAll(jPAMatchPaymentsRepo.findByUser_Matricule(userId));
 
         //DELETE USER
         jpaUserRepo.deleteById(userId); //No interfacing needed - handled by JPARepo

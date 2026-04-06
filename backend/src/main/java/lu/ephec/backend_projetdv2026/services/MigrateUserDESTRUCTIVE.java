@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -115,29 +116,47 @@ public class MigrateUserDESTRUCTIVE {
         // 3 - SAVE NEW USER
         User savedNewUser = jpaUserRepo.save(newUser);
         em.flush(); //Ensure new user is saved and has an ID before creating penalties
+
+        // Always use a managed reference for relationships
+        User managedNewUser = em.getReference(User.class, savedNewUser.getMatricule());
+
         
         // 4 - UPDATE MATCH OCCURENCES TO NEW USER
-        organizedMatches.forEach(match -> match.setOrganiser(savedNewUser));
+        organizedMatches.forEach(match -> match.setOrganiser(managedNewUser));
         jpaMatchRepo.saveAll(organizedMatches);
 
         // 5 - UPDATE MATCH PLAYERS OCCURENCES TO NEW USER
-        oldMatchPlayers.forEach(matchPlayer -> matchPlayer.setUser(savedNewUser));
+        oldMatchPlayers.forEach(matchPlayer -> matchPlayer.setUser(managedNewUser));
         jpaMatchPlayersRepo.saveAll(oldMatchPlayers);
 
-        // 7 - DELETE OLD USER (frees up the email and matricule)
+        // 6 - UPDATE PREVIOUS MATCH PAYMENTS TO NEW USER
+        List<MatchPayments> oldPayments = jpaMatchPaymentsRepo.findByUser_Matricule(oldMatricule);
+        oldPayments.forEach(oldPayment -> {
+            oldPayment.setUser(managedNewUser);
+        });
+        jpaMatchPaymentsRepo.saveAll(oldPayments);
+
+        // 7 - UPDATE USER ACCOUNT TO NEW USER (reassign existing row)
+        jpaUserAccountsRepo.findByUser_Matricule(oldMatricule).ifPresent(account -> {
+            account.setUser(managedNewUser);
+            account.setLastUpdate(LocalDateTime.now());
+            jpaUserAccountsRepo.save(account);
+        });
+
+        // 8 - DELETE OLD USER (frees up the email and matricule)
         jpaUserPenaltiesRepo.deleteAll(oldPenalties); //1
         jpaUserRepo.deleteById(oldMatricule); //2
         em.flush(); //Clear session
 
-        // 8 - UPDATE USER EMAIL
-        savedNewUser.setEmail(oldEmail);
-        jpaUserRepo.save(savedNewUser);
+        // 9 - UPDATE NEW USER EMAIL
+        managedNewUser.setEmail(oldEmail);
+        jpaUserRepo.save(managedNewUser);
         em.flush(); //FLUSH TO ENSURE ALL CHANGES ARE COMMITTED
 
-        // 9 - CREATE NEW PENALTY INSTANCES (completely new, not merged)
+        // 10 - CREATE NEW PENALTY INSTANCES (completely new, not merged)
         oldPenalties.forEach(oldPenalty -> {
             UserPenalties newPenalty = new UserPenalties();
-            newPenalty.setUser(savedNewUser);  // Link to new user
+            newPenalty.setUser(managedNewUser);  // Link to new user
             newPenalty.setReason(oldPenalty.getReason());
             newPenalty.setStartDate(oldPenalty.getStartDate());
             newPenalty.setEndDate(oldPenalty.getEndDate());
@@ -151,7 +170,8 @@ public class MigrateUserDESTRUCTIVE {
 
         em.flush(); //FLUSH TO ENSURE ALL CHANGES ARE COMMITTED
 
-        return savedNewUser;
+
+        return managedNewUser;
     }
 
 }
