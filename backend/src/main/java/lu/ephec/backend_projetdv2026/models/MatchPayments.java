@@ -27,7 +27,7 @@ public class MatchPayments {
     @JoinColumn(name = "match_id", referencedColumnName = "match_id", nullable = true)
     private Match match;
 
-    @Column(name = "amount", precision = 6, scale = 2, nullable = false)
+    @Column(name = "amount", columnDefinition = "DECIMAL(6,2)", nullable = false)
     private Double amount;
 
     @Column(name = "payment_date", nullable = true)

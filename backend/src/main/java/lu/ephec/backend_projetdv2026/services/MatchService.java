@@ -3,6 +3,7 @@ package lu.ephec.backend_projetdv2026.services;
 import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.Match;
+import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.MatchPlayers;
 import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,14 +24,20 @@ public class MatchService {
     private final JPAFieldRepo jpaFieldRepo;
     private final JPASiteClosureDaysRepo jpaSiteClosureDaysRepo;
     private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
+    private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
+    private final JPAUserAccountsRepo jpaUserAccountsRepo;
+    private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
 
     // Dependency Injection
-    public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo, JPASiteClosureDaysRepo jpaSiteClosureDaysRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo) {
+    public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo, JPASiteClosureDaysRepo jpaSiteClosureDaysRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
         this.jpaMatchRepo = jpaMatchRepo;
         this.jpaUserRepo = jpaUserRepo;
         this.jpaFieldRepo = jpaFieldRepo;
         this.jpaSiteClosureDaysRepo = jpaSiteClosureDaysRepo;
         this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
+        this.jpaMatchPaymentsRepo = jpaMatchPaymentsRepo;
+        this.jpaUserAccountsRepo = jpaUserAccountsRepo;
+        this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
     }
 
 
@@ -58,6 +66,7 @@ public class MatchService {
         ValidationBoiler.verifyNotNull(match.getStartTime(), "Match start time");
         ValidationBoiler.verifyNotNull(match.getEndTime(), "Match end time");
         ValidationBoiler.verifyNotNull(match.getField(), "Match field");
+
 
         //Validate match type (private or public)
         ValidationBoiler.verifyValidMatchType(match.getType());
@@ -90,7 +99,7 @@ public class MatchService {
         String privStatus = match.getPrivStatus();
         ValidationBoiler.verifyMatchStatusConsistency(match.getType(), pubStatus, privStatus);
 
-        // VALIDATE ALL INVITED USERS EXIST BEFORE CREATING THE MATCH (PRIVATE)
+        // VALIDATE ALL INVITED USERS EXIST BEFORE CREATING THE MATCH (PRIVATE) + SHOULD NOT BE ADMIN
         if (match.getType().equals("private")) {
             // Validate that we have exactly 3 invites (p2, p3, p4 - p1 is organiser)
             int requiredInvites = 3;
@@ -106,6 +115,43 @@ public class MatchService {
             for (String userId : usersToInvite) {
                 ValidationBoiler.verifyNotEmpty(userId, "User ID in invite list");
                 ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+                ValidationBoiler.verifyNotAdminUser(jpaUserRepo.findById(userId).orElseThrow().getRole().getId(), userId);
+            }
+        }
+
+        // VALIDATE ORG AND INVITEES HAVE NO ACTIVE DEBT OR PENALTIES
+        if (match.getType().equals("private")) {
+            // Check organiser
+            if (match.getOrganiser() != null && match.getOrganiser().getMatricule() != null) {
+                String organiserId = match.getOrganiser().getMatricule();
+
+                boolean hasActivePenalties = jpaUserPenaltiesRepo.existsActivePenaltyAt(organiserId, LocalDateTime.now());
+                ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, organiserId);
+
+                List<MatchPayments> organizerPayments = jpaMatchPaymentsRepo.findByUser_Matricule(organiserId);
+                ValidationBoiler.verifyNoOutstandingFinancialObligations(
+                        jpaUserAccountsRepo.hasDebt(organiserId),
+                        organizerPayments,
+                        organiserId
+                );
+            }
+
+            // Check all invited users
+            if (usersToInvite != null) {
+                for (String userId : usersToInvite) {
+                    if (userId != null) {
+
+                        boolean hasActivePenalties = jpaUserPenaltiesRepo.existsActivePenaltyAt(userId, LocalDateTime.now());
+                        ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, userId);
+
+                        List<MatchPayments> userPayments = jpaMatchPaymentsRepo.findByUser_Matricule(userId);
+                        ValidationBoiler.verifyNoOutstandingFinancialObligations(
+                                jpaUserAccountsRepo.hasDebt(userId),
+                                userPayments,
+                                userId
+                        );
+                    }
+                }
             }
         }
 
@@ -173,7 +219,7 @@ public class MatchService {
         return jpaMatchRepo.findByMatchDateBetween(startDate, endDate);
     }
 
-    //GET BY ORHANISER USER
+    //GET BY ORGANISER USER
     public List<Match> fetchByOrganiser(String organiserId) {
         ValidationBoiler.verifyNotEmpty(organiserId, "Organiser ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(organiserId), "User", organiserId);
@@ -303,6 +349,7 @@ public class MatchService {
             }
 
             // Update organiser if provided - BUT force NULL for public matches
+            // Specific case as User Migration
             if (match.getType().equals("public")) {
                 match.setOrganiser(null);  //FORCE NULL FOR PUBLIC
             } else if (updateData.getOrganiser() != null) {
@@ -310,8 +357,22 @@ public class MatchService {
                     ValidationBoiler.verifyExists(jpaUserRepo.existsById(updateData.getOrganiser().getMatricule()),
                             "User", updateData.getOrganiser().getMatricule());
 
+                    // Check if admin
                     var organizer = jpaUserRepo.findById(updateData.getOrganiser().getMatricule()).orElseThrow();
-                    ValidationBoiler.verifyNotAdminUser(organizer.getRole().getId(), organizer.getMatricule()); // Check if admin
+                    ValidationBoiler.verifyNotAdminUser(organizer.getRole().getId(), organizer.getMatricule());
+
+                    //Verify no active penalties
+                    String organiserId = organizer.getMatricule();
+                    boolean hasActivePenalties = jpaUserPenaltiesRepo.existsActivePenaltyAt(organiserId, LocalDateTime.now());
+                    ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, organiserId);
+
+                    //Verify no debt
+                    ValidationBoiler.verifyNoOutstandingFinancialObligations(
+                            jpaUserAccountsRepo.hasDebt(updateData.getOrganiser().getMatricule()),
+                            jpaMatchPaymentsRepo.findByUser_Matricule(updateData.getOrganiser().getMatricule()),
+                            updateData.getOrganiser().getMatricule()
+                    );
+
 
                     match.setOrganiser(updateData.getOrganiser());
                 }
@@ -422,7 +483,20 @@ public class MatchService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "User not found with id: " + userId));
 
+        //Verify user is not admin
         ValidationBoiler.verifyNotAdminUser(user.getRole().getId(), user.getMatricule()); //Check not admin
+
+        //1. Verify user has no active penalties
+        boolean hasActivePenalties = jpaUserPenaltiesRepo.existsActivePenaltyAt(userId, LocalDateTime.now());
+        ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, userId);
+
+        //2. Verify wether user has debt or pending payments
+        List<MatchPayments> userPayments = jpaMatchPaymentsRepo.findByUser_Matricule(userId);
+        ValidationBoiler.verifyNoOutstandingFinancialObligations(
+                jpaUserAccountsRepo.hasDebt(userId),
+                userPayments,
+                userId
+        );
 
         // Validate status
         if (!newStatus.matches("^(approved|pending|declined)$")) {

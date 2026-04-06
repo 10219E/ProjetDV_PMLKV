@@ -15,12 +15,6 @@ public interface JPAUserAccountsRepo extends JpaRepository<UserAccounts, Integer
     // Find account by user id
     Optional<UserAccounts> findByUser_Matricule(String userId);
 
-    // Find all accounts with specific status
-    List<UserAccounts> findByStatus(String status);
-
-    // Find all users with debt
-    List<UserAccounts> findByStatusIgnoreCase(String status);
-
     // Count users with debt
     Integer countByStatus(String status);
 
@@ -55,4 +49,10 @@ public interface JPAUserAccountsRepo extends JpaRepository<UserAccounts, Integer
     // Find all users in debt
     @Query("SELECT ua FROM UserAccounts ua JOIN FETCH ua.user WHERE ua.status = 'debt'")
     List<UserAccounts> findAllDebtorsWithDetails();
+
+    // Delete account by user matricule
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM UserAccounts ua WHERE ua.user.matricule = :userId")
+    void deleteByUser_Matricule(@Param("userId") String userId);
 }

@@ -23,7 +23,7 @@ public class UserAccounts {
     @JoinColumn(name = "user_id", referencedColumnName = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "balance", precision = 6, scale = 2, nullable = false)
+    @Column(name = "balance", columnDefinition = "DECIMAL(6,2)", nullable = false)
     private Double balance = 0.00;
 
     @Column(name = "last_upd", nullable = true)

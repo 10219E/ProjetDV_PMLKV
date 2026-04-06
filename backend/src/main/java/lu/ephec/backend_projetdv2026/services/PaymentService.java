@@ -4,7 +4,9 @@ import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.UserAccounts;
 import lu.ephec.backend_projetdv2026.repo.JPAMatchPaymentsRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,26 +21,40 @@ public class PaymentService {
 
     private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
+    private final JPAMatchRepo jpaMatchRepo;
+    private final JPAUserRepo jpaUserRepo;
 
     // Dependency Injection
-    public PaymentService(JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserAccountsRepo jpaUserAccountsRepo) {
+    public PaymentService(JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo) {
         this.jpaMatchPaymentsRepo = jpaMatchPaymentsRepo;
         this.jpaUserAccountsRepo = jpaUserAccountsRepo;
+        this.jpaMatchRepo = jpaMatchRepo;
+        this.jpaUserRepo = jpaUserRepo;
     }
 
     /// MATCH PAYMENTS ///
-    // ADD Payment
+    
+    // SET PAYMENT MATCH
     @Transactional
-    public MatchPayments addPayment(MatchPayments payment) {
+    public MatchPayments newPayment(MatchPayments payment) {
         ValidationBoiler.verifyNotNull(payment, "Payment");
         ValidationBoiler.verifyNotNull(payment.getAmount(), "Payment amount");
         ValidationBoiler.verifyNotEmpty(payment.getStatus(), "Payment status");
         ValidationBoiler.verifyNotEmpty(payment.getPaymentMethod(), "Payment method");
+        
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(payment.getUser().getMatricule()), "User", payment.getUser().getMatricule());
+        ValidationBoiler.verifyExists(jpaMatchRepo.existsById(payment.getMatch().getMatchId()), "Match", payment.getMatch().getMatchId());
 
         // Validate status
-        if (!payment.getStatus().matches("^(clear|pending|cancelled|failed|refunded)$")) {
+        if (!payment.getStatus().matches("^(clear|pending|failed|refunded)$")) { //cancelled not applicable here
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid payment status. Must be clear, pending, cancelled, failed, or refunded. Received: " + payment.getStatus());
+                    "Invalid payment status. Must be clear, pending, failed or refunded. Received: " + payment.getStatus());
+        }
+        
+        if (payment.getStatus().equals("refunded"))
+        {
+            //apply negative amount for refunds as easier to track for accounting
+            payment.setAmount(-Math.abs(payment.getAmount()));
         }
 
         // Validate payment method
@@ -65,9 +81,10 @@ public class PaymentService {
         return payments;
     }
 
-    // GET Transactions for One Match
+    // GET TR FOR ONE MATCH
     public List<MatchPayments> fetchByMatch(Integer matchId) {
         ValidationBoiler.verifyNotNull(matchId, "Match ID");
+        ValidationBoiler.verifyExists(jpaMatchRepo.existsById(matchId), "Match", matchId);
 
         List<MatchPayments> payments = jpaMatchPaymentsRepo.findByMatch_MatchId(matchId);
         if (payments.isEmpty()) {
@@ -77,9 +94,10 @@ public class PaymentService {
         return payments;
     }
 
-    // GET Transactions for a User
+    // GET TR FOR USER
     public List<MatchPayments> fetchByUser(String userId) {
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
 
         List<MatchPayments> payments = jpaMatchPaymentsRepo.findByUser_Matricule(userId);
         if (payments.isEmpty()) {
@@ -89,7 +107,7 @@ public class PaymentService {
         return payments;
     }
 
-    // GET Transactions Within a Date Range
+    // GET TR DATE RANGE
     public List<MatchPayments> fetchByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
         ValidationBoiler.verifyNotNull(startDate, "Start date");
         ValidationBoiler.verifyNotNull(endDate, "End date");
@@ -103,7 +121,7 @@ public class PaymentService {
         return payments;
     }
 
-    // GET Transactions by Payment Method (Type)
+    // GET TR BY PAYMENT METHOD
     public List<MatchPayments> fetchByPaymentMethod(String paymentMethod) {
         ValidationBoiler.verifyNotEmpty(paymentMethod, "Payment method");
 
@@ -120,7 +138,7 @@ public class PaymentService {
         return payments;
     }
 
-    // GET Transactions by Status
+    // GET TR BY STATUS
     public List<MatchPayments> fetchByStatus(String status) {
         ValidationBoiler.verifyNotEmpty(status, "Payment status");
 
@@ -137,20 +155,22 @@ public class PaymentService {
         return payments;
     }
 
-    // UPDATE Match Payment
+    // UPDATE MATCH PAYMENT
     @Transactional
     public Optional<MatchPayments> updatePayment(Integer paymentId, MatchPayments updatedPayment) {
         ValidationBoiler.verifyNotNull(paymentId, "Payment ID");
         ValidationBoiler.verifyNotNull(updatedPayment, "Update data");
         ValidationBoiler.verifyExists(jpaMatchPaymentsRepo.existsById(paymentId), "Payment", paymentId);
+        ValidationBoiler.verifyExists(jpaMatchRepo.findById(updatedPayment.getMatch().getMatchId()).isPresent(), "Match", updatedPayment.getMatch().getMatchId());
+        ValidationBoiler.verifyExists(jpaUserRepo.findById(updatedPayment.getUser().getMatricule()).isPresent(), "User", updatedPayment.getUser().getMatricule());
 
         return jpaMatchPaymentsRepo.findById(paymentId).map(payment -> {
-            // Update amount if provided
+            // UPDATE AMOUNT, ONLY FOR REFUNDS
             if (updatedPayment.getAmount() != null) {
                 payment.setAmount(updatedPayment.getAmount());
             }
 
-            // Update status if provided
+            // UPDATE STATUS
             if (updatedPayment.getStatus() != null) {
                 if (!updatedPayment.getStatus().matches("^(clear|pending|cancelled|failed|refunded)$")) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -159,19 +179,7 @@ public class PaymentService {
                 payment.setStatus(updatedPayment.getStatus());
             }
 
-            // Update payment method if provided
-            if (updatedPayment.getPaymentMethod() != null) {
-                if (!updatedPayment.getPaymentMethod().matches("^(COUNTER|CARD)$")) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                            "Invalid payment method. Must be COUNTER or CARD. Received: " + updatedPayment.getPaymentMethod());
-                }
-                payment.setPaymentMethod(updatedPayment.getPaymentMethod());
-            }
-
-            // Update payment date if provided
-            if (updatedPayment.getPaymentDate() != null) {
-                payment.setPaymentDate(updatedPayment.getPaymentDate());
-            }
+            // UPDATE PAYMENT METHOD or DATE is not permitted, must cancel and recreate
 
             return jpaMatchPaymentsRepo.save(payment);
         });
@@ -181,9 +189,34 @@ public class PaymentService {
     /// USER ACCOUNTS (FINANCIAL STATUS) ////
 
 
-    // FETCH Balance for User
+    // NEW USER ACCOUNT
+    @Transactional
+    public UserAccounts newUserAccount(String userId) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        // Check if account already exists
+        Optional<UserAccounts> existingAccount = jpaUserAccountsRepo.findByUser_Matricule(userId);
+        if (existingAccount.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Account already exists for user: " + userId);
+        }
+
+        // Create new account with defaults
+        UserAccounts newAccount = new UserAccounts();
+        newAccount.setUser(jpaUserRepo.findById(userId).orElseThrow());
+        newAccount.setBalance(0.0);
+        newAccount.setStatus("clear");
+        newAccount.setLastUpdate(LocalDateTime.now());
+
+        return jpaUserAccountsRepo.save(newAccount);
+    }
+
+
+    // GET BALANCE FOR USER
     public Optional<Double> fetchUserBalance(String userId) {
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
 
         Optional<Double> balance = jpaUserAccountsRepo.getBalanceByUser(userId);
         if (balance.isEmpty()) {
@@ -193,9 +226,10 @@ public class PaymentService {
         return balance;
     }
 
-    // FETCH User Account with Details
+    // FETCH USER ACCOUNT WITH DETAILS
     public Optional<UserAccounts> fetchUserAccountWithDetails(String userId) {
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
 
         Optional<UserAccounts> account = jpaUserAccountsRepo.findByUserWithDetails(userId);
         if (account.isEmpty()) {
@@ -205,11 +239,12 @@ public class PaymentService {
         return account;
     }
 
-    // UPDATE Balance for User
+    // UPDATE BALANCE FOR USER
     @Transactional
     public void updateUserBalance(String userId, Double amount) {
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyNotNull(amount, "Amount");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
 
         // Check if account exists
         Optional<UserAccounts> account = jpaUserAccountsRepo.findByUser_Matricule(userId);
@@ -221,7 +256,31 @@ public class PaymentService {
         jpaUserAccountsRepo.updateBalanceByUser(userId, amount);
     }
 
-    // FETCH ALL User Accounts
+    // UPDATE ACCOUNT STATUS
+    @Transactional
+    public void updateAccountStatus(String userId, String status, Double amount) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyNotEmpty(status, "Status");
+
+        if (!status.matches("^(clear|debt)$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid status. Must be clear or debt. Received: " + status);
+        }
+
+        Optional<UserAccounts> account = jpaUserAccountsRepo.findByUser_Matricule(userId);
+        if (account.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No account found for user: " + userId);
+        }
+
+        // Update balance by adding the amount (reduces debt)
+        jpaUserAccountsRepo.updateBalanceByUser(userId, amount);
+
+        //Update Status
+        jpaUserAccountsRepo.updateStatusByUser(userId, status);
+    }
+
+    // FETCH ALL ACCOUNTS
     public List<UserAccounts> fetchAllUserAccounts() {
         List<UserAccounts> accounts = jpaUserAccountsRepo.findAll();
         if (accounts.isEmpty()) {
@@ -231,32 +290,8 @@ public class PaymentService {
         return accounts;
     }
 
-    // FETCH User Accounts by Status (clear or debt)
-    public List<UserAccounts> fetchByStatusForUser(String userId, String status) {
-        ValidationBoiler.verifyNotEmpty(userId, "User ID");
-        ValidationBoiler.verifyNotEmpty(status, "Status");
 
-        if (!status.matches("^(clear|debt)$")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid status. Must be clear or debt. Received: " + status);
-        }
-
-        Optional<UserAccounts> account = jpaUserAccountsRepo.findByUser_Matricule(userId);
-        if (account.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No account found for user: " + userId);
-        }
-
-        // Return single account wrapped in list if status matches
-        if (account.get().getStatus().equals(status)) {
-            return List.of(account.get());
-        } else {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "User " + userId + " does not have status: " + status);
-        }
-    }
-
-    // FETCH ALL Debtors
+    // FETCH ALL DEBTORS
     public List<UserAccounts> fetchAllDebtors() {
         List<UserAccounts> debtors = jpaUserAccountsRepo.findAllDebtorsWithDetails();
         if (debtors.isEmpty()) {
@@ -266,41 +301,22 @@ public class PaymentService {
         return debtors;
     }
 
-    // COUNT Debtors
+    // COUNT DEBTORS
     public Integer countDebtors() {
         Integer count = jpaUserAccountsRepo.countByStatus("debt");
         return count != null ? count : 0;
     }
 
-    // CALCULATE Total Debt
+    // CALC TOTAL DEBT
     public Double calculateTotalDebt() {
         Double totalDebt = jpaUserAccountsRepo.getTotalDebt();
         return totalDebt != null ? totalDebt : 0.0;
     }
 
-    // CHECK if User Has Debt
+    // CHECK IF USER HAS DEBT
     public boolean userHasDebt(String userId) {
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         return jpaUserAccountsRepo.hasDebt(userId);
     }
 
-    // UPDATE Account Status
-    @Transactional
-    public void updateAccountStatus(String userId, String status) {
-        ValidationBoiler.verifyNotEmpty(userId, "User ID");
-        ValidationBoiler.verifyNotEmpty(status, "Status");
-
-        if (!status.matches("^(clear|debt)$")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid status. Must be clear or debt. Received: " + status);
-        }
-
-        Optional<UserAccounts> account = jpaUserAccountsRepo.findByUser_Matricule(userId);
-        if (account.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No account found for user: " + userId);
-        }
-
-        jpaUserAccountsRepo.updateStatusByUser(userId, status);
-    }
 }

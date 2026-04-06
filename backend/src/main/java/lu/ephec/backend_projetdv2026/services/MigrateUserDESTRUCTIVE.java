@@ -4,10 +4,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.*;
-import lu.ephec.backend_projetdv2026.repo.JPAMatchPlayersRepo;
-import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
-import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
-import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.springframework.http.HttpStatus;
@@ -35,18 +32,22 @@ public class MigrateUserDESTRUCTIVE {
     private final MatriculeHandler matriculeHandler;
     private final JPAMatchRepo jpaMatchRepo;
     private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
+    private final JPAUserAccountsRepo jpaUserAccountsRepo;
+    private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
 
 
     @PersistenceContext
     private EntityManager em;
 
     public MigrateUserDESTRUCTIVE(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo,
-                                  MatriculeHandler matriculeHandler, JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo) {
+                                  MatriculeHandler matriculeHandler, JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
         this.matriculeHandler = matriculeHandler;
         this.jpaMatchRepo = jpaMatchRepo;
         this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
+        this.jpaUserAccountsRepo = jpaUserAccountsRepo;
+        this.jpaMatchPaymentsRepo = jpaMatchPaymentsRepo;
     }
 
     @Transactional
@@ -73,6 +74,9 @@ public class MigrateUserDESTRUCTIVE {
         List<UserPenalties> activePenalties = jpaUserPenaltiesRepo.findAllActiveWithUser(oldMatricule);
         boolean hasActivePenalties = !activePenalties.isEmpty();
         ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, oldMatricule);
+
+        //CHECK IF USER HAS DEBT OR OUTSTANDING MATCH PAYMENTS
+        ValidationBoiler.verifyNoOutstandingFinancialObligations(jpaUserAccountsRepo.hasDebt(oldMatricule), jpaMatchPaymentsRepo.findByUser_Matricule(oldMatricule), oldMatricule);
 
         // Check if role is different (to avoid unnecessary migration)
         if (oldUser.getRole().getId().equals(newRoleId)) {

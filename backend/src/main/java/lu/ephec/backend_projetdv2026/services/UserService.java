@@ -3,6 +3,7 @@ import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
+import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
@@ -24,13 +25,17 @@ public class UserService {
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
     private final MatriculeHandler matriculeHandler;
     private final MigrateUserDESTRUCTIVE migrateUser;
+    private final PaymentService paymentService;
+    private final JPAUserAccountsRepo jpaUserAccountsRepo;
 
     // InjDep Interface User + Penalties
-    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler,  MigrateUserDESTRUCTIVE migrateUser) {
+    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jPAUserAccountsRepo) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
         this.matriculeHandler = matriculeHandler;
         this.migrateUser = migrateUser;
+        this.paymentService = paymentService;
+        this.jpaUserAccountsRepo = jPAUserAccountsRepo;
     }
 
     ////////////USER OPERATIONS
@@ -84,7 +89,13 @@ public class UserService {
             user.setLevel(user.getLevel());
         }
 
-        return jpaUserRepo.save(user);
+        //SAVE USER
+        User savedUser = jpaUserRepo.save(user);
+
+        //CREATE FINANCE ACCOUNT
+        paymentService.newUserAccount(savedUser.getMatricule());
+
+        return savedUser;
     }
 
     //GET User by Matricule
@@ -136,6 +147,9 @@ public class UserService {
 
         //DELETE PENALTIES
         jpaUserPenaltiesRepo.deleteAllByUserMatricule(userId); //No interfacing needed - handled by JPARepo
+
+        //DELETE ACCOUNT
+        jpaUserAccountsRepo.deleteByUser_Matricule(userId);
 
         //DELETE USER
         jpaUserRepo.deleteById(userId); //No interfacing needed - handled by JPARepo
