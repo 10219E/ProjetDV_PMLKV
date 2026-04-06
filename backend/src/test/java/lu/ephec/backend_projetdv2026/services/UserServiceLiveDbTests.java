@@ -1,8 +1,10 @@
 package lu.ephec.backend_projetdv2026.services;
 
+import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.models.Field;
 import com.github.javafaker.Faker;  //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
 
@@ -15,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,15 +33,24 @@ public class UserServiceLiveDbTests {
     @Autowired
     private JPAUserRepo jpaUserRepo;
 
+    @Autowired
+    private MatchService matchService;
+    @Autowired
+    private FieldService fieldService;
+    @Autowired
+    private SiteService siteService;
+
     private TestReporter reporter; //REPORTER
 
     private String savedMatricule; //Reusing Matricule for CLEANUP and DELETE Test
 
-    private String ExcepSavedMatricule;
+    private String excepSavedMatricule;
 
     private Integer savedPenaltyTr;
 
-    private String ExcepSavedEmail;
+    private String excepSavedEmail;
+    
+    private Integer savedMatchId;
 
 
 
@@ -278,9 +290,31 @@ public class UserServiceLiveDbTests {
         @Order(5)
         void insertPenaltyDB() {
             // ARRANGE
-            String userId = savedMatricule; //Use previous test (4) UserId
+            List<Field> allFields = fieldService.fetchAll();
+            if (allFields.isEmpty()) {
+                throw new IllegalStateException("No fields available in database");
+            }
+
+            // PICK RANDOM FIELD
+            Field randomField = allFields.get((int) (Math.random() * allFields.size()));
+            Integer savedFieldId = randomField.getFieldId();
+
+            //PUBLIC Match
+            Match m = new Match();
+            m.setType("public");
+            m.setMatchDate(LocalDate.now().plusDays(5));
+            m.setStartTime(LocalTime.of(10, 0));
+            m.setEndTime(LocalTime.of(11, 30));
+            m.setField(randomField);
+            m.setOrganiser(null);
+            m.setPubStatus("open");
+
+            Match savedMatch = matchService.newMatch(m);
+            savedMatchId = savedMatch.getMatchId();
+
+            //Penalty
+            String userId = savedMatricule;
             String reason = "unpaid_balance";
-            Integer matchid = 5;
             LocalDateTime startDate = LocalDateTime.now();
             LocalDateTime endDate = LocalDateTime.now().plusDays(30);
             String description = "Unpaid tournament fee";
@@ -293,7 +327,7 @@ public class UserServiceLiveDbTests {
             penalty.setStartDate(startDate);
             penalty.setEndDate(endDate);
             penalty.setIsActive(true);
-            penalty.setMatchId(matchid);
+            penalty.setMatchId(savedMatchId);
             penalty.setDescription(description);
 
             UserPenalties saved = userService.newPenalty(penalty);
@@ -304,9 +338,9 @@ public class UserServiceLiveDbTests {
             assertEquals(reason, saved.getReason());
             assertTrue(saved.getIsActive());
 
-            savedPenaltyTr = saved.getTr(); //TO BE USED IN UPDATE
+            savedPenaltyTr = saved.getTr();
 
-            reporter.publishEntry("info", "Inserted penalty id=" + saved.getTr());
+            reporter.publishEntry("info", "Inserted penalty id=" + saved.getTr() + " for match=" + savedMatchId + " with random field=" + randomField.getFieldId());
         }
 
         @Test
@@ -376,6 +410,7 @@ public class UserServiceLiveDbTests {
 
             //CLEANUP
             userService.deletePenalty(penaltyId);
+            matchService.deleteMatch(savedMatchId);
             userService.deleteUser(userId);
 
             reporter.publishEntry("info", "User " + userId + " has NO active penalty after deactivation");
@@ -402,7 +437,7 @@ public class UserServiceLiveDbTests {
             String email = firstName1.toLowerCase() + "." + lastName1.toLowerCase() + "@example.com";
 
             LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-            //String duplicateEmail = ExcepSavedEmail;
+            //String duplicateEmail = excepSavedEmail;
 
             // Create first user
             User u1 = new User();
@@ -439,8 +474,8 @@ public class UserServiceLiveDbTests {
                 userService.newUser(u);
             }, "Should throw CONFLICT when email already exists");
 
-            ExcepSavedMatricule = saved.getMatricule(); //To be used in further delete
-            ExcepSavedEmail = saved.getEmail();
+            excepSavedMatricule = saved.getMatricule(); //To be used in further delete
+            excepSavedEmail = saved.getEmail();
 
             reporter.publishEntry("info", "Duplicate email test passed - correctly rejected");
         }
@@ -504,7 +539,7 @@ public class UserServiceLiveDbTests {
             LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
 
             String dummy_email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@example.com";
-            String email = ExcepSavedEmail;
+            String email = excepSavedEmail;
 
             //Using SAME EMAIL for update
             User u = new User();
@@ -533,9 +568,9 @@ public class UserServiceLiveDbTests {
             }, "Should throw CONFLICT when trying to update to existing email");
 
             // CLEANUP
-            userService.deleteUser(ExcepSavedMatricule);
+            userService.deleteUser(excepSavedMatricule);
 
-            ExcepSavedMatricule = matricule; //USE FOR PENALTIES
+            excepSavedMatricule = matricule; //USE FOR PENALTIES
 
             reporter.publishEntry("info", "Update user with duplicate email test passed - correctly rejected");
         }
@@ -564,7 +599,7 @@ public class UserServiceLiveDbTests {
             LocalDateTime startDate = endDate.plusDays(30);//START DATE INVALID
 
             //REUSING USER
-            String userId = ExcepSavedMatricule;
+            String userId = excepSavedMatricule;
 
 
             // Try to create penalty with INVALID dates
@@ -590,7 +625,7 @@ public class UserServiceLiveDbTests {
         @Order(7)
         void insertPenaltyWithNullReasonDB() {
             // ARRANGE
-            String userId = ExcepSavedMatricule;
+            String userId = excepSavedMatricule;
 
             // Try to create penalty WITHOUT reason
             UserPenalties penalty = new UserPenalties();
@@ -618,7 +653,7 @@ public class UserServiceLiveDbTests {
         @Order(8)
         void deletePenaltyForNonExistentUserDB() {
             // ARRANGE
-            String nonExistentUserId = ExcepSavedMatricule; //DELETED IN PREVIOUS TEST
+            String nonExistentUserId = excepSavedMatricule; //DELETED IN PREVIOUS TEST
 
             // ACT & ASSERT
             assertThrows(ResponseStatusException.class, () -> {

@@ -2,6 +2,7 @@ package lu.ephec.backend_projetdv2026.services.validation;
 
 import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import lu.ephec.backend_projetdv2026.models.Field;
+import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.repo.JPASiteClosureDaysRepo;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.List;
 
 public class ValidationBoiler {
 
@@ -28,6 +30,23 @@ public class ValidationBoiler {
         if (isActive == null || !isActive) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "User " + userId + " is not active. Only active users can be migrated.");
+        }
+    }
+
+    // Check if user has outstanding debt or pending match payments
+    public static void verifyNoOutstandingFinancialObligations(boolean hasDebt, List<MatchPayments> pendingPayments, String userId) {
+        if (hasDebt) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "User " + userId + " has outstanding debt. Cannot proceed with this operation.");
+        }
+
+        long pendingCount = pendingPayments.stream()
+                .filter(payment -> "pending".equals(payment.getStatus()))
+                .count();
+
+        if (pendingCount > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "User " + userId + " has " + pendingCount + " pending match payments. Cannot proceed with this operation.");
         }
     }
 

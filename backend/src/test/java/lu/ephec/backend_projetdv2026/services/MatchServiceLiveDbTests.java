@@ -38,6 +38,9 @@ public class MatchServiceLiveDbTests {
     @Autowired
     private JPASiteClosureDaysRepo jpaSiteClosureDaysRepo;
 
+    @Autowired
+    private PaymentService paymentService;
+
 
     private TestReporter reporter;
 
@@ -759,9 +762,45 @@ public class MatchServiceLiveDbTests {
             reporter.publishEntry("info", "Correctly rejected admin user from creating match as organiser");
         }
 
-        /// MATCH PLAYER OPS EXCEPTION TESTS///
         @Test
         @Order(13)
+        void insertPrivateMatchWithOrganizerHasDebtDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+
+            User organiser = createTestUser();
+            User p2 = createTestUser();
+            User p3 = createTestUser();
+            User p4 = createTestUser();
+
+            // Give organiser debt status
+            paymentService.updateAccountStatus(organiser.getMatricule(), "debt", -50.00);
+
+            List<String> usersToInvite = List.of(p2.getMatricule(), p3.getMatricule(), p4.getMatricule());
+            Match match = createPrivateMatch(field, organiser);
+
+            // ACT & ASSERT - Organiser with debt cannot create match
+            assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> {
+                matchService.newMatch(match, usersToInvite);
+            });
+
+            Optional<Double> balance = paymentService.fetchUserBalance(organiser.getMatricule());
+            assertEquals(-50.0, balance.get());  // ✓ Extracts value from Optional
+
+            // CLEANUP
+            siteService.deleteSite(site.getSiteId());
+            userService.deleteUser(organiser.getMatricule());
+            userService.deleteUser(p2.getMatricule());
+            userService.deleteUser(p3.getMatricule());
+            userService.deleteUser(p4.getMatricule());
+
+            reporter.publishEntry("info", "Correctly rejected organiser with debt from creating match");
+        }
+
+        /// MATCH PLAYER OPS EXCEPTION TESTS///
+        @Test
+        @Order(14)
         void updateMatchPlayerWhenAllSlotsFullDB() {
             // ARRANGE
             Site site = createTestSite();
@@ -796,6 +835,36 @@ public class MatchServiceLiveDbTests {
             userService.deleteUser(player5.getMatricule());
 
             reporter.publishEntry("info", "Correctly rejected adding player to full match (all 4 slots occupied)");
+        }
+
+        @Test
+        @Order(15)
+        void joinMatchWithPlayerHasDebtDB() {
+            // ARRANGE
+            Site site = createTestSite();
+            Field field = createTestField(site);
+            Match pubMatch = createPublicMatch(field);
+            Match saved = matchService.newMatch(pubMatch);
+
+            User player = createTestUser();
+
+            // Give player debt status
+            paymentService.updateAccountStatus(player.getMatricule(), "debt", -50.00);
+
+            // ACT & ASSERT - Player with debt cannot join match
+            assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> {
+                matchService.updateMatchPlayer(saved.getMatchId(), player.getMatricule(), "approved");
+            });
+
+            Optional<Double> balance = paymentService.fetchUserBalance(player.getMatricule());
+            assertEquals(-50.0, balance.get());  // ✓ Extracts value from Optional
+
+            // CLEANUP
+            matchService.deleteMatch(saved.getMatchId());
+            siteService.deleteSite(site.getSiteId());
+            userService.deleteUser(player.getMatricule());
+
+            reporter.publishEntry("info", "Correctly rejected player with debt from joining match");
         }
 
     }

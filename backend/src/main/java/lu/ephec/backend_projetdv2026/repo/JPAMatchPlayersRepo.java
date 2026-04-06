@@ -17,21 +17,6 @@ public interface JPAMatchPlayersRepo extends JpaRepository<MatchPlayers, Integer
     // Find a specific player in a match
     Optional<MatchPlayers> findByMatch_MatchIdAndUser_Matricule(Integer matchId, String userId);
 
-    // Find player by match and role
-    Optional<MatchPlayers> findByMatch_MatchIdAndPlayerRole(Integer matchId, String playerRole);
-
-    // Check if a user is already in a match
-    boolean existsByMatch_MatchIdAndUser_Matricule(Integer matchId, String userId);
-
-    // Check if a role is already assigned in a match
-    boolean existsByMatch_MatchIdAndPlayerRole(Integer matchId, String playerRole);
-
-    // Count players by status in a match
-    long countByMatch_MatchIdAndStatus(Integer matchId, String status);
-
-    // Get all players with specific status in a match
-    List<MatchPlayers> findByMatch_MatchIdAndStatus(Integer matchId, String status);
-
     // Delete all players from a match (cascade)
     void deleteByMatch_MatchId(Integer matchId);
 }

@@ -5,10 +5,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lu.ephec.backend_projetdv2026.models.*;
 import lu.ephec.backend_projetdv2026.repo.*;
-import lu.ephec.backend_projetdv2026.services.FieldService;
-import lu.ephec.backend_projetdv2026.services.MatchService;
-import lu.ephec.backend_projetdv2026.services.MigrateUserDESTRUCTIVE;
-import lu.ephec.backend_projetdv2026.services.UserService;
+import lu.ephec.backend_projetdv2026.services.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -51,11 +48,19 @@ public class UserMigrationLiveDbTests {
     private JPAMatchRepo jpaMatchRepo;
 
     @Autowired
+    private JPAUserAccountsRepo jpaUserAccountsRepo;
+
+    @Autowired
+    private JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
+
+    @Autowired
     private JPAMatchPlayersRepo jpaMatchPlayersRepo;
+
     @Autowired
     private MatchService matchService;
+
     @Autowired
-    private FieldService fieldService;
+    private PaymentService paymentService;
 
     @BeforeEach
     void initReporter(TestReporter reporter) {
@@ -111,7 +116,7 @@ public class UserMigrationLiveDbTests {
 
         @Test
         @Order(2)
-        void migrateSubscribedTouB() {
+        void migrateSubscribedToDB() {
             // ARRANGE
             String oldMatricule = savedUser.getMatricule();
 
@@ -333,6 +338,143 @@ public class UserMigrationLiveDbTests {
             userService.deleteUser(u3.getMatricule());
 
             reporter.publishEntry("info", "Match and player history migration test passed: " + oldOrganiser.getMatricule() + " → " + migratedOrganiser.getMatricule());
+        }
+
+        @Test
+        @Order(6)
+        void migrateUserWithAccountAndMatchPaymentsDB() {
+            // ARRANGE - Create test user with Subscribed role
+            String firstName = Faker.instance().name().firstName();
+            String lastName = Faker.instance().name().lastName();
+            String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@migrate.com";
+            LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant()
+                    .atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
+            User testUser = new User();
+            testUser.setIsActive(true);
+            testUser.setFirstName(firstName);
+            testUser.setLastName(lastName);
+            testUser.setEmail(email);
+            testUser.setBirthDate(birthDate);
+            testUser.setRole(em.find(UserRoles.class, (short) 1)); // Subscribed
+            testUser.setLevel("confirmé");
+            testUser.setCreated(LocalDateTime.now());
+            testUser.setAuth(null);
+
+            User savedTestUser = userService.newUser(testUser);
+
+            // Create test field and match
+            Field testField = jPAFieldRepo.findAll().stream().findAny()
+                    .orElseThrow(() -> new RuntimeException("No fields found in DB"));
+
+            Match testMatch = new Match();
+            testMatch.setField(testField);
+            testMatch.setType("public");
+            testMatch.setPubStatus("open");
+            testMatch.setPrivStatus(null);
+            testMatch.setMatchDate(LocalDate.now().plusDays(5));
+            testMatch.setStartTime(LocalTime.of(16, 0));
+            testMatch.setEndTime(LocalTime.of(17, 30));
+            testMatch.setOrganiser(savedTestUser);
+            testMatch.setMinPlayers(2);
+            testMatch.setMaxPlayers(10);
+            testMatch.setPricing(25);
+            testMatch = jpaMatchRepo.save(testMatch);
+
+            Integer testMatchId = testMatch.getMatchId();
+
+            //UPDATE EXISTING ACCOUNT (created automatically by userService.newUser)
+            UserAccounts account = jpaUserAccountsRepo.findByUser_Matricule(savedTestUser.getMatricule())
+                    .orElseThrow(() -> new RuntimeException("Expected auto-created account for user: " + savedTestUser.getMatricule()));
+            account.setBalance(250.75);
+            account.setStatus("clear");
+            account.setLastUpdate(LocalDateTime.now());
+            jpaUserAccountsRepo.save(account);
+
+            //Create multiple PAYMENTS with different statuses and methods
+            MatchPayments payment1 = new MatchPayments();
+            payment1.setUser(savedTestUser);
+            payment1.setMatch(testMatch);
+            payment1.setAmount(25.0);
+            payment1.setStatus("clear");
+            payment1.setPaymentMethod("COUNTER");
+            payment1.setPaymentDate(LocalDateTime.now().minusDays(3));
+            payment1 = paymentService.newPayment(payment1);
+
+            Integer payment1Id = payment1.getTr();
+
+            MatchPayments payment2 = new MatchPayments();
+            payment2.setUser(savedTestUser);
+            payment2.setMatch(testMatch);
+            payment2.setAmount(25.0);
+            payment2.setStatus("clear");
+            payment2.setPaymentMethod("CARD");
+            payment2.setPaymentDate(LocalDateTime.now());
+            payment2 = paymentService.newPayment(payment2);
+
+            Integer payment2Id = payment2.getTr();
+
+            // Store old matricule for verification
+            String oldMatricule = savedTestUser.getMatricule();
+
+            // ACT - Migrate user (should migrate BOTH account and payments)
+            User migratedUser = migrateUserDESTRUCTIVE.migrateUserRole(oldMatricule, (short) 0);
+
+            // ASSERT - Verify user migration
+            assertNotNull(migratedUser);
+            assertTrue(migratedUser.getMatricule().startsWith("L"), "Migrated user should have L prefix");
+            assertNotEquals(oldMatricule, migratedUser.getMatricule(), "Matricule should have changed");
+            assertEquals((short) 0, migratedUser.getRole().getId(), "Role should be 0 (Invite)");
+            assertEquals(email, migratedUser.getEmail(), "Email should be preserved");
+
+            // ASSERT - Verify ACCOUNT migration
+            var newAccount = jpaUserAccountsRepo.findByUser_Matricule(migratedUser.getMatricule());
+            assertTrue(newAccount.isPresent(), "New user should have account");
+            assertEquals(250.75, newAccount.get().getBalance(), 0.01, "Account balance should be preserved exactly");
+            assertEquals("clear", newAccount.get().getStatus(), "Account status should be preserved");
+            assertNotNull(newAccount.get().getLastUpdate(), "Account should have update timestamp");
+
+            // Verify old account is deleted
+            var oldAccountCheck = jpaUserAccountsRepo.findByUser_Matricule(oldMatricule);
+            assertTrue(oldAccountCheck.isEmpty(), "Old account should be deleted");
+
+            // ASSERT - Verify MATCH PAYMENTS migration
+            List<MatchPayments> migratedPayments = jpaMatchPaymentsRepo.findByUser_Matricule(migratedUser.getMatricule());
+            assertEquals(2, migratedPayments.size(), "All 2 payments should be reassigned to migrated user");
+
+            // Verify payment 1 (clear, COUNTER)
+            var payment1Check = migratedPayments.stream().filter(p -> p.getTr().equals(payment1Id)).findFirst();
+            assertTrue(payment1Check.isPresent(), "Payment 1 should exist");
+            assertEquals(25.0, payment1Check.get().getAmount(), "Payment 1 amount should be 25.0");
+            assertEquals("clear", payment1Check.get().getStatus(), "Payment 1 status should be clear");
+            assertEquals("COUNTER", payment1Check.get().getPaymentMethod(), "Payment 1 method should be COUNTER");
+            assertEquals(migratedUser.getMatricule(), payment1Check.get().getUser().getMatricule(),
+                    "Payment 1 should reference migrated user");
+
+            // Verify payment 2 (clear, CARD)
+            var payment2Check = migratedPayments.stream().filter(p -> p.getTr().equals(payment2Id)).findFirst();
+            assertTrue(payment2Check.isPresent(), "Payment 2 should exist");
+            assertEquals(25.0, payment2Check.get().getAmount(), "Payment 2 amount should be 25.0");
+            assertEquals("clear", payment2Check.get().getStatus(), "Payment 2 status should be clear");
+            assertEquals("CARD", payment2Check.get().getPaymentMethod(), "Payment 2 method should be CARD");
+
+            // Verify old user has NO payments
+            List<MatchPayments> oldPayments = jpaMatchPaymentsRepo.findByUser_Matricule(oldMatricule);
+            assertTrue(oldPayments.isEmpty(), "Old user should have no payments");
+
+            // Verify all payments still reference correct match
+            assertTrue(migratedPayments.stream().allMatch(p -> p.getMatch().getMatchId().equals(testMatchId)),
+                    "All payments should reference the correct match");
+
+            // CLEANUP
+            matchService.deleteMatch(testMatch.getMatchId());
+            userService.deleteUser(migratedUser.getMatricule());
+
+            reporter.publishEntry("info",
+                    "Complex migration BOTH account + payments successful: " +
+                            "Account (balance: 250.75, status: clear) + " +
+                            "2 Payments (1x clear+COUNTER and 1x clear+CARD) " +
+                            "migrated from " + oldMatricule + " → " + migratedUser.getMatricule());
         }
 
     }
