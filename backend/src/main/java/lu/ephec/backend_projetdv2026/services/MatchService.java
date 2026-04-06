@@ -425,9 +425,9 @@ public class MatchService {
         ValidationBoiler.verifyNotAdminUser(user.getRole().getId(), user.getMatricule()); //Check not admin
 
         // Validate status
-        if (!newStatus.matches("^(approved|pending|invited|declined)$")) {
+        if (!newStatus.matches("^(approved|pending|declined)$")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid status. Must be approved, pending, invited, or declined. Received: " + newStatus);
+                    "Invalid status. Must be approved, pending or declined. Received: " + newStatus);
         }
 
         // Check user is not already in another role in this match
