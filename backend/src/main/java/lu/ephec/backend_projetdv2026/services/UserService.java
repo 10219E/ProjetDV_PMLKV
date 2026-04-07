@@ -1,6 +1,7 @@
 package lu.ephec.backend_projetdv2026.services;
 import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
+import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.repo.JPAMatchPaymentsRepo;
@@ -96,7 +97,10 @@ public class UserService {
         User savedUser = jpaUserRepo.save(user);
 
         //CREATE FINANCE ACCOUNT
-        paymentService.newUserAccount(savedUser.getMatricule());
+        EnumUserRolesType roleType = EnumUserRolesType.fromId(savedUser.getRole().getId());
+        if (roleType != null && !roleType.isAdmin()) { //only normal users should have financial accounts
+            paymentService.newUserAccount(savedUser.getMatricule());
+        }
 
         return savedUser;
     }
@@ -169,6 +173,12 @@ public class UserService {
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         return jpaUserRepo.findById(userId).map(user -> {
             if (updatedUser.getIsActive() != null) {
+                // Block deactivation when user still has financial obligations
+                if (Boolean.FALSE.equals(updatedUser.getIsActive())) {
+                    boolean hasDebt = paymentService.userHasDebt(userId);
+                    List<MatchPayments> pendingPayments = jPAMatchPaymentsRepo.findByUser_MatriculeAndStatus(userId, "pending");
+                    ValidationBoiler.verifyNoOutstandingFinancialObligations(hasDebt, pendingPayments, userId);
+                }
                 user.setIsActive(updatedUser.getIsActive());
             }
 
@@ -229,6 +239,7 @@ public class UserService {
         ValidationBoiler.verifyNotNull(penalty.getUser().getMatricule(), "User matricule");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(penalty.getUser().getMatricule()),
                 "User", penalty.getUser().getMatricule());
+        ValidationBoiler.verifyUserActive(penalty.getUser().getIsActive(), penalty.getUser().getMatricule());
 
         //CHECK IF USER IS ADMIN - BLOCK IF YES
         User penalizedUser = jpaUserRepo.findById(penalty.getUser().getMatricule()).orElseThrow();
