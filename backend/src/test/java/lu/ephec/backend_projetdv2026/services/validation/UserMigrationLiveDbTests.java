@@ -472,6 +472,8 @@ public class UserMigrationLiveDbTests {
                     "All payments should reference the correct match");
 
             // CLEANUP
+            List<MatchPayments> paymentsToDelete = jpaMatchPaymentsRepo.findByMatch_MatchId(testMatch.getMatchId());
+            jpaMatchPaymentsRepo.deleteAll(paymentsToDelete);
             matchService.deleteMatch(testMatch.getMatchId());
             userService.deleteUser(migratedUser.getMatricule());
 
