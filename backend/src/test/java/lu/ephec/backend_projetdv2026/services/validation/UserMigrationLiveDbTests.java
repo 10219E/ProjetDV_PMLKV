@@ -62,6 +62,11 @@ public class UserMigrationLiveDbTests {
     @Autowired
     private PaymentService paymentService;
 
+    @Autowired
+    private UserSiteSubService userSiteSubService;
+    @Autowired
+    private SiteService siteService;
+
     @BeforeEach
     void initReporter(TestReporter reporter) {
         this.reporter = reporter;
@@ -476,6 +481,57 @@ public class UserMigrationLiveDbTests {
                             "2 Payments (1x clear+COUNTER and 1x clear+CARD) " +
                             "migrated from " + oldMatricule + " → " + migratedUser.getMatricule());
         }
+
+        @Test
+        @Order(7)
+        void migrateUserSiteLinksDB() {
+                // ARRANGE - Create test user and site
+                String firstName = Faker.instance().name().firstName();
+                String lastName = Faker.instance().name().lastName();
+                String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "@migrate.com";
+                LocalDate birthDate = Faker.instance().date().birthday(18, 65).toInstant()
+                        .atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+
+                User testUser = new User();
+                testUser.setIsActive(true);
+                testUser.setFirstName(firstName);
+                testUser.setLastName(lastName);
+                testUser.setEmail(email);
+                testUser.setBirthDate(birthDate);
+                testUser.setRole(em.find(UserRoles.class, (short) 1)); // Subscribed
+                testUser.setLevel("confirmé");
+                testUser.setCreated(LocalDateTime.now());
+                testUser.setAuth(null);
+
+                User savedTestUser = userService.newUser(testUser);
+
+                // Get any site from DB
+                Site site = siteService.fetchAll().stream().findAny()
+                        .orElseThrow(() -> new RuntimeException("No sites found in DB"));
+
+                // Create VIP non-primary link to site
+                UsersSites link = userSiteSubService.newUserSite(savedTestUser.getMatricule(), site.getSiteId(), false, true);
+
+                // ACT - Migrate user
+                User migratedUser = migrateUserDESTRUCTIVE.migrateUserRole(savedTestUser.getMatricule(), (short) 0);
+
+                // ASSERT - Verify user-site link is preserved and references migrated user
+                List<UsersSites> migratedLinks = userSiteSubService.fetchByUser(migratedUser.getMatricule());
+                assertEquals(1, migratedLinks.size(), "Migrated user should have 1 site link");
+                UsersSites migratedLink = migratedLinks.get(0);
+                assertEquals(site.getSiteId(), migratedLink.getSite().getSiteId(), "Linked site should be the same");
+                assertFalse(migratedLink.getIsPrimary(), "Link should still be non-primary");
+                assertTrue(migratedLink.getIsVip(), "Link should still be VIP");
+                assertEquals(migratedUser.getMatricule(), migratedLink.getUser().getMatricule(),
+                        "Link should reference migrated user");
+                assertFalse(jpaUserRepo.existsById(savedTestUser.getMatricule()), "Old matricule should be deleted");
+
+                // CLEANUP
+                userService.deleteUser(migratedUser.getMatricule());
+
+                reporter.publishEntry("info", "User-site link migration successful: " + savedTestUser.getMatricule() + " → " + migratedUser.getMatricule());
+        }
+
 
     }
 

@@ -4,19 +4,12 @@ import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
-import lu.ephec.backend_projetdv2026.repo.JPAMatchPaymentsRepo;
-import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
-import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
-import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,17 +22,19 @@ public class UserService {
     private final MigrateUserDESTRUCTIVE migrateUser;
     private final PaymentService paymentService;
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
-    private final JPAMatchPaymentsRepo jPAMatchPaymentsRepo;
+    private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
+    private final JPAUserSiteRepo jpaUserSiteRepo;
 
     // InjDep Interface User + Penalties
-    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jPAUserAccountsRepo, JPAMatchPaymentsRepo jPAMatchPaymentsRepo) {
+    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserSiteRepo jpaUserSiteRepo) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
         this.matriculeHandler = matriculeHandler;
         this.migrateUser = migrateUser;
         this.paymentService = paymentService;
-        this.jpaUserAccountsRepo = jPAUserAccountsRepo;
-        this.jPAMatchPaymentsRepo = jPAMatchPaymentsRepo;
+        this.jpaUserAccountsRepo = jpaUserAccountsRepo;
+        this.jpaMatchPaymentsRepo = jpaMatchPaymentsRepo;
+        this.jpaUserSiteRepo = jpaUserSiteRepo;
     }
 
     ////////////USER OPERATIONS
@@ -153,13 +148,24 @@ public class UserService {
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
 
         //DELETE PENALTIES
-        jpaUserPenaltiesRepo.deleteAllByUserMatricule(userId); //No interfacing needed - handled by JPARepo
+        try {
+            jpaUserPenaltiesRepo.deleteAllByUserMatricule(userId);
+        } catch (Exception ignored) { }
 
         //DELETE ACCOUNT
-        jpaUserAccountsRepo.deleteByUser_Matricule(userId);
+        try {
+            jpaUserAccountsRepo.deleteByUser_Matricule(userId);
+        } catch (Exception ignored) { }
 
         //DELETE MATCH PAYMENTS
-        jPAMatchPaymentsRepo.deleteAll(jPAMatchPaymentsRepo.findByUser_Matricule(userId));
+        try {
+            jpaMatchPaymentsRepo.deleteAll(jpaMatchPaymentsRepo.findByUser_Matricule(userId));
+        } catch (Exception ignored) { }
+
+        //DELETE USER SITE SUBS
+        try {
+            jpaUserSiteRepo.deleteAll(jpaUserSiteRepo.findByUser_Matricule(userId));
+        } catch (Exception ignored) { }
 
         //DELETE USER
         jpaUserRepo.deleteById(userId); //No interfacing needed - handled by JPARepo
@@ -176,7 +182,7 @@ public class UserService {
                 // Block deactivation when user still has financial obligations
                 if (Boolean.FALSE.equals(updatedUser.getIsActive())) {
                     boolean hasDebt = paymentService.userHasDebt(userId);
-                    List<MatchPayments> pendingPayments = jPAMatchPaymentsRepo.findByUser_MatriculeAndStatus(userId, "pending");
+                    List<MatchPayments> pendingPayments = jpaMatchPaymentsRepo.findByUser_MatriculeAndStatus(userId, "pending");
                     ValidationBoiler.verifyNoOutstandingFinancialObligations(hasDebt, pendingPayments, userId);
                 }
                 user.setIsActive(updatedUser.getIsActive());
