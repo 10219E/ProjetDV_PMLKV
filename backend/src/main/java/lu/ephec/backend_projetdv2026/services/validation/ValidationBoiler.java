@@ -29,7 +29,7 @@ public class ValidationBoiler {
     public static void verifyUserActive(Boolean isActive, String userId) {
         if (isActive == null || !isActive) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "User " + userId + " is not active. Only active users can be migrated.");
+                    "User " + userId + " is not active. Cannot proceed with this operation.");
         }
     }
 
@@ -201,7 +201,7 @@ public class ValidationBoiler {
         long total = ChronoUnit.MINUTES.between(openingTime, closingTime); //Count all time
 
         boolean feasible = false;
-        for (int pre = MIN_PRE; pre <= MAX_PRE && !feasible; pre++) {
+        for (int pre = MIN_PRE; pre <= MAX_PRE; pre++) {
             long offset = pre; //Init - Minutes elapsed since opening
             int count = 0;  //Init - Number of sessions
             long lastEnd = -1; //Init - End of last session (total minutes) to calculate leftover after last session
@@ -220,6 +220,7 @@ public class ValidationBoiler {
             long leftover = total - lastEnd; //Left over after last session of the day
             if (leftover >= MIN_POST && leftover <= MAX_POST) {
                 feasible = true; //Feasible schedule found with this pre-session duration, no need to check further
+                break;
             }
         }
 

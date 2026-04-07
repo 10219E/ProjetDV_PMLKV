@@ -90,6 +90,8 @@ public class MatchService {
             ValidationBoiler.verifyExists(jpaUserRepo.existsById(match.getOrganiser().getMatricule()),
                     "User", match.getOrganiser().getMatricule());
 
+            ValidationBoiler.verifyUserActive(match.getOrganiser().getIsActive(), match.getOrganiser().getMatricule()); //verify if active
+
             var organizer = jpaUserRepo.findById(match.getOrganiser().getMatricule()).orElseThrow();
             ValidationBoiler.verifyNotAdminUser(organizer.getRole().getId(), organizer.getMatricule());
         }
@@ -105,7 +107,7 @@ public class MatchService {
             int requiredInvites = 3;
             int availableInvites = (usersToInvite != null) ? usersToInvite.size() : 0;
 
-            if (availableInvites < requiredInvites) {
+            if (availableInvites != requiredInvites) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Private match requires exactly 3 invited players (p2, p3, p4). " +
                                 "Provided: " + availableInvites + ", Required: " + requiredInvites);
@@ -115,6 +117,7 @@ public class MatchService {
             for (String userId : usersToInvite) {
                 ValidationBoiler.verifyNotEmpty(userId, "User ID in invite list");
                 ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+                ValidationBoiler.verifyUserActive(jpaUserRepo.findById(userId).orElseThrow().getIsActive(), userId);
                 ValidationBoiler.verifyNotAdminUser(jpaUserRepo.findById(userId).orElseThrow().getRole().getId(), userId);
             }
         }
@@ -280,7 +283,7 @@ public class MatchService {
 
                 // If changing to public, organiser must be null and clean privStatus
                 if (updateData.getType().equals("public")) {
-                    /// MATCH PLAYERS Reset pending/declined slots to open for public, but keep approved players
+                    // MATCH PLAYERS Reset pending/declined slots to open for public, but keep approved players
                     resetMatchPlayersForPublic(matchId);
 
                     match.setOrganiser(null);

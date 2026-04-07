@@ -194,6 +194,7 @@ public class PaymentService {
     public UserAccounts newUserAccount(String userId) {
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+        ValidationBoiler.verifyUserActive(jpaUserRepo.findById(userId).orElseThrow().getIsActive(), userId);
 
         // Check if account already exists
         Optional<UserAccounts> existingAccount = jpaUserAccountsRepo.findByUser_Matricule(userId);

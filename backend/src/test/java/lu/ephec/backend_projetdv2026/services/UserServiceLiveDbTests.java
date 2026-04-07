@@ -37,8 +37,6 @@ public class UserServiceLiveDbTests {
     private MatchService matchService;
     @Autowired
     private FieldService fieldService;
-    @Autowired
-    private SiteService siteService;
 
     private TestReporter reporter; //REPORTER
 
@@ -239,7 +237,7 @@ public class UserServiceLiveDbTests {
 
             User u2 = new User();
             //u2.setMatricule(matricule2);
-            u2.setIsActive(false);
+            u2.setIsActive(true);
             u2.setFirstName(firstName2);
             u2.setLastName(lastName2);
             u2.setEmail(email2);
@@ -297,7 +295,6 @@ public class UserServiceLiveDbTests {
 
             // PICK RANDOM FIELD
             Field randomField = allFields.get((int) (Math.random() * allFields.size()));
-            Integer savedFieldId = randomField.getFieldId();
 
             //PUBLIC Match
             Match m = new Match();

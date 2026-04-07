@@ -30,25 +30,25 @@ public class MigrateUserDESTRUCTIVE {
 
     private final JPAUserRepo jpaUserRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
-    private final MatriculeHandler matriculeHandler;
     private final JPAMatchRepo jpaMatchRepo;
     private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
     private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
+    private final JPAUserSiteRepo jpaUserSiteRepo;
 
 
     @PersistenceContext
     private EntityManager em;
 
     public MigrateUserDESTRUCTIVE(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo,
-                                  MatriculeHandler matriculeHandler, JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo) {
+                                   JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserSiteRepo jpaUserSiteRepo) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
-        this.matriculeHandler = matriculeHandler;
         this.jpaMatchRepo = jpaMatchRepo;
         this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
         this.jpaUserAccountsRepo = jpaUserAccountsRepo;
         this.jpaMatchPaymentsRepo = jpaMatchPaymentsRepo;
+        this.jpaUserSiteRepo = jpaUserSiteRepo;
     }
 
     @Transactional
@@ -91,6 +91,7 @@ public class MigrateUserDESTRUCTIVE {
 
         // 1 - FETCH DATA
         List<UserPenalties> oldPenalties = jpaUserPenaltiesRepo.findByUserMatriculeWithUser(oldMatricule);
+        List<UsersSites> oldSites = jpaUserSiteRepo.findByUser_Matricule(oldMatricule);
         List<MatchPlayers> oldMatchPlayers = jpaMatchPlayersRepo.findByUser_Matricule(oldMatricule);
         List<Match> organizedMatches = jpaMatchRepo.findByOrganiser_Matricule(oldMatricule);
         String oldEmail = oldUser.getEmail();
@@ -110,7 +111,7 @@ public class MigrateUserDESTRUCTIVE {
         newUser.setRole(newRole);
 
         // GENERATE NEW MATRICULE WITH NEW ROLE
-        String newMatricule = matriculeHandler.generateMatricule(newRoleId, jpaUserRepo);
+        String newMatricule = MatriculeHandler.generateMatricule(newRoleId, jpaUserRepo);
         newUser.setMatricule(newMatricule);
 
         // 3 - SAVE NEW USER
@@ -119,7 +120,6 @@ public class MigrateUserDESTRUCTIVE {
 
         // Always use a managed reference for relationships
         User managedNewUser = em.getReference(User.class, savedNewUser.getMatricule());
-
         
         // 4 - UPDATE MATCH OCCURENCES TO NEW USER
         organizedMatches.forEach(match -> match.setOrganiser(managedNewUser));
@@ -145,7 +145,8 @@ public class MigrateUserDESTRUCTIVE {
 
         // 8 - DELETE OLD USER (frees up the email and matricule)
         jpaUserPenaltiesRepo.deleteAll(oldPenalties); //1
-        jpaUserRepo.deleteById(oldMatricule); //2
+        jpaUserSiteRepo.deleteAll(oldSites); //2
+        jpaUserRepo.deleteById(oldMatricule); //3
         em.flush(); //Clear session
 
         // 9 - UPDATE NEW USER EMAIL
@@ -167,6 +168,19 @@ public class MigrateUserDESTRUCTIVE {
             // Save the NEW penalty
             jpaUserPenaltiesRepo.save(newPenalty);
         });
+
+        // 11 - CREATE NEW SITE LINKS (completely new, not merged)
+        oldSites.forEach(oldSite -> {
+            UsersSites newSiteLink = new UsersSites();
+            newSiteLink.setUser(managedNewUser);  // New user
+            newSiteLink.setSite(oldSite.getSite());  // Same site (just reference, not modifying ID)
+            newSiteLink.setIsPrimary(oldSite.getIsPrimary());
+            newSiteLink.setIsVip(oldSite.getIsVip());
+
+            // Save as completely new entity
+            jpaUserSiteRepo.save(newSiteLink);
+        });
+
 
         em.flush(); //FLUSH TO ENSURE ALL CHANGES ARE COMMITTED
 

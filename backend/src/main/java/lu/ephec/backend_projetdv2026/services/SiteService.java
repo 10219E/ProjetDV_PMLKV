@@ -179,7 +179,7 @@ public class SiteService {
                 hoursChanged.set(true);
             }
 
-            if (updateData.getIsActive() != null && updateData.getIsActive() == false && site.getIsActive() == true) {
+            if (updateData.getIsActive() != null && !updateData.getIsActive() && site.getIsActive()) {
                 siteDeactivated.set(true);
             }
 
@@ -264,7 +264,7 @@ public class SiteService {
             com.fasterxml.jackson.databind.JsonNode sessionsArray = rootNode.get("sessions");
 
             return new com.fasterxml.jackson.databind.ObjectMapper()
-                    .convertValue(sessionsArray, new com.fasterxml.jackson.core.type.TypeReference<List<?>>() {});
+                    .convertValue(sessionsArray, new com.fasterxml.jackson.core.type.TypeReference<>() {});
 
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
@@ -376,35 +376,5 @@ public class SiteService {
         jpaClosureDaysRepo.deleteAll(closures);
     }
 }
-    /*
 
-    // Les méthodes ci-dessous supposent que Site possède getClosures() et getSubscriptions()
-    // et que Closure / Subscription sont des classes du package models.
-    public List<?> getClosure(Integer siteId) {
-        return jpaSitesRepo.findById(siteId)
-                .map(site -> site.getClosures() != null ? site.getClosures() : Collections.emptyList())
-                .orElse(Collections.emptyList());
-    }
-
-    public void setClosure(Integer siteId, Object closure) {
-        jpaSitesRepo.findById(siteId).ifPresent(site -> {
-            if (site.getClosures() == null) {
-                site.setClosures(new java.util.ArrayList<>());
-            }
-            site.getClosures().add(closure);
-            jpaSitesRepo.save(site);
-        });
-    }
-
-    public void deleteClosure(Integer closureId) {
-        // Si vous avez un ClosureRepository, utilisez-le ici pour supprimer par id.
-    }
-
-    public List<?> getSubBySite(Integer siteId) {
-        return jpaSitesRepo.findById(siteId)
-                .map(site -> site.getSubscriptions() != null ? site.getSubscriptions() : Collections.emptyList())
-                .orElse(Collections.emptyList());
-    }
-
-    */
 

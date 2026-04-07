@@ -20,7 +20,7 @@ public class UserAccounts {
     private Integer tr;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", referencedColumnName = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", unique = true, referencedColumnName = "user_id", nullable = false)
     private User user;
 
     @Column(name = "balance", columnDefinition = "DECIMAL(6,2)", nullable = false)
