@@ -30,7 +30,6 @@ public class MigrateUserDESTRUCTIVE {
 
     private final JPAUserRepo jpaUserRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
-    private final MatriculeHandler matriculeHandler;
     private final JPAMatchRepo jpaMatchRepo;
     private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
@@ -42,10 +41,9 @@ public class MigrateUserDESTRUCTIVE {
     private EntityManager em;
 
     public MigrateUserDESTRUCTIVE(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo,
-                                  MatriculeHandler matriculeHandler, JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserSiteRepo jpaUserSiteRepo) {
+                                   JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserSiteRepo jpaUserSiteRepo) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
-        this.matriculeHandler = matriculeHandler;
         this.jpaMatchRepo = jpaMatchRepo;
         this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
         this.jpaUserAccountsRepo = jpaUserAccountsRepo;
@@ -113,7 +111,7 @@ public class MigrateUserDESTRUCTIVE {
         newUser.setRole(newRole);
 
         // GENERATE NEW MATRICULE WITH NEW ROLE
-        String newMatricule = matriculeHandler.generateMatricule(newRoleId, jpaUserRepo);
+        String newMatricule = MatriculeHandler.generateMatricule(newRoleId, jpaUserRepo);
         newUser.setMatricule(newMatricule);
 
         // 3 - SAVE NEW USER

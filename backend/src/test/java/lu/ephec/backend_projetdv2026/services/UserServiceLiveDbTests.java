@@ -37,8 +37,6 @@ public class UserServiceLiveDbTests {
     private MatchService matchService;
     @Autowired
     private FieldService fieldService;
-    @Autowired
-    private SiteService siteService;
 
     private TestReporter reporter; //REPORTER
 
@@ -297,7 +295,6 @@ public class UserServiceLiveDbTests {
 
             // PICK RANDOM FIELD
             Field randomField = allFields.get((int) (Math.random() * allFields.size()));
-            Integer savedFieldId = randomField.getFieldId();
 
             //PUBLIC Match
             Match m = new Match();

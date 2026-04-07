@@ -283,7 +283,7 @@ public class MatchService {
 
                 // If changing to public, organiser must be null and clean privStatus
                 if (updateData.getType().equals("public")) {
-                    /// MATCH PLAYERS Reset pending/declined slots to open for public, but keep approved players
+                    // MATCH PLAYERS Reset pending/declined slots to open for public, but keep approved players
                     resetMatchPlayersForPublic(matchId);
 
                     match.setOrganiser(null);

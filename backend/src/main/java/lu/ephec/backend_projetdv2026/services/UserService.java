@@ -18,7 +18,6 @@ import java.util.Optional;
 public class UserService {
     private final JPAUserRepo jpaUserRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
-    private final MatriculeHandler matriculeHandler;
     private final MigrateUserDESTRUCTIVE migrateUser;
     private final PaymentService paymentService;
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
@@ -26,10 +25,9 @@ public class UserService {
     private final JPAUserSiteRepo jpaUserSiteRepo;
 
     // InjDep Interface User + Penalties
-    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MatriculeHandler matriculeHandler, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserSiteRepo jpaUserSiteRepo) {
+    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserSiteRepo jpaUserSiteRepo) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
-        this.matriculeHandler = matriculeHandler;
         this.migrateUser = migrateUser;
         this.paymentService = paymentService;
         this.jpaUserAccountsRepo = jpaUserAccountsRepo;
@@ -68,7 +66,7 @@ public class UserService {
     public User newUser(User user) {
 
         //GENERATE MATRICULE
-        user.setMatricule(matriculeHandler.generateMatricule(user.getRole().getId(), jpaUserRepo));
+        user.setMatricule(MatriculeHandler.generateMatricule(user.getRole().getId(), jpaUserRepo));
 
         //VALIDATE
         ValidationBoiler.verifyNotExists(jpaUserRepo.existsById(user.getMatricule()), "User", user.getMatricule());
@@ -180,7 +178,7 @@ public class UserService {
         return jpaUserRepo.findById(userId).map(user -> {
             if (updatedUser.getIsActive() != null) {
                 // Block deactivation when user still has financial obligations
-                if (Boolean.FALSE.equals(updatedUser.getIsActive())) {
+                if (!updatedUser.getIsActive()) {
                     boolean hasDebt = paymentService.userHasDebt(userId);
                     List<MatchPayments> pendingPayments = jpaMatchPaymentsRepo.findByUser_MatriculeAndStatus(userId, "pending");
                     ValidationBoiler.verifyNoOutstandingFinancialObligations(hasDebt, pendingPayments, userId);

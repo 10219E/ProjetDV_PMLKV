@@ -7,7 +7,6 @@ import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
-import org.apache.el.util.Validation;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -139,7 +138,7 @@ public class FieldService {
                 field.setIsIndoor(updateData.getIsIndoor());
             }
 
-            if (updateData.getIsActive() != null && updateData.getIsActive() == false && field.getIsActive() == true) {
+            if (updateData.getIsActive() != null && !updateData.getIsActive() && field.getIsActive()) {
                 fieldDeactivated.set(true);
             }
 
