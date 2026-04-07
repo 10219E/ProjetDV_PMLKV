@@ -29,7 +29,7 @@ public class ValidationBoiler {
     public static void verifyUserActive(Boolean isActive, String userId) {
         if (isActive == null || !isActive) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "User " + userId + " is not active. Only active users can be migrated.");
+                    "User " + userId + " is not active. Cannot proceed with this operation.");
         }
     }
 

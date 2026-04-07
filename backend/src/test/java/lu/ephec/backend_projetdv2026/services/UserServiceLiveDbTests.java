@@ -239,7 +239,7 @@ public class UserServiceLiveDbTests {
 
             User u2 = new User();
             //u2.setMatricule(matricule2);
-            u2.setIsActive(false);
+            u2.setIsActive(true);
             u2.setFirstName(firstName2);
             u2.setLastName(lastName2);
             u2.setEmail(email2);
