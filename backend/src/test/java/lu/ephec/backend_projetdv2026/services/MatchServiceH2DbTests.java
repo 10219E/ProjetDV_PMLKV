@@ -2,10 +2,10 @@ package lu.ephec.backend_projetdv2026.services;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import lu.ephec.backend_projetdv2026.InitBaseH2Test;
 import lu.ephec.backend_projetdv2026.models.*;
 import lu.ephec.backend_projetdv2026.repo.*;
 import com.github.javafaker.Faker;
-import org.hibernate.sql.Delete;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class MatchServiceLiveDbTests {
+public class MatchServiceH2DbTests extends InitBaseH2Test {
 
     @PersistenceContext
     private EntityManager em; // Au début de la classe

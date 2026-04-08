@@ -1,9 +1,9 @@
 package lu.ephec.backend_projetdv2026.services;
 
+import lu.ephec.backend_projetdv2026.InitBaseH2Test;
 import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
-import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
 import com.github.javafaker.Faker; //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class FieldServiceLiveDbTests {
+public class FieldServiceH2DbTests extends InitBaseH2Test {
 
     @Autowired
     private FieldService fieldService;

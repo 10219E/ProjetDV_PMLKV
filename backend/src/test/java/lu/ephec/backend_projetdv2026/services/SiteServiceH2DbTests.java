@@ -1,30 +1,26 @@
 package lu.ephec.backend_projetdv2026.services;
 
+import lu.ephec.backend_projetdv2026.InitBaseH2Test;
 import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.SiteClosureDays;
-import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
 import com.github.javafaker.Faker;  //USING FAKER TO GEN INFO
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import lu.ephec.backend_projetdv2026.models.Field;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) //Beans Injection to allow @BeforeAll non-static
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class SiteServiceLiveDbTests {
+public class SiteServiceH2DbTests extends InitBaseH2Test {
 
     @Autowired
     private SiteService siteService;

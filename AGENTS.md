@@ -6,5 +6,5 @@
 - Requirements: respect of the above mentioned rules, deep thinking, verified sources.
 - Main use case: bachelor in full stack development.
 - Used tools: MS SQL Server, Docker, IntelliJ, Springboot, Java, Maven, DOTNET, C#, Angular.
-- Main project Database: TOUPDATE!init-sql-server.sql, out-of-date for now, do not rely on it and ask. 
+- Main project Database: init-sql-server.sql 
 - Main focus: learning and advancing on my project.
