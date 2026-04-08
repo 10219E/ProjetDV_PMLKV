@@ -3,13 +3,13 @@ package lu.ephec.backend_projetdv2026.services.validation;
 import com.github.javafaker.Faker;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import lu.ephec.backend_projetdv2026.InitBaseH2Test;
 import lu.ephec.backend_projetdv2026.models.*;
 import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.web.client.match.JsonPathRequestMatchers;
 import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class UserMigrationLiveDbTests {
+public class UserMigrationH2DbTests extends InitBaseH2Test {
 
     @Autowired
     private UserService userService;

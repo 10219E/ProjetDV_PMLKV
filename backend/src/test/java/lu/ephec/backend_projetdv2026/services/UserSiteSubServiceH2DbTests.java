@@ -3,7 +3,7 @@ package lu.ephec.backend_projetdv2026.services;
 import com.github.javafaker.Faker;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jdk.jfr.Name;
+import lu.ephec.backend_projetdv2026.InitBaseH2Test;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class UserSiteSubServiceLiveDbTests {
+public class UserSiteSubServiceH2DbTests extends InitBaseH2Test {
 
     @Autowired
     private UserSiteSubService userSiteSubService;
@@ -100,7 +100,7 @@ public class UserSiteSubServiceLiveDbTests {
     }
 
     @Test
-    @Name("EXCEPTION - SA CAN'T BE ASSIGNED TO SITE")
+    @DisplayName("EXCEPTION - SA CAN'T BE ASSIGNED TO SITE")
     @Order(2)
     void newUserSiteSuperAdminForbiddenDB() {
         // ARRANGE

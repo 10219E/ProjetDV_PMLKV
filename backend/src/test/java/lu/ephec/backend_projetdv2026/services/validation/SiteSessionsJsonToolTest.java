@@ -3,8 +3,6 @@ package lu.ephec.backend_projetdv2026.services.validation;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -13,11 +11,9 @@ import java.time.LocalTime;
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@SpringBootTest
 public class SiteSessionsJsonToolTest {
 
-    @Autowired
-    private SiteSessionsJsonHandler handler;
+    SiteSessionsJsonHandler handler = new SiteSessionsJsonHandler();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

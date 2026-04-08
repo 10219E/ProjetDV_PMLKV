@@ -1,5 +1,6 @@
 package lu.ephec.backend_projetdv2026.services;
 
+import lu.ephec.backend_projetdv2026.InitBaseH2Test;
 import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
@@ -26,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS) //Beans Injection to allow @BeforeAll non-static
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class UserServiceLiveDbTests {
+public class UserServiceH2DbTests extends InitBaseH2Test {
 
     @Autowired //Easier to AutoWire (@Service SpringBean)
     private UserService userService;

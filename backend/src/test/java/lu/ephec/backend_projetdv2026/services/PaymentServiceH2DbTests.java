@@ -3,6 +3,7 @@ package lu.ephec.backend_projetdv2026.services;
 import com.github.javafaker.Faker;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import lu.ephec.backend_projetdv2026.InitBaseH2Test;
 import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.User;
@@ -27,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
-public class PaymentServiceLiveDbTests {
+public class PaymentServiceH2DbTests extends InitBaseH2Test {
 
     @Autowired
     private PaymentService paymentService;
