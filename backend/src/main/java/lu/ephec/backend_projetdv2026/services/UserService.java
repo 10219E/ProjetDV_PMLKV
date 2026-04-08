@@ -61,6 +61,15 @@ public class UserService {
         return migrateUser.migrateUserRole(oldMatricule, newRoleId);
     }
 
+    //TOUCH LAST LOGIN BY USERID
+    @Transactional
+    public void touchLastLoginByMatricule(String user_id) {
+        jpaUserRepo.findById(user_id).ifPresent(user -> {
+            user.setLastLogin(LocalDateTime.now());
+            jpaUserRepo.save(user);
+        });
+    }
+
     //SET User -- with email verification (is unique)
     @Transactional //Makes sure the whole method is executed
     public User newUser(User user) {
