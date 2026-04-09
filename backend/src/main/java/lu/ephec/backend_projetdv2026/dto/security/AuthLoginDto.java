@@ -1,6 +1,6 @@
 package lu.ephec.backend_projetdv2026.dto.security;
 
-public class AuthLoginRequest {
+public class AuthLoginDto {
     private String login; // email or matricule
     private String password;
 

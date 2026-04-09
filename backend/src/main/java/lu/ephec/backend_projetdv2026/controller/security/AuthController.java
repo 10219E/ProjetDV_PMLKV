@@ -1,6 +1,6 @@
 package lu.ephec.backend_projetdv2026.controller.security;
 
-import lu.ephec.backend_projetdv2026.dto.security.AuthLoginRequest;
+import lu.ephec.backend_projetdv2026.dto.security.AuthLoginDto;
 import lu.ephec.backend_projetdv2026.dto.security.AuthLoginResponse;
 import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.services.security.JWTService;
@@ -29,7 +29,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthLoginResponse> login(@RequestBody AuthLoginRequest request) {
+    public ResponseEntity<AuthLoginResponse> login(@RequestBody AuthLoginDto request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(

@@ -1,0 +1,56 @@
+package lu.ephec.backend_projetdv2026.controller;
+
+import lu.ephec.backend_projetdv2026.dto.UserProfileResponse;
+import lu.ephec.backend_projetdv2026.models.User;
+import lu.ephec.backend_projetdv2026.models.UserAccounts;
+import lu.ephec.backend_projetdv2026.models.UsersSites;
+import lu.ephec.backend_projetdv2026.services.UserService;
+import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
+import lu.ephec.backend_projetdv2026.repo.JPAUserSiteRepo;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    private final UserService userService;
+    private final JPAUserAccountsRepo userAccountsRepo;
+    private final JPAUserSiteRepo userSiteRepo;
+
+    public UserController(UserService userService, JPAUserAccountsRepo userAccountsRepo, JPAUserSiteRepo userSiteRepo) {
+        this.userService = userService;
+        this.userAccountsRepo = userAccountsRepo;
+        this.userSiteRepo = userSiteRepo;
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserProfileResponse> getCurrentUser(Authentication authentication) {
+        String matricule = authentication.getName(); // JWT subject (matricule) is injected here
+        return ResponseEntity.ok(buildUserProfile(matricule));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<UserProfileResponse>> getAllUsers() {
+        List<UserProfileResponse> responses = userService.fetchAll().stream()
+                .map(u -> buildUserProfile(u.getMatricule()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/{matricule}")
+    public ResponseEntity<UserProfileResponse> getUserByMatricule(@PathVariable String matricule) {
+        return ResponseEntity.ok(buildUserProfile(matricule));
+    }
+
+    private UserProfileResponse buildUserProfile(String matricule) {
+        User u = userService.fetchById(matricule).orElseThrow();
+        UserAccounts acc = userAccountsRepo.findByUser_Matricule(matricule).orElse(null);
+        List<UsersSites> sites = userSiteRepo.findByUser_Matricule(matricule);
+        return UserProfileResponse.from(u, acc, sites);
+    }
+}
