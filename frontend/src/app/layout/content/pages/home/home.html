@@ -1,0 +1,109 @@
+<!-- Header Container (Floating) -->
+<header class="fixed top-0 left-0 right-0 z-50 p-4 md:p-6 flex justify-end">
+  <button class="text-white font-bold py-2 px-6 rounded-full shadow-lg transition-colors duration-300 transform hover:scale-105"
+          [ngClass]="isHeaderOrange ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-600 hover:bg-blue-700'">
+    SE CONNECTER
+  </button>
+</header>
+
+<!-- SECTION 1: Image 1 -->
+<section class="relative w-full h-[40vh] md:h-[80vh] flex items-center justify-center overflow-hidden bg-gray-200">
+  <!-- Img 1 BG -->
+<div class="absolute inset-0 bg-cover bg-center" style="background-image: url('/assets/paddle_terrain.jpg');"></div>
+  <!-- Overlay (optional for contrast) -->
+  <div class="absolute inset-0 bg-black bg-opacity-30"></div>
+  <!-- Stylish test overlay (centered, non-interactive) -->
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+    <!-- No background; large centered title -->
+    <div class="hero-test-overlay px-2">
+      <h1 class="text-white text-6xl md:text-8xl lg:text-9xl font-extrabold tracking-wider drop-shadow-2xl leading-tight">Padel Belgium</h1>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: "Pourquoi venir chez nous" -->
+<section #pitchSection class="w-full py-16 px-4 md:px-12 flex flex-col items-center justify-center bg-white text-center">
+  <h2 class="text-3xl md:text-5xl font-bold text-gray-800 mb-6">Pourquoi venir chez nous ?</h2>
+  <p class="text-lg md:text-xl text-gray-600 max-w-2xl mb-10">
+    Rejoignez notre complexe sportif et plongez dans l’univers passionnant du padel ! Que vous soyez débutant ou joueur confirmé, nos terrains de qualité professionnelle vous attendent pour des parties intenses et conviviales.
+    Profitez des meilleures installations de padel dans une ambiance chaleureuse et dynamique, adaptée à tous les niveaux. Ici, le sport rime avec plaisir, rencontre et dépassement de soi.
+    Inscrivez-vous dès aujourd’hui et faites partie d’une communauté de passionnés. Réservez votre créneau et vivez des moments inoubliables sur nos terrains.
+
+  </p>
+  <!-- Signup button that appears when the About section scrolls into view -->
+  <button
+    class="mb-6 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-opacity duration-500 ease-out"
+    [style.opacity]="isPitchVisible ? '1' : '0'"
+    [style.pointer-events]="isPitchVisible ? 'auto' : 'none'"
+    aria-hidden="{{!isPitchVisible}}">
+    S'INSCRIRE
+  </button>
+</section>
+
+<!-- SECTION 3: Image 2 (Progressively opening on scroll) -->
+<section #img2Section class="relative w-full h-[50vh] md:h-[70vh] flex items-center justify-center overflow-hidden bg-white group">
+  <!-- Image 2 reveals and slowly zooms out when visible -->
+  <div
+    class="absolute inset-0 transition-opacity duration-1000 ease-out"
+    [class.opacity-100]="isImg2Visible"
+    [class.opacity-0]="!isImg2Visible">
+
+    <!-- Image Wrapper for width transition to avoid clip-path bugs on mobile devices -->
+    <div class="w-full h-full flex items-center justify-center overflow-hidden">
+      <!-- Expanding mask block from middle -->
+      <div
+        class="h-full bg-cover transition-all duration-[1500ms] ease-out"
+        [style.background-position]="'50% 30%'"
+        [style.transform-origin]="'50% 30%'"
+        [style.width]="isImg2Visible ? '100%' : '0%'"
+        [style.transform]="isImg2Visible ? 'scale(1)' : 'scale(1.2)'"
+        style="background-image: url('/assets/paddle_player.jpg');">
+      </div>
+    </div>
+  </div>
+  <div class="relative z-10">
+  </div>
+</section>
+
+<!-- SECTION 4: "À propos de nous" -->
+<section #aboutSection class="w-full py-20 px-4 md:px-12 flex flex-col items-center justify-center bg-gray-50 text-center">
+  <h2 class="text-3xl md:text-5xl font-bold text-gray-800 mb-6 tracking-wider">
+    À propos de nous
+  </h2>
+
+  <!-- Signup button that appears when the About section scrolls into view -->
+  <button
+    class="mb-6 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-opacity duration-500 ease-out"
+    [style.opacity]="isAboutVisible ? '1' : '0'"
+    [style.pointer-events]="isAboutVisible ? 'auto' : 'none'"
+    aria-hidden="{{!isAboutVisible}}">
+    S'INSCRIRE
+  </button>
+
+  <div class="max-w-3xl text-gray-600 text-lg leading-relaxed">
+    <p>
+      Nous sommes dédiés à vous offrir la meilleure expérience sportive. Implantés depuis 2025 sur **X sites**, notre club allie passion, performance et convivialité, avec un total de **Y terrains** de padel de pointe, spécialement conçus pour répondre aux attentes des joueurs de tous niveaux.
+      Nos installations en extérieur, éclairées pour les matchs en soirée, vous permettent de jouer à tout moment de la journée. Ici, l’esprit d’équipe et l’amour du padel sont au cœur de tout ce que nous faisons.
+      Venez nous rejoindre et découvrez une communauté où le sport, le dépassement et le plaisir se rencontrent.
+    </p>
+  </div>
+</section>
+
+<!-- SECTION 5: Nous Contacter -->
+<section class="w-full py-16 px-4 md:px-12 flex flex-col items-center justify-center bg-white border-t border-gray-200 text-center">
+  <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-8 uppercase tracking-wider">
+    NOUS CONTACTER
+  </h2>
+  <div class="flex flex-col md:flex-row gap-6 md:gap-16 text-gray-700 text-lg">
+    <div class="flex flex-col items-center">
+      <span class="font-bold mb-2 text-gray-900">Adresse</span>
+      <span>123 Avenue du Padel</span>
+      <span>1000 Bruxelles</span>
+    </div>
+    <div class="flex flex-col items-center">
+      <span class="font-bold mb-2 text-gray-900">Email & Tel</span>
+      <span>infos&#64;padelclub.be</span>
+      <span>+32 02 123 45 67</span>
+    </div>
+  </div>
+</section>
