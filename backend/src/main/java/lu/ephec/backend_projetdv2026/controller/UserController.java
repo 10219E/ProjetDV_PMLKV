@@ -4,14 +4,17 @@ import lu.ephec.backend_projetdv2026.dto.UserProfileResponse;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserAccounts;
 import lu.ephec.backend_projetdv2026.models.UsersSites;
+import lu.ephec.backend_projetdv2026.services.PaymentService;
 import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserSiteRepo;
+import lu.ephec.backend_projetdv2026.services.UserSiteSubService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -19,13 +22,13 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
-    private final JPAUserAccountsRepo userAccountsRepo;
-    private final JPAUserSiteRepo userSiteRepo;
+    private final PaymentService paymentService;
+    private final UserSiteSubService userSiteSubService;
 
-    public UserController(UserService userService, JPAUserAccountsRepo userAccountsRepo, JPAUserSiteRepo userSiteRepo) {
+    public UserController(UserService userService, JPAUserAccountsRepo userAccountsRepo, PaymentService paymentService, JPAUserSiteRepo userSiteRepo, UserSiteSubService userSiteSubService) {
         this.userService = userService;
-        this.userAccountsRepo = userAccountsRepo;
-        this.userSiteRepo = userSiteRepo;
+        this.paymentService = paymentService;
+        this.userSiteSubService = userSiteSubService;
     }
 
     @GetMapping("/me")
@@ -49,8 +52,8 @@ public class UserController {
 
     private UserProfileResponse buildUserProfile(String matricule) {
         User u = userService.fetchById(matricule).orElseThrow();
-        UserAccounts acc = userAccountsRepo.findByUser_Matricule(matricule).orElse(null);
-        List<UsersSites> sites = userSiteRepo.findByUser_Matricule(matricule);
-        return UserProfileResponse.from(u, acc, sites);
+        Optional<UserAccounts> acc = paymentService.fetchUserAccount(matricule);
+        List<UsersSites> sites = userSiteSubService.fetchByUser(matricule);
+        return UserProfileResponse.from(u, acc.orElse(null), sites);
     }
 }

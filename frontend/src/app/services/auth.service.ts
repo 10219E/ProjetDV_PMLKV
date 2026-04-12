@@ -4,8 +4,8 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
 export interface AuthLoginResponse {
-  type: string;
-  token: string;
+  tokenType: string;
+  accessToken: string;
   expiresIn: number;
 }
 
@@ -13,15 +13,15 @@ export interface AuthLoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:8080/auth/login'; // Adjust if backend port differs
+  private apiUrl = 'http://localhost:8080/auth'; // Adjusted to base auth URL
 
   constructor(private http: HttpClient) { }
 
   login(login: string, password: string): Observable<AuthLoginResponse> {
-    return this.http.post<AuthLoginResponse>(this.apiUrl, { login, password }).pipe(
+    return this.http.post<AuthLoginResponse>(`${this.apiUrl}/login`, { login, password }).pipe(
       tap(response => {
-        if (response.token) {
-          localStorage.setItem('auth_token', response.token);
+        if (response.accessToken) {
+          localStorage.setItem('auth_token', response.accessToken);
         }
       })
     );
@@ -38,5 +38,27 @@ export class AuthService {
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
-}
 
+  signup(userData: any): Observable<any> {
+    // Basic stub, backend exposes /auth/register returning created matricule
+    return this.http.post<any>(`${this.apiUrl}/register`, userData);
+  }
+
+  getUserRole(): string {
+    const token = this.getToken();
+    if (!token) return 'Unknown';
+    try {
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+
+      // Spring populates a 'roles' array/string
+      let roles = decoded.roles || decoded.role || [];
+      if (Array.isArray(roles)) {
+        return roles.join(', ');
+      }
+      return roles;
+    } catch (e) {
+      return 'role not found';
+    }
+  }
+}

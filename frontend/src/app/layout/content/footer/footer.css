@@ -1,0 +1,56 @@
+
+/* Footer horizontal marquee styles (restored previous smaller footprint) */
+.footer-sites { position: relative; overflow: hidden; max-width: 100%; margin: 0 auto; }
+.scroll-horizontal {
+  display: flex;
+  white-space: nowrap;
+  align-items: center;
+  animation: scrollLeft linear infinite;
+  animation-duration: 10s; /* adjust speed: lower = faster */
+  padding-inline: 1rem;
+}
+.site-item { background: transparent; }
+
+@keyframes scrollLeft {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Pause animation on hover/touch */
+.footer-sites:hover .scroll-horizontal,
+.footer-sites:active .scroll-horizontal {
+  animation-play-state: paused;
+}
+
+/* Small screens: reduce height & speed */
+@media (max-width: 640px) {
+  .footer-sites { height: 4.5rem; }
+  .scroll-horizontal { animation-duration: 12s; }
+  .site-name { font-size: 1rem; }
+  .site-address { font-size: 0.85rem; }
+}
+
+/* Desktop sizing: slightly larger text but compact footprint */
+@media (min-width: 641px) {
+  .footer-sites { height: 5.5rem; max-width: 75%; }
+  .site-name { font-size: 1.25rem; }
+  .site-address { font-size: 1rem; }
+}
+
+/* Fade edges using mask for smooth in/out - apply to container so left edge fades correctly */
+.footer-sites {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 6%, black 94%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, black 6%, black 94%, transparent 100%);
+}
+
+/* default sizes */
+.site-name { font-size: 1.125rem; }
+.site-address { font-size: 0.95rem; }
+
+/* Accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-horizontal { animation: none; }
+}
+
+
+

@@ -94,6 +94,11 @@ public class SiteService {
     //GET ALL Sites
     public List<Site> fetchAll() { return jpaSiteRepo.findAll(); }
 
+    //FETCH ALL COUNT
+    public Integer countSites() {
+        return Math.toIntExact(jpaSiteRepo.count());
+    }
+
     //GET ALL ACTIVE Sites
     public List<Site> fetchAllActive() {
         return jpaSiteRepo.findAllByIsActiveTrue();
@@ -375,6 +380,7 @@ public class SiteService {
 
         jpaClosureDaysRepo.deleteAll(closures);
     }
+
 }
 
 
