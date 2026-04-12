@@ -1,21 +1,11 @@
 package lu.ephec.backend_projetdv2026.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
 public class InfoControllerDto {
-
-    private Integer sites;
-    private Integer fields;
-
-    public InfoControllerDto(Integer sites, Integer fields) {
-        this.sites = sites;
-        this.fields = fields;
-    }
-
-    // Public getters so Jackson can serialize the DTO in responses
-    public Integer getSites() {
-        return sites;
-    }
-
-    public Integer getFields() {
-        return fields;
-    }
+    private final Integer sites;
+    private final Integer fields;
 }
