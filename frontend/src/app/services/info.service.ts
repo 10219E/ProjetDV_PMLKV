@@ -12,4 +12,8 @@ export class InfoService {
   getCounts(): Observable<{ sites: number; fields: number }> {
     return this.http.get<{ sites: number; fields: number }>(`${this.base}/fscount`);
   }
+
+  getSites(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.base}/sitelist`);
+  }
 }

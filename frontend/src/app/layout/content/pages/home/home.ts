@@ -30,6 +30,9 @@ export function passwordStrengthValidator(): ValidatorFn {
   };
 }
 
+// allow letters (including common accented ranges), spaces, apostrophe and hyphen
+export const NAME_REGEX: RegExp = /^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/;
+
 export function ageValidator(minAge: number): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
     const v = control.value;
@@ -68,14 +71,16 @@ export class HomeComponent implements OnInit {
   showPassword = false;
 
   signupForm = new FormGroup({
-    fname: new FormControl('', Validators.required),
-    lname: new FormControl('', Validators.required),
+    // first and last name: at least 2 chars, no symbols (allow accents, spaces, apostrophe and hyphen)
+    fname: new FormControl('', [Validators.required, Validators.minLength(2), Validators.pattern(NAME_REGEX)]),
+    lname: new FormControl('', [Validators.required, Validators.minLength(2), Validators.pattern(NAME_REGEX)]),
     // email: require RFC-like email and common TLD (2-6 letters)
     email: new FormControl('', [Validators.required, Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)]),
     password: new FormControl('', [Validators.required, Validators.minLength(8), passwordStrengthValidator()]),
     confirmPassword: new FormControl('', Validators.required),
     bdate: new FormControl('', [Validators.required, ageValidator(16)]),
-    lvl: new FormControl('', Validators.required)
+    lvl: new FormControl('', Validators.required),
+    siteId: new FormControl('', Validators.required)
   }, { validators: passwordsMatchValidator() });
 
   loginForm = new FormGroup({
@@ -89,6 +94,7 @@ export class HomeComponent implements OnInit {
 
   sitesTotal: number = 0;
   fieldsTotal: number = 0;
+  sites: Array<{ siteId: number; name: string; address: string }> = [];
 
   constructor(private cdr: ChangeDetectorRef, private title: Title, private authService: AuthService, private router: Router, private infoService: InfoService) {}
 
@@ -97,6 +103,26 @@ export class HomeComponent implements OnInit {
     this.setupObserver();
     this.title.setTitle('Padel Belgium');
     this.loadCounts();
+    this.loadSites();
+  }
+
+  loadSites() {
+    this.infoService.getSites().subscribe({
+      next: (data: any) => {
+        if (data && Array.isArray(data.siteInfoList)) {
+          this.sites = data.siteInfoList;
+        } else {
+          console.error('Unexpected data structure for sites:', data);
+          this.sites = [];
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load sites', err);
+        this.sites = [];
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   loadCounts() {
@@ -211,7 +237,9 @@ export class HomeComponent implements OnInit {
         next: (response) => {
           console.log('Signup Successful', response);
           this.signupSuccess = true;
+          // keep the signup overlay closed but show the success popup
           this.closeSignup();
+          this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Signup Failed', err);
@@ -220,6 +248,19 @@ export class HomeComponent implements OnInit {
         }
       });
     }
+  }
+
+  /** Close the signup-success popup without opening login */
+  closeSignupSuccess() {
+    this.signupSuccess = false;
+    this.cdr.detectChanges();
+  }
+
+  /** Close popup and open the login overlay */
+  ackSignupSuccessOpenLogin() {
+    this.signupSuccess = false;
+    this.openLogin();
+    this.cdr.detectChanges();
   }
 
   submitLogin() {

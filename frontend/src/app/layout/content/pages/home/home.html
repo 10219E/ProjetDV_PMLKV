@@ -28,9 +28,9 @@
 <section #pitchSection class="w-full py-16 px-4 md:px-12 flex flex-col items-center justify-center bg-white text-center">
   <h2 class="text-3xl md:text-5xl font-bold text-gray-800 mb-6">Pourquoi venir chez nous ?</h2>
   <p class="text-lg md:text-xl text-gray-600 max-w-2xl mb-10">
-    Rejoignez notre complexe sportif et plongez dans l’univers passionnant du padel ! Que vous soyez débutant ou joueur confirmé, nos <strong class="text-orange-500">{{ fieldsTotal }} terrains</strong> de qualité professionnelle vous attendent pour des parties intenses et conviviales.
-    Profitez des meilleures installations de padel dans une ambiance chaleureuse et dynamique, adaptée à tous les niveaux. Ici, le sport rime avec plaisir, rencontre et dépassement de soi.
-    Inscrivez-vous dès aujourd’hui et faites partie d’une communauté de passionnés. Réservez votre créneau et vivez des moments inoubliables sur nos terrains.
+    Rejoignez de nombreux sportifs déjà inscrits chez nous et <br /><span class="font-medium"> plongez dans l’univers passionnant du padel !</span> <br />Que vous soyez débutant ou joueur confirmé, nos <span class="font-medium text-orange-500">{{ fieldsTotal }} terrains de qualité professionnelle </span>  vous attendent pour des parties intenses et conviviales.
+    <br /><br />Profitez des meilleures installations de padel dans une ambiance chaleureuse et dynamique, <span class="font-medium"> adaptée à tous les niveaux</span>. Ici, le sport rime avec plaisir, rencontre et dépassement de soi.
+    <br /><br />Inscrivez-vous dès aujourd’hui et faites partie d’une communauté de passionnés. <span class="font-medium">Réservez votre créneau et vivez des moments inoubliables</span> sur nos terrains.
 
   </p>
   <!-- Signup button that appears when the About section scrolls into view -->
@@ -77,14 +77,13 @@
 
   <div class="max-w-3xl text-gray-600 text-lg leading-relaxed">
     <p>
-      Nous sommes dédiés à vous offrir la meilleure expérience sportive.
-      <br />
-      Implantés depuis 2025 sur <strong class="text-blue-600">{{ sitesTotal }} sites</strong>,
-      notre club allie passion, performance et convivialité, avec un total de
-      <strong class="text-blue-600">{{ fieldsTotal }} terrains</strong>
+      Implantés depuis 2025 sur <span class="font-medium text-blue-600">{{ sitesTotal }} sites</span>,
+      nous faisons de notre mieux pour allier passion, performance et convivialité, avec un total de
+      <span class="font-medium text-blue-600">{{ fieldsTotal }} terrains</span>
       de padel de pointe, spécialement conçus pour répondre aux attentes des joueurs de tous niveaux.
-      Nos installations en extérieur, éclairées pour les matchs en soirée, vous permettent de jouer à tout moment de la journée. Ici, l’esprit d’équipe et l’amour du padel sont au cœur de tout ce que nous faisons.
-      Venez nous rejoindre et découvrez une communauté où le sport, le dépassement et le plaisir se rencontrent.
+      <br /><br />Nos installations en extérieur, éclairées pour les matchs en soirée, vous permettent de jouer à tout moment de la journée. Ici, l’esprit d’équipe et l’amour du padel sont au cœur de tout ce que nous faisons.
+      Venez nous rejoindre et découvrez une communauté où le sport, le dépassement et le plaisir se rencontrent.<br /><br />Après vos sessions, n'hesitez pas à profiter de notre espace détente pour échanger avec d'autres passionnés et partager vos expériences.
+      Nos établissements sont également équipés de vestiaires modernes, de douches et d'un espace de restauration pour que votre visite soit aussi confortable que possible.<br /><br />Que vous soyez là pour une partie amicale ou pour perfectionner votre technique, nous avons tout ce dont vous avez besoin pour vivre pleinement votre passion du padel.
     </p>
   </div>
 
@@ -125,11 +124,33 @@
       <div class="flex flex-col gap-1">
         <label for="fname" class="text-sm font-semibold text-gray-700">Prénom *</label>
         <input id="fname" type="text" formControlName="fname" class="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" />
+        @if (signupForm.get('fname')?.touched) {
+          @if (signupForm.get('fname')?.hasError('required')) {
+            <span class="text-red-500 text-xs mt-1">Le prénom est requis.</span>
+          }
+          @if (signupForm.get('fname')?.hasError('minlength')) {
+            <span class="text-red-500 text-xs mt-1">Le prénom doit contenir au moins 2 caractères.</span>
+          }
+          @if (signupForm.get('fname')?.hasError('pattern')) {
+            <span class="text-red-500 text-xs mt-1">Le prénom contient des caractères invalides (chiffres ou symboles).</span>
+          }
+        }
       </div>
 
       <div class="flex flex-col gap-1">
         <label for="lname" class="text-sm font-semibold text-gray-700">Nom *</label>
         <input id="lname" type="text" formControlName="lname" class="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:outline-none" />
+        @if (signupForm.get('lname')?.touched) {
+          @if (signupForm.get('lname')?.hasError('required')) {
+            <span class="text-red-500 text-xs mt-1">Le nom est requis.</span>
+          }
+          @if (signupForm.get('lname')?.hasError('minlength')) {
+            <span class="text-red-500 text-xs mt-1">Le nom doit contenir au moins 2 caractères.</span>
+          }
+          @if (signupForm.get('lname')?.hasError('pattern')) {
+            <span class="text-red-500 text-xs mt-1">Le nom contient des caractères invalides (chiffres ou symboles).</span>
+          }
+        }
       </div>
 
       <div class="flex flex-col gap-1">
@@ -194,6 +215,19 @@
         }
       </div>
 
+      <div class="flex flex-col gap-1 mt-4">
+        <label for="siteId" class="text-sm font-semibold text-gray-700">Site *</label>
+        <select id="siteId" formControlName="siteId" class="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:outline-none">
+          <option [ngValue]="null" disabled>Choisissez un site</option>
+          @for (s of sites; track s.siteId) {
+            <option [ngValue]="s.siteId">{{s.name}} — {{s.address}}</option>
+          }
+        </select>
+        @if (signupForm.get('siteId')?.touched && signupForm.get('siteId')?.hasError('required')) {
+          <span class="text-red-500 text-xs mt-1">Veuillez choisir un site.</span>
+        }
+      </div>
+
       <div class="flex flex-col gap-2 mt-2">
         <label class="text-sm font-semibold text-gray-700 text-center">Niveau *</label>
         <div class="flex justify-between gap-2">
@@ -223,6 +257,26 @@
         </button>
       </div>
     </form>
+  </div>
+</div>
+}
+
+<!-- Signup success popup -->
+@if (signupSuccess) {
+<div class="fixed inset-0 z-[110] flex items-center justify-center">
+  <div class="absolute inset-0 bg-black bg-opacity-40"></div>
+  <div class="relative bg-white rounded-xl p-6 shadow-xl w-full max-w-sm text-center">
+    <button (click)="closeSignupSuccess()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition-colors">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+    <h3 class="text-xl font-semibold mb-2 text-gray-800">Inscription réussie</h3>
+    <p class="text-sm text-gray-600 mb-4">Vous vous êtes inscrit avec succès.</p>
+    <div class="flex justify-center gap-3">
+      <button (click)="ackSignupSuccessOpenLogin()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Se connecter</button>
+      <button (click)="closeSignupSuccess()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded">Fermer</button>
+    </div>
   </div>
 </div>
 }

@@ -40,8 +40,8 @@ export class AuthService {
   }
 
   signup(userData: any): Observable<any> {
-    // Basic stub, expects backend to have /auth/signup returning some confirmation or token
-    return this.http.post<any>(`${this.apiUrl}/signup`, userData);
+    // Basic stub, backend exposes /auth/register returning created matricule
+    return this.http.post<any>(`${this.apiUrl}/register`, userData);
   }
 
   getUserRole(): string {
