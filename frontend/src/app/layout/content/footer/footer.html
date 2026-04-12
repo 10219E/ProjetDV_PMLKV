@@ -1,17 +1,39 @@
-<section class="w-full py-16 px-4 md:px-12 flex flex-col items-center justify-center bg-white border-t border-gray-200 text-center">
-  <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-8 uppercase tracking-wider">
-    NOUS CONTACTER
-  </h2>
-  <div class="flex flex-col md:flex-row gap-6 md:gap-16 text-gray-700 text-lg">
-    <div class="flex flex-col items-center">
-      <span class="font-bold mb-2 text-gray-900">Adresse</span>
-      <span>123 Avenue du Padel</span>
-      <span>1000 Bruxelles</span>
-    </div>
-    <div class="flex flex-col items-center">
-      <span class="font-bold mb-2 text-gray-900">Email & Tel</span>
-      <span>infos&#64;padelclub.be</span>
-      <span>+32 02 123 45 67</span>
+<section class="w-full py-16 px-4 md:px-12 bg-white border-t border-gray-200">
+  <div class="max-w-6xl mx-auto">
+    <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-8 uppercase tracking-wider text-center">NOUS CONTACTER</h2>
+
+    <div class="flex flex-col md:flex-row items-center gap-6 md:gap-16 text-gray-700 text-lg text-center">
+      <!-- Left: auto-scrolling site list -->
+      <div class="w-full md:w-1/2 flex flex-col items-center justify-center">
+        <div class="font-bold mb-5 text-gray-900">Nos complexes sportifs</div>
+        <div class="footer-sites h-20 md:h-24 rounded-lg">
+          <div class="scroll-horizontal flex items-center">
+            @for (s of sites; track s.siteId) {
+              <div class="site-item flex-none px-6 py-3">
+                <div class="site-name font-semibold text-gray-900 text-lg md:text-xl">{{ s.name }}</div>
+                <div class="site-address text-sm md:text-base text-gray-600 mt-1">{{ s.address }}</div>
+              </div>
+            }
+            <!-- duplicate for seamless loop -->
+            @for (s of sites; track s.siteId) {
+              <div class="site-item flex-none px-6 py-3">
+                <div class="site-name font-semibold text-gray-900 text-lg md:text-xl">{{ s.name }}</div>
+                <div class="site-address text-sm md:text-base text-gray-600 mt-1">{{ s.address }}</div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: contact info -->
+      <div class="w-full md:w-1/2 flex flex-col items-center justify-center md:self-start">
+        <div class="font-bold mb-3 text-gray-900">E-mail & Téléphone</div>
+        <div class="text-gray-700 text-lg">
+          <div><a class="text-blue-600 hover:underline" href="mailto:infos&#64;padelclub.be">infos&#64;padelbelgium.fk.be</a></div>
+          <div class="mt-2">+32 02 123 45 67</div>
+          <div class="mt-2">de 9:00 à 18:00</div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
