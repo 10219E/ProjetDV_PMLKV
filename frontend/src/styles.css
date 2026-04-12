@@ -21,3 +21,8 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 /* subtle strong text shadow to improve contrast on complex images */
 .hero-test-overlay h1 { text-shadow: 0 8px 24px rgba(0,0,0,0.45); }
 
+/* Hide built-in password reveal button in Edge/IE */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}

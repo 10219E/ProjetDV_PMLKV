@@ -92,6 +92,11 @@ public class FieldService {
         return jpaFieldRepo.findAll();
     }
 
+    //RETURN TOTAL NUM OF FIELDS
+    public Integer countFields() {
+        return Math.toIntExact(jpaFieldRepo.count());
+    }
+
     //GET ALL indoor Fields By Site
     public List<Field> fetchIndoorBySite(Integer siteId) {
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
@@ -176,4 +181,5 @@ public class FieldService {
             return jpaFieldRepo.save(field);
         });
     }
+
 }

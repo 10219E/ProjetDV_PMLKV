@@ -227,6 +227,19 @@ public class PaymentService {
         return balance;
     }
 
+    // FETCH USER ACCOUNT
+    public Optional<UserAccounts> fetchUserAccount(String userId) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        Optional<UserAccounts> account = jpaUserAccountsRepo.findByUser_Matricule(userId);
+        if (account.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No account found for user: " + userId);
+        }
+        return account;
+    }
+
     // FETCH USER ACCOUNT WITH DETAILS
     public Optional<UserAccounts> fetchUserAccountWithDetails(String userId) {
         ValidationBoiler.verifyNotEmpty(userId, "User ID");

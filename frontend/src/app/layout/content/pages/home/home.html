@@ -28,7 +28,7 @@
 <section #pitchSection class="w-full py-16 px-4 md:px-12 flex flex-col items-center justify-center bg-white text-center">
   <h2 class="text-3xl md:text-5xl font-bold text-gray-800 mb-6">Pourquoi venir chez nous ?</h2>
   <p class="text-lg md:text-xl text-gray-600 max-w-2xl mb-10">
-    Rejoignez notre complexe sportif et plongez dans l’univers passionnant du padel ! Que vous soyez débutant ou joueur confirmé, nos terrains de qualité professionnelle vous attendent pour des parties intenses et conviviales.
+    Rejoignez notre complexe sportif et plongez dans l’univers passionnant du padel ! Que vous soyez débutant ou joueur confirmé, nos <strong class="text-orange-500">{{ fieldsTotal }} terrains</strong> de qualité professionnelle vous attendent pour des parties intenses et conviviales.
     Profitez des meilleures installations de padel dans une ambiance chaleureuse et dynamique, adaptée à tous les niveaux. Ici, le sport rime avec plaisir, rencontre et dépassement de soi.
     Inscrivez-vous dès aujourd’hui et faites partie d’une communauté de passionnés. Réservez votre créneau et vivez des moments inoubliables sur nos terrains.
 
@@ -77,7 +77,12 @@
 
   <div class="max-w-3xl text-gray-600 text-lg leading-relaxed">
     <p>
-      Nous sommes dédiés à vous offrir la meilleure expérience sportive. Implantés depuis 2025 sur **X sites**, notre club allie passion, performance et convivialité, avec un total de **Y terrains** de padel de pointe, spécialement conçus pour répondre aux attentes des joueurs de tous niveaux.
+      Nous sommes dédiés à vous offrir la meilleure expérience sportive.
+      <br />
+      Implantés depuis 2025 sur <strong class="text-blue-600">{{ sitesTotal }} sites</strong>,
+      notre club allie passion, performance et convivialité, avec un total de
+      <strong class="text-blue-600">{{ fieldsTotal }} terrains</strong>
+      de padel de pointe, spécialement conçus pour répondre aux attentes des joueurs de tous niveaux.
       Nos installations en extérieur, éclairées pour les matchs en soirée, vous permettent de jouer à tout moment de la journée. Ici, l’esprit d’équipe et l’amour du padel sont au cœur de tout ce que nous faisons.
       Venez nous rejoindre et découvrez une communauté où le sport, le dépassement et le plaisir se rencontrent.
     </p>
@@ -109,6 +114,12 @@
     </button>
 
     <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Inscription</h2>
+
+    @if (signupError) {
+      <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm text-center">
+        {{ signupError }}
+      </div>
+    }
 
     <form [formGroup]="signupForm" (ngSubmit)="submitSignup()" class="flex flex-col gap-4">
       <div class="flex flex-col gap-1">
@@ -229,10 +240,21 @@
 
     <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Connexion</h2>
 
+    @if (loginError) {
+      <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm text-center">
+        {{ loginError }}
+      </div>
+    }
+
     <form [formGroup]="loginForm" (ngSubmit)="submitLogin()" class="flex flex-col gap-4">
       <div class="flex flex-col gap-1">
         <label for="loginEmail" class="text-sm font-semibold text-gray-700">Email</label>
         <input id="loginEmail" type="email" formControlName="email" class="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:outline-none" />
+        @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
+          <span class="text-red-500 text-xs mt-1">
+            L'identifiant doit être sous forme d' e-mail.
+          </span>
+        }
       </div>
 
       <div class="flex flex-col gap-1">
@@ -257,7 +279,7 @@
 
       <div class="mt-6 flex justify-center">
         <button type="submit" [disabled]="!loginForm.valid"
-                [ngClass]="loginForm.valid ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-400 cursor-not-allowed'"
+                [ngClass]="loginForm.valid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'"
                 class="w-full text-white font-bold py-3 px-8 rounded-full shadow-lg transition-colors">
           SE CONNECTER
         </button>

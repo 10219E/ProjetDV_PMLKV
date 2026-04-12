@@ -1,8 +1,11 @@
 import { Component, ElementRef, OnInit, ViewChild, ChangeDetectorRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Title } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { AuthService } from '../../../../services/auth.service';
+import { InfoService } from '../../../../services/info.service';
 
 export function passwordsMatchValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
@@ -76,16 +79,37 @@ export class HomeComponent implements OnInit {
   }, { validators: passwordsMatchValidator() });
 
   loginForm = new FormGroup({
-    email: new FormControl('', [Validators.required, Validators.email]),
+    email: new FormControl('', [Validators.required, Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)]),
     password: new FormControl('', Validators.required)
   });
 
-  constructor(private cdr: ChangeDetectorRef, private title: Title) {}
+  loginError: string | null = null;
+  signupError: string | null = null;
+  signupSuccess: boolean = false;
+
+  sitesTotal: number = 0;
+  fieldsTotal: number = 0;
+
+  constructor(private cdr: ChangeDetectorRef, private title: Title, private authService: AuthService, private router: Router, private infoService: InfoService) {}
 
 
   ngOnInit() {
     this.setupObserver();
     this.title.setTitle('Padel Belgium');
+    this.loadCounts();
+  }
+
+  loadCounts() {
+    this.infoService.getCounts().subscribe({
+      next: dto => {
+        this.sitesTotal = dto.sites;
+        this.fieldsTotal = dto.fields;
+        this.cdr.detectChanges();
+      },
+      error: err => {
+        console.error('Failed to load counts', err);
+      }
+    });
   }
 
   @HostListener('window:scroll')
@@ -147,53 +171,87 @@ export class HomeComponent implements OnInit {
 
   openSignup() {
     this.isSignupOpen = true;
+    this.cdr.detectChanges();
   }
 
   closeSignup() {
     this.isSignupOpen = false;
     this.signupForm.reset();
+    this.cdr.detectChanges();
   }
 
   openLogin() {
     this.isLoginOpen = true;
+    this.cdr.detectChanges();
   }
 
   closeLogin() {
     this.isLoginOpen = false;
     this.loginForm.reset();
+    this.cdr.detectChanges();
   }
 
   togglePasswordVisibility() {
     this.showPassword = !this.showPassword;
+    this.cdr.detectChanges();
   }
-
 
   selectLevel(level: string) {
     this.signupForm.get('lvl')?.setValue(level);
+    this.cdr.detectChanges();
   }
 
   submitSignup() {
     if (this.signupForm.valid) {
-      console.log('Form Submitted', this.signupForm.value);
-      this.closeSignup();
+      this.signupError = null;
+      this.signupSuccess = false;
+      const userData = this.signupForm.value;
+
+      this.authService.signup(userData).subscribe({
+        next: (response) => {
+          console.log('Signup Successful', response);
+          this.signupSuccess = true;
+          this.closeSignup();
+        },
+        error: (err) => {
+          console.error('Signup Failed', err);
+          this.signupError = "Une erreur est survenue lors de l'inscription.";
+          this.cdr.detectChanges();
+        }
+      });
     }
   }
 
   submitLogin() {
     if (this.loginForm.valid) {
-      console.log('Login Submitted', this.loginForm.value);
-      this.closeLogin();
+      this.loginError = null;
+      const { email, password } = this.loginForm.value;
+      if (email && password) {
+        this.authService.login(email, password).subscribe({
+          next: (response) => {
+            console.log('Login Successful', response);
+            this.closeLogin();
+            this.cdr.detectChanges();
+            this.router.navigate(['/home-account']);
+          },
+          error: (err) => {
+            console.error('Login Failed', err);
+            this.loginError = "Email ou mot de passe incorrect.";
+            this.cdr.detectChanges();
+          }
+        });
+      }
     }
   }
 
   /**
    * Return responsive classes for the header button.
    * - small screens: translucent background and icon-only appearance
-   * - md+ screens: normal solid colored button with text
+   * - md+ screens: add text
    */
   getHeaderClasses(): string {
     const base = 'text-white font-bold text-sm md:text-base py-1.5 md:py-2 px-3 md:px-6 rounded-full shadow-lg transition-colors duration-300 transform hover:scale-105 inline-flex items-center';
-    // always translucent but slightly more opaque than before (/80)
+    // always translucent and change coulour when over IMAGE 2 (player)
     if (this.isHeaderGreen) {
       return `${base} bg-green-700/80 hover:bg-green-700`;
     }
