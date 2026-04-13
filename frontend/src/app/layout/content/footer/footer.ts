@@ -14,12 +14,13 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
 
   @ViewChild('scroll', { static: false }) scrollEl!: ElementRef<HTMLElement>;
 
-  private styleId = 'footer-marquee-keyframes';
+  private marqueeAnimation?: Animation;
   private resizeHandler = () => this.debouncedSetup();
   private debounceTimer = 0 as any;
   private containerEl?: HTMLElement;
   private pauseHandler = () => this.pauseMarquee();
   private resumeHandler = () => this.resumeMarquee();
+  private isDestroyed = false;
 
   constructor(private infoService: InfoService) {}
 
@@ -34,8 +35,8 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
         } else {
           this.sites = [];
         }
-        // schedule marquee setup after content rendered
-        setTimeout(() => this.setupMarquee(), 120);
+        // Wait for Angular to physically render the *for DOM elements based on new sites
+        setTimeout(() => this.setupMarquee(), 300);
       },
       error: (err) => {
         console.error('Failed to load sites for footer', err);
@@ -45,8 +46,7 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    // initial setup and resize handling
-    setTimeout(() => this.setupMarquee(), 200);
+    // resize handling
     window.addEventListener('resize', this.resizeHandler);
     // attach pause/resume handlers once view is ready
     setTimeout(() => {
@@ -66,9 +66,11 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.isDestroyed = true;
     window.removeEventListener('resize', this.resizeHandler);
-    const existing = document.getElementById(this.styleId);
-    if (existing) existing.remove();
+    if (this.marqueeAnimation) {
+      this.marqueeAnimation.cancel();
+    }
     if (this.containerEl) {
       this.containerEl.removeEventListener('mouseenter', this.pauseHandler);
       this.containerEl.removeEventListener('mouseleave', this.resumeHandler);
@@ -79,10 +81,15 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
 
   private debouncedSetup() {
     clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => this.setupMarquee(), 150);
+    this.debounceTimer = setTimeout(() => this.setupMarquee(), 300);
   }
 
   private setupMarquee() {
+    if (this.isDestroyed) return;
+
+    // Only run if we actually have data to show!
+    if (!this.sites || this.sites.length === 0) return;
+
     try {
       const el = this.scrollEl?.nativeElement;
       if (!el) return;
@@ -91,27 +98,31 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
       if (!firstSet) return;
 
       const width = firstSet.getBoundingClientRect().width;
-      if (!width || width <= 0) return;
+      if (!width || width <= 0) {
+        // Items haven't been painted yet (e.g. DOM updates in progress). Retry shortly.
+        setTimeout(() => this.setupMarquee(), 250);
+        return;
+      }
 
-      // compute duration so speed is consistent across widths
-      const pxPerSecond = 40; // pixels per second (lower => slower)
-      const duration = Math.max(8, Math.round(width / pxPerSecond));
+      // Compute duration so speed is consistent across screen widths
+      const pxPerSecond = 40; // pixels per second
+      const durationMs = Math.max(8000, Math.round((width / pxPerSecond) * 1000));
 
-      // remove old keyframes if any
-      const existing = document.getElementById(this.styleId);
-      if (existing) existing.remove();
+      // Cancel the old animation if it exists
+      if (this.marqueeAnimation) {
+        this.marqueeAnimation.cancel();
+      }
 
-      const style = document.createElement('style');
-      style.id = this.styleId;
-      style.innerHTML = `@keyframes ${this.styleId} { from { transform: translateX(0); } to { transform: translateX(-${width}px); } }`;
-      document.head.appendChild(style);
+      // Native Web Animations API (No messy <style> tag injection!)
+      this.marqueeAnimation = el.animate([
+        { transform: 'translateX(0px)' },
+        { transform: `translateX(-${width}px)` }
+      ], {
+        duration: durationMs,
+        iterations: Infinity,
+        easing: 'linear'
+      });
 
-      // apply the animation to the scroll element (inline style overrides CSS)
-      el.style.animation = `${this.styleId} ${duration}s linear infinite`;
-      el.style.willChange = 'transform';
-
-      // ensure sets are displayed as flex (should already be via CSS)
-      el.querySelectorAll('.items-set').forEach((s) => (s as HTMLElement).style.display = 'flex');
     } catch (e) {
       console.error('Failed to setup marquee animation', e);
     }
@@ -119,22 +130,14 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
 
   private pauseMarquee() {
     try {
-      const el = this.scrollEl?.nativeElement;
-      if (!el) return;
-      (el as HTMLElement).style.animationPlayState = 'paused';
-    } catch (e) {
-      // ignore
-    }
+      if (this.marqueeAnimation) this.marqueeAnimation.pause();
+    } catch (e) {}
   }
 
   private resumeMarquee() {
     try {
-      const el = this.scrollEl?.nativeElement;
-      if (!el) return;
-      (el as HTMLElement).style.animationPlayState = 'running';
-    } catch (e) {
-      // ignore
-    }
+      if (this.marqueeAnimation) this.marqueeAnimation.play();
+    } catch (e) {}
   }
 
 }

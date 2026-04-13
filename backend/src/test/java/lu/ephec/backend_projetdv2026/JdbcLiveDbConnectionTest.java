@@ -1,6 +1,7 @@
 package lu.ephec.backend_projetdv2026;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -8,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
+@Disabled("Requires live DB - skipped by default")
 public class JdbcLiveDbConnectionTest {
 
     @Autowired
