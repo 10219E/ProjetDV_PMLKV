@@ -1,19 +1,18 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { InfoApi } from '../api/info.api';
+import { InfoControllerDto } from '../models/info.model';
 
 @Injectable({ providedIn: 'root' })
 export class InfoService {
 
-  private base = 'http://localhost:8080/api';
+  constructor(private infoApi: InfoApi) {}
 
-  constructor(private http: HttpClient) {}
-
-  getCounts(): Observable<{ sites: number; fields: number }> {
-    return this.http.get<{ sites: number; fields: number }>(`${this.base}/fscount`);
+  getCounts(): Observable<InfoControllerDto> {
+    return this.infoApi.getCounts();
   }
 
   getSites(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.base}/sitelist`);
+    return this.infoApi.getSites();
   }
 }

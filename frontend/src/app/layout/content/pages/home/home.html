@@ -104,7 +104,7 @@
 <!-- Signup Overlay Form -->
 @if (isSignupOpen) {
 <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
-  <div class="relative bg-white w-full max-w-lg mx-4 p-8 rounded-2xl shadow-2xl animate-fade-in-up">
+  <div class="relative bg-white w-full max-w-lg mx-4 p-8 rounded-2xl shadow-2xl animate-fade-in-up max-h-[105vh] overflow-y-auto">
     <!-- Close Cross Button -->
     <button (click)="closeSignup()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -284,7 +284,7 @@
 <!-- Login Overlay Form -->
 @if (isLoginOpen) {
 <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
-  <div class="relative bg-white w-full max-w-sm mx-4 p-8 rounded-2xl shadow-2xl animate-fade-in-up">
+  <div class="relative bg-white w-full max-w-sm mx-4 p-8 rounded-2xl shadow-2xl animate-fade-in-up max-h-[95vh] overflow-y-auto">
     <!-- Close Cross Button -->
     <button (click)="closeLogin()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

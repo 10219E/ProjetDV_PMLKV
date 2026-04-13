@@ -1,4 +1,4 @@
-<section class="w-full py-16 px-4 md:px-12 bg-white border-t border-gray-200">
+<section class="w-full py-16 px-4 md:px-12 bg-white border-t border-gray-200 relative">
   <div class="max-w-6xl mx-auto">
     <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-8 uppercase tracking-wider text-center">NOUS CONTACTER</h2>
 
@@ -7,20 +7,24 @@
       <div class="w-full md:w-1/2 flex flex-col items-center justify-center">
         <div class="font-bold mb-5 text-gray-900">Nos complexes sportifs</div>
         <div class="footer-sites h-20 md:h-24 rounded-lg">
-          <div class="scroll-horizontal flex items-center">
-            @for (s of sites; track s.siteId) {
-              <div class="site-item flex-none px-6 py-3">
-                <div class="site-name font-semibold text-gray-900 text-lg md:text-xl">{{ s.name }}</div>
-                <div class="site-address text-sm md:text-base text-gray-600 mt-1">{{ s.address }}</div>
-              </div>
-            }
+          <div class="scroll-horizontal flex items-center" #scroll>
+            <div class="items-set flex">
+              @for (s of sites; track s.siteId) {
+                <div class="site-item flex-none px-6 py-3">
+                  <div class="site-name font-semibold text-gray-900 text-lg md:text-xl">{{ s.name }}</div>
+                  <div class="site-address text-sm md:text-base text-gray-600 mt-1">{{ s.address }}</div>
+                </div>
+              }
+            </div>
             <!-- duplicate for seamless loop -->
-            @for (s of sites; track s.siteId) {
-              <div class="site-item flex-none px-6 py-3">
-                <div class="site-name font-semibold text-gray-900 text-lg md:text-xl">{{ s.name }}</div>
-                <div class="site-address text-sm md:text-base text-gray-600 mt-1">{{ s.address }}</div>
-              </div>
-            }
+            <div class="items-set flex">
+              @for (s of sites; track s.siteId) {
+                <div class="site-item flex-none px-6 py-3">
+                  <div class="site-name font-semibold text-gray-900 text-lg md:text-xl">{{ s.name }}</div>
+                  <div class="site-address text-sm md:text-base text-gray-600 mt-1">{{ s.address }}</div>
+                </div>
+              }
+            </div>
           </div>
         </div>
       </div>
@@ -36,4 +40,6 @@
       </div>
     </div>
   </div>
+  <!-- Copyright small note in bottom-right corner -->
+  <div class="absolute right-4 bottom-2 text-sm text-gray-400">© Paul Malioukov 2026</div>
 </section>

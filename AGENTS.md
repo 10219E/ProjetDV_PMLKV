@@ -8,3 +8,4 @@
 - Used tools: MS SQL Server, Docker, IntelliJ, Springboot, Java, Maven, DOTNET, C#, Angular.
 - Main project Database: init-sql-server.sql 
 - Main focus: learning and advancing on my project.
+- Frontend: ngIf and ngFor are depreciated, use exclusively @if and @for instead.

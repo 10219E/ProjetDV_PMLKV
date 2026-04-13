@@ -1,24 +1,17 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-
-export interface AuthLoginResponse {
-  tokenType: string;
-  accessToken: string;
-  expiresIn: number;
-}
+import { AuthApi } from '../api/auth.api';
+import { AuthLoginResponse } from '../models/auth.models';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:8080/auth'; // Adjusted to base auth URL
-
-  constructor(private http: HttpClient) { }
+  constructor(private authApi: AuthApi) { }
 
   login(login: string, password: string): Observable<AuthLoginResponse> {
-    return this.http.post<AuthLoginResponse>(`${this.apiUrl}/login`, { login, password }).pipe(
+    return this.authApi.login({ login, password }).pipe(
       tap(response => {
         if (response.accessToken) {
           localStorage.setItem('auth_token', response.accessToken);
@@ -40,8 +33,7 @@ export class AuthService {
   }
 
   signup(userData: any): Observable<any> {
-    // Basic stub, backend exposes /auth/register returning created matricule
-    return this.http.post<any>(`${this.apiUrl}/register`, userData);
+    return this.authApi.register(userData);
   }
 
   getUserRole(): string {
