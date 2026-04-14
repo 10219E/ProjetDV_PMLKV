@@ -53,13 +53,6 @@ public class UserController {
         return ResponseEntity.ok(buildUserProfile(matricule));
     }
 
-    @GetMapping(value="login/identify", produces = "application/json")
-    public ResponseEntity<UserProfileResponse> getUserByEmail(String email) {
-        String matricule = userService.fetchByMail(email).orElseThrow().getMatricule();
-        logger.info("Identified user with email {} as matricule {}", email, matricule);
-        return ResponseEntity.ok(buildUserProfile(matricule));
-    }
-
     private UserProfileResponse buildUserProfile(String matricule) {
         User u = userService.fetchById(matricule).orElseThrow();
         Optional<UserAccounts> acc = paymentService.fetchUserAccount(matricule);

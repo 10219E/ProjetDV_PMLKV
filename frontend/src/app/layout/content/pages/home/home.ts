@@ -284,7 +284,7 @@ export class HomeComponent implements OnInit {
             this.closeLogin();
             this.cdr.detectChanges();
             // after successful login, fetch the user's matricule and navigate to /home/:userId
-            this.authService.getMatriculeByEmail(email).subscribe({
+            this.infoService.getMatriculeByEmail(email).subscribe({
               next: (matricule) => {
                 if (matricule) {
                   this.router.navigate(['/home', matricule]);

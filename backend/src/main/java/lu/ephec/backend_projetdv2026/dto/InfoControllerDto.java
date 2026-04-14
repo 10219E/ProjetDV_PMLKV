@@ -11,12 +11,14 @@ public class InfoControllerDto {
     private final Integer sites;
     private final Integer fields;
     private final List<SiteInfo> siteInfoList;
+    private final String matricule;
 
     // Constructor for counts
     public InfoControllerDto(Integer sites, Integer fields) {
         this.sites = sites;
         this.fields = fields;
         this.siteInfoList = null;
+        this.matricule = null;
     }
 
     // Constructor for site list
@@ -24,6 +26,15 @@ public class InfoControllerDto {
         this.sites = null;
         this.fields = null;
         this.siteInfoList = siteInfoList;
+        this.matricule = null;
+    }
+
+    // Constructor for matricule
+    public InfoControllerDto(String matricule) {
+        this.sites = null;
+        this.fields = null;
+        this.siteInfoList = null;
+        this.matricule = matricule;
     }
 
     @Getter

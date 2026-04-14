@@ -19,4 +19,11 @@ export class InfoService {
       map(dto => dto.siteInfoList || [])
     );
   }
+
+  getMatriculeByEmail(email: string): Observable<string | undefined> {
+    return this.infoControllerService.getUserByEmail(email).pipe(
+      map(profile => profile?.matricule)
+    );
+  }
+
 }

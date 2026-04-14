@@ -8,7 +8,6 @@ import { AuthLoginDto } from '../api/model/authLoginDto';
 import { UserRegistrationDto } from '../api/model/userRegistrationDto';
 import { UserRegistrationControllerService } from '../api/api/userRegistrationController.service';
 import { UserControllerService } from '../api/api/userController.service';
-import { UserProfileResponse } from '../api/model/userProfileResponse';
 
 @Injectable({
   providedIn: 'root'
@@ -32,13 +31,6 @@ export class AuthService {
 
   getToken(): string | null {
     return localStorage.getItem('auth_token');
-  }
-
-
-  getMatriculeByEmail(email: string): Observable<string | undefined> {
-    return this.userControllerService.getUserByEmail(email).pipe(
-      map(profile => profile?.matricule)
-    );
   }
 
   isAuthenticated(): boolean {

@@ -14,5 +14,6 @@ export interface InfoControllerDto {
     sites?: number;
     fields?: number;
     siteInfoList?: Array<SiteInfo>;
+    matricule?: string;
 }
 
