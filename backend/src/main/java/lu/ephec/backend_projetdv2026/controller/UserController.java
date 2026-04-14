@@ -9,6 +9,8 @@ import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserSiteRepo;
 import lu.ephec.backend_projetdv2026.services.UserSiteSubService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,7 @@ public class UserController {
     private final UserService userService;
     private final PaymentService paymentService;
     private final UserSiteSubService userSiteSubService;
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     public UserController(UserService userService, JPAUserAccountsRepo userAccountsRepo, PaymentService paymentService, JPAUserSiteRepo userSiteRepo, UserSiteSubService userSiteSubService) {
         this.userService = userService;
@@ -47,6 +50,13 @@ public class UserController {
 
     @GetMapping(value = "/{matricule}", produces = "application/json")
     public ResponseEntity<UserProfileResponse> getUserByMatricule(@PathVariable String matricule) {
+        return ResponseEntity.ok(buildUserProfile(matricule));
+    }
+
+    @GetMapping(value="login/identify", produces = "application/json")
+    public ResponseEntity<UserProfileResponse> getUserByEmail(String email) {
+        String matricule = userService.fetchByMail(email).orElseThrow().getMatricule();
+        logger.info("Identified user with email {} as matricule {}", email, matricule);
         return ResponseEntity.ok(buildUserProfile(matricule));
     }
 

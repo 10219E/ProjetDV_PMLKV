@@ -4,6 +4,6 @@ import { HomeAccountComponent } from './layout/content/pages/home-account/home-a
 
 export const routes: Routes = [
   { path: '', component: HomeComponent, pathMatch: 'full' },
-  { path: 'home-account', component: HomeAccountComponent },
+  { path: 'home/:userId', component: HomeAccountComponent },
   { path: '**', redirectTo: '' }
 ];

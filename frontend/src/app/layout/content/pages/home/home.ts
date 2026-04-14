@@ -248,6 +248,7 @@ export class HomeComponent implements OnInit {
           // keep the signup overlay closed but show the success popup
           this.closeSignup();
           this.cdr.detectChanges();
+          return response;
         },
         error: (err) => {
           console.error('Signup Failed', err);
@@ -282,7 +283,22 @@ export class HomeComponent implements OnInit {
             console.log('Login Successful', response);
             this.closeLogin();
             this.cdr.detectChanges();
-            this.router.navigate(['/home-account']);
+            // after successful login, fetch the user's matricule and navigate to /home/:userId
+            this.authService.getMatriculeByEmail(email).subscribe({
+              next: (matricule) => {
+                if (matricule) {
+                  this.router.navigate(['/home', matricule]);
+                } else {
+                  // fallback to root as requested
+                  this.router.navigate(['/']);
+                }
+              },
+              error: (err) => {
+                console.error('Failed to retrieve matricule', err);
+                // On error, fallback to root
+                this.router.navigate(['/']);
+              }
+            });
           },
           error: (err) => {
             console.error('Login Failed', err);
