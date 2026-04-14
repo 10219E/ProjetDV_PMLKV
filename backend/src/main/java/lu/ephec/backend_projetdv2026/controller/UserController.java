@@ -9,6 +9,8 @@ import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserSiteRepo;
 import lu.ephec.backend_projetdv2026.services.UserSiteSubService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,7 @@ public class UserController {
     private final UserService userService;
     private final PaymentService paymentService;
     private final UserSiteSubService userSiteSubService;
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     public UserController(UserService userService, JPAUserAccountsRepo userAccountsRepo, PaymentService paymentService, JPAUserSiteRepo userSiteRepo, UserSiteSubService userSiteSubService) {
         this.userService = userService;
@@ -31,13 +34,13 @@ public class UserController {
         this.userSiteSubService = userSiteSubService;
     }
 
-    @GetMapping("/me")
+    @GetMapping(value = "/me", produces = "application/json")
     public ResponseEntity<UserProfileResponse> getCurrentUser(Authentication authentication) {
         String matricule = authentication.getName(); // JWT subject (matricule) is injected here
         return ResponseEntity.ok(buildUserProfile(matricule));
     }
 
-    @GetMapping
+    @GetMapping(produces = "application/json")
     public ResponseEntity<List<UserProfileResponse>> getAllUsers() {
         List<UserProfileResponse> responses = userService.fetchAll().stream()
                 .map(u -> buildUserProfile(u.getMatricule()))
@@ -45,7 +48,7 @@ public class UserController {
         return ResponseEntity.ok(responses);
     }
 
-    @GetMapping("/{matricule}")
+    @GetMapping(value = "/{matricule}", produces = "application/json")
     public ResponseEntity<UserProfileResponse> getUserByMatricule(@PathVariable String matricule) {
         return ResponseEntity.ok(buildUserProfile(matricule));
     }

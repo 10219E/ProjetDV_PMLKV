@@ -19,7 +19,7 @@ public class FieldController {
         this.fieldService = fieldService;
     }
 
-    @GetMapping
+    @GetMapping(produces = "application/json")
     public ResponseEntity<List<FieldResponse>> getAllFields() {
         List<FieldResponse> responses = fieldService.fetchAll().stream()
                 .map(FieldResponse::from)
@@ -27,13 +27,13 @@ public class FieldController {
         return ResponseEntity.ok(responses);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(value ="/{id}", produces = "application/json")
     public ResponseEntity<FieldResponse> getFieldById(@PathVariable Integer id) {
         Field field = fieldService.fetchById(id).orElseThrow();
         return ResponseEntity.ok(FieldResponse.from(field));
     }
 
-    @GetMapping("/site/{siteId}")
+    @GetMapping(value= "/site/{siteId}", produces = "application/json")
     public ResponseEntity<List<FieldResponse>> getFieldsBySite(@PathVariable Integer siteId) {
         List<FieldResponse> responses = fieldService.fetchBySite(siteId).stream()
                 .map(FieldResponse::from)
@@ -41,7 +41,7 @@ public class FieldController {
         return ResponseEntity.ok(responses);
     }
 
-    @GetMapping("/site/{siteId}/active")
+    @GetMapping(value = "/site/{siteId}/active", produces = "application/json")
     public ResponseEntity<List<FieldResponse>> getActiveFieldsBySite(@PathVariable Integer siteId) {
         List<FieldResponse> responses = fieldService.fetchActiveFieldsByActiveSite(siteId).stream()
                 .map(FieldResponse::from)

@@ -1,6 +1,7 @@
 import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InfoService } from '../../../services/info.service';
+import { SiteInfo } from '../../../api/model/siteInfo';
 
 @Component({
   selector: 'app-footer',
@@ -10,7 +11,7 @@ import { InfoService } from '../../../services/info.service';
   styleUrl: './footer.css',
 })
 export class Footer implements OnInit, AfterViewInit, OnDestroy {
-  sites: Array<{ siteId: number; name: string; address: string }> = [];
+  sites: SiteInfo[] = [];
 
   @ViewChild('scroll', { static: false }) scrollEl!: ElementRef<HTMLElement>;
 
@@ -26,15 +27,8 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.infoService.getSites().subscribe({
-      next: (data: any) => {
-        if (data && Array.isArray(data.siteInfoList)) {
-          this.sites = data.siteInfoList;
-        } else if (Array.isArray(data)) {
-          // fallback if service returns array directly
-          this.sites = data;
-        } else {
-          this.sites = [];
-        }
+      next: (data: SiteInfo[]) => {
+        this.sites = data;
         // Wait for Angular to physically render the *for DOM elements based on new sites
         setTimeout(() => this.setupMarquee(), 300);
       },

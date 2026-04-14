@@ -1,0 +1,156 @@
+<div class="flex flex-col min-h-screen bg-gray-100 font-sans text-gray-800">
+
+  <!-- Header: Full on PC, collapsed on Tab & Mobile -->
+  <header class="bg-gray-300 w-full p-4 flex justify-between items-center shadow-sm">
+    <div class="text-sm md:text-base font-semibold text-gray-700">
+      -- {{ todayDate | date:'dd MMMM yyyy HH:mm' }} + WEATHER --
+    </div>
+    <!-- Mobile hamburger trigger placeholder (Right aligned attached to header for nav menu if mobile) -->
+    <div class="md:hidden cursor-pointer" title="Menu">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+      </svg>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="flex flex-1 flex-col md:flex-row relative">
+
+    <!-- Primary content area -->
+    <main class="flex-1 p-6 relative flex flex-col items-center">
+
+      <!-- Welcome block -->
+      <div class="w-full max-w-4xl border-2 border-black bg-white py-6 px-10 mb-8 text-center text-2xl md:text-4xl font-bold rounded-sm">
+        Bienvenue
+        <span [ngClass]="isVip ? 'text-orange-500' : 'text-black'">{{ userName }}</span>
+      </div>
+
+      <!-- Wrapper with light teal border per image drawing -->
+      <div class="w-full max-w-6xl border-4 border-teal-300 p-6 flex flex-col items-center gap-8 rounded-md bg-white">
+
+        <!-- Three columns row -->
+        <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          <!-- Box 1: Mes Matchs à Venir -->
+          <div class="border-2 border-black p-4 flex flex-col relative h-[300px] overflow-hidden">
+            <h3 class="font-bold text-lg mb-4 text-center">MES MATCH À VENIR</h3>
+            <div class="flex-1 overflow-y-auto pr-2 space-y-4">
+              @for (match of upcomingMatches; track match) {
+                <div class="text-sm">
+                  - {{ match.site }} | {{ match.date }} | {{ match.heure }} | {{ match.status }}
+                </div>
+              }
+            </div>
+            <!-- Floating button Mes Matchs -->
+            <div class="absolute bottom-4 right-4">
+              <button class="bg-orange-500 text-white font-bold py-2 px-4 rounded-full shadow hover:bg-orange-600 transition">
+                MES MATCHS
+              </button>
+            </div>
+          </div>
+
+          <!-- Box 2: Mes Invitations en Attente -->
+          <div class="border-2 border-black p-4 flex flex-col relative h-[300px] overflow-hidden">
+            <div class="flex flex-col items-center mb-4">
+              <h3 class="font-bold text-lg leading-tight">MES INVITATIONS EN ATTENTE</h3>
+              <span class="text-xs font-semibold">(TOTAL : {{ invitations.length }})</span>
+            </div>
+            <div class="flex-1 overflow-y-auto pr-2 space-y-4">
+              @for (invite of invitations; track invite) {
+                <div class="text-sm flex flex-col gap-2 pb-2 border-b border-gray-200">
+                  <span>- {{ invite.site }} | {{ invite.date }} | {{ invite.heure }}</span>
+                  <div class="flex gap-2">
+                    <button (click)="acceptInvite(invite)" class="bg-green-500 text-white text-xs px-2 py-1 rounded hover:bg-green-600">ACCEPTER / PAYER</button>
+                    <button (click)="declineInvite(invite)" class="bg-yellow-500 text-black text-xs px-2 py-1 rounded hover:bg-yellow-600">DÉCLINER</button>
+                  </div>
+                </div>
+              }
+              @if (invitations.length === 0) {
+                <p class="text-sm italic text-gray-500 text-center">Aucune invitation.</p>
+              }
+            </div>
+          </div>
+
+          <!-- Box 3: Mon Statut -->
+          <div class="border-2 border-black p-4 h-[300px]">
+            <h3 class="font-bold text-lg mb-6 text-center">MON STATUT</h3>
+            <div class="flex flex-col gap-4 text-sm font-semibold">
+              <div>MATCHS JOUÉS : {{ stats.played }}</div>
+              <div>
+                PÉNALITÉS REÇUES : {{ stats.penalties }}
+                <br>
+                <span class="pl-4">+ ACTIVES ({{ stats.actives }})</span>
+              </div>
+              <div>MATCHS PRIVÉS ORGANISÉS : {{ stats.privateOrganized }}</div>
+              <div>PARTICIPATION AUX MATCHS PUBLICS : {{ stats.publicParticipation }}</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Box 4: Matchs Publics à Venir (Calendar representation) -->
+        <div class="mt-8 border-2 border-black w-full md:w-2/3 p-4 flex flex-col items-center min-h-[250px]">
+          <h3 class="font-bold text-lg mb-4">MATCHS PUBLICS À VENIR</h3>
+          <div class="border border-black w-full max-w-sm flex-1 flex flex-col">
+            <div class="border-b border-black text-center font-bold p-1 bg-gray-200">CALENDAR</div>
+            <div class="p-4 flex flex-col gap-4 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-gray-400"></span>
+                <span class="text-sm font-bold">= NO PUB MATCHES AVAILABLE ON DATE</span>
+              </div>
+              <div class="flex items-center gap-2 relative">
+                <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                <span class="text-sm font-bold">= WHEN CLICK REDIRECT TO CHOOSE</span>
+                <!-- Info popup hint from drawing -->
+                <div class="absolute left-6 top-6 text-blue-600 text-xs italic">
+                 ↳ MAYBE INFO POP WITH FIRST 3 AVAIL SLOTS?
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Right Sidebar Nav Menu (Desktop) / Hidden on mobile strictly unless triggered -->
+    <aside class="hidden md:flex flex-col w-64 bg-yellow-100 border-l border-gray-400 p-6 flex-shrink-0 min-h-full font-bold">
+      <h2 class="text-xl mb-8 border-b-2 border-black inline-block uppercase w-max tracking-wide">
+        NAV - MENU
+      </h2>
+      <nav class="flex flex-col gap-6 text-sm">
+        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
+          <span class="text-xl">👤</span> MON PROFIL
+        </a>
+        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
+          <span class="text-xl">🏓</span> MES MATCHS
+        </a>
+        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
+          <span class="text-xl">✉️</span> MES INVITATIONS
+        </a>
+        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
+          <span class="text-xl">➕</span> REJOINDRE UN MATCH PUBLIC
+        </a>
+        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
+          <span class="text-xl">⭐</span> CRÉER UN MATCH PRIVÉ
+        </a>
+        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
+          <span class="text-xl">⚙️</span> REGLAGES
+        </a>
+        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3 mt-4">
+          <span class="text-xl">⏻</span> SE DECONNECTER
+        </a>
+      </nav>
+    </aside>
+
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-gray-400 p-8 text-center border-t border-gray-500 mt-auto">
+    <h2 class="text-4xl text-gray-800 tracking-widest uppercase font-serif">
+      Footer
+    </h2>
+  </footer>
+
+</div>
