@@ -37,7 +37,7 @@ public class UserRegistrationController {
 		this.userSiteSubService = userSiteSubService;
 	}
 
-	@PostMapping("/register")
+	@PostMapping(value = "/register", produces = "application/json")
 	public ResponseEntity<Map<String,String>> register(@RequestBody UserRegistrationDto dto) {
 		logger.info("Registration request received for email={}", dto != null ? dto.getEmail() : null);
 		// basic validation

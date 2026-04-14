@@ -19,7 +19,7 @@ public class SiteController {
         this.siteService = siteService;
     }
 
-    @GetMapping
+    @GetMapping(produces = "application/json")
     public ResponseEntity<List<SiteResponse>> getAllSites(@RequestParam(required = false, defaultValue = "true") boolean activeOnly) {
         List<Site> sites = activeOnly ? siteService.fetchAllActive() : siteService.fetchAll();
         List<SiteResponse> responses = sites.stream()
@@ -28,7 +28,7 @@ public class SiteController {
         return ResponseEntity.ok(responses);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(value="/{id}", produces = "application/json")
     public ResponseEntity<SiteResponse> getSiteById(@PathVariable Integer id) {
         Site site = siteService.fetchById(id).orElseThrow();
         return ResponseEntity.ok(SiteResponse.from(site));

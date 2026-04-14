@@ -9,3 +9,5 @@
 - Main project Database: init-sql-server.sql 
 - Main focus: learning and advancing on my project.
 - Frontend: ngIf and ngFor are depreciated, use exclusively @if and @for instead.
+- UI: Use Tailwind for UI and only resort to Angular Material when needed.
+- Full Stack: We're using OpenAPI / Swagger, if specification not found, ask me to restart backend and run OpenAPI generator to create the specification file. Always check for the existence of the specification file before asking for it.

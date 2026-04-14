@@ -31,13 +31,13 @@ public class UserController {
         this.userSiteSubService = userSiteSubService;
     }
 
-    @GetMapping("/me")
+    @GetMapping(value = "/me", produces = "application/json")
     public ResponseEntity<UserProfileResponse> getCurrentUser(Authentication authentication) {
         String matricule = authentication.getName(); // JWT subject (matricule) is injected here
         return ResponseEntity.ok(buildUserProfile(matricule));
     }
 
-    @GetMapping
+    @GetMapping(produces = "application/json")
     public ResponseEntity<List<UserProfileResponse>> getAllUsers() {
         List<UserProfileResponse> responses = userService.fetchAll().stream()
                 .map(u -> buildUserProfile(u.getMatricule()))
@@ -45,7 +45,7 @@ public class UserController {
         return ResponseEntity.ok(responses);
     }
 
-    @GetMapping("/{matricule}")
+    @GetMapping(value = "/{matricule}", produces = "application/json")
     public ResponseEntity<UserProfileResponse> getUserByMatricule(@PathVariable String matricule) {
         return ResponseEntity.ok(buildUserProfile(matricule));
     }

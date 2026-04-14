@@ -26,7 +26,7 @@ public class InfoController {
 	}
 
 	//SEND COUNTS TO FE
-	@GetMapping("/fscount")
+	@GetMapping(value = "/fscount", produces = "application/json")
 	public InfoControllerDto getSitesAndFieldsCount() {
 		Integer sites = siteService.countSites();
 		Integer fields = fieldService.countFields();
@@ -36,7 +36,7 @@ public class InfoController {
 	}
 
 	//GET ONLY NEEDED INFO SITES
-	@GetMapping("/sitelist")
+	@GetMapping(value = "/sitelist", produces = "application/json")
 	public InfoControllerDto getSites() {
 		List<Site> activeSites = siteService.fetchAllActive();
 		logger.info("Found {} active sites.", activeSites.size());

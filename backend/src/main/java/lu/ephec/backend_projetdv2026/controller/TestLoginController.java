@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class TestLoginController {
 
-    @GetMapping("/secure/ping")
+    @GetMapping(value = "/secure/ping", produces = "application/json")
     public String ping() {
         return "pong";
     }

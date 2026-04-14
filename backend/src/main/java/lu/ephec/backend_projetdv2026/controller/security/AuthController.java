@@ -34,7 +34,7 @@ public class AuthController {
         this.userService = userService;
     }
 
-    @PostMapping("/login")
+    @PostMapping(value = "/login", produces = "application/json")
     public ResponseEntity<AuthLoginResponse> login(@RequestBody AuthLoginDto request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
