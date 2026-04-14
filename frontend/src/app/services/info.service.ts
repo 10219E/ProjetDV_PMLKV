@@ -1,18 +1,22 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { InfoApi } from '../api/info.api';
-import { InfoControllerDto } from '../models/info.model';
+import { InfoControllerService } from '../api/api/infoController.service';
+import { InfoControllerDto } from '../api/model/infoControllerDto';
+import { map } from 'rxjs/operators';
+import { SiteInfo } from '../api/model/siteInfo';
 
 @Injectable({ providedIn: 'root' })
 export class InfoService {
 
-  constructor(private infoApi: InfoApi) {}
+  constructor(private infoControllerService: InfoControllerService) {}
 
   getCounts(): Observable<InfoControllerDto> {
-    return this.infoApi.getCounts();
+    return this.infoControllerService.getSitesAndFieldsCount();
   }
 
-  getSites(): Observable<any[]> {
-    return this.infoApi.getSites();
+  getSites(): Observable<SiteInfo[]> {
+    return this.infoControllerService.getSites().pipe(
+      map(dto => dto.siteInfoList || [])
+    );
   }
 }

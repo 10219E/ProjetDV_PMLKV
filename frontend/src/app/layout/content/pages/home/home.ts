@@ -6,6 +6,8 @@ import { ReactiveFormsModule, FormGroup, FormControl, Validators, AbstractContro
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../../services/auth.service';
 import { InfoService } from '../../../../services/info.service';
+import { SiteInfo } from '../../../../api/model/siteInfo';
+import { UserRegistrationDto } from '../../../../api/model/userRegistrationDto';
 
 export function passwordsMatchValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
@@ -94,7 +96,7 @@ export class HomeComponent implements OnInit {
 
   sitesTotal: number = 0;
   fieldsTotal: number = 0;
-  sites: Array<{ siteId: number; name: string; address: string }> = [];
+  sites: SiteInfo[] = [];
 
   constructor(private cdr: ChangeDetectorRef, private title: Title, private authService: AuthService, private router: Router, private infoService: InfoService) {}
 
@@ -108,13 +110,8 @@ export class HomeComponent implements OnInit {
 
   loadSites() {
     this.infoService.getSites().subscribe({
-      next: (data: any) => {
-        if (data && Array.isArray(data.siteInfoList)) {
-          this.sites = data.siteInfoList;
-        } else {
-          console.error('Unexpected data structure for sites:', data);
-          this.sites = [];
-        }
+      next: (data: SiteInfo[]) => {
+        this.sites = data;
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -128,8 +125,8 @@ export class HomeComponent implements OnInit {
   loadCounts() {
     this.infoService.getCounts().subscribe({
       next: dto => {
-        this.sitesTotal = dto.sites;
-        this.fieldsTotal = dto.fields;
+        this.sitesTotal = dto.sites || 0;
+        this.fieldsTotal = dto.fields || 0;
         this.cdr.detectChanges();
       },
       error: err => {
@@ -231,7 +228,18 @@ export class HomeComponent implements OnInit {
     if (this.signupForm.valid) {
       this.signupError = null;
       this.signupSuccess = false;
-      const userData = this.signupForm.value;
+      const formValue = this.signupForm.value;
+
+      // Ensure the form value conforms to the UserRegistrationDto
+      const userData: UserRegistrationDto = {
+        fname: formValue.fname ?? '',
+        lname: formValue.lname ?? '',
+        email: formValue.email ?? '',
+        password: formValue.password ?? '',
+        bdate: formValue.bdate ?? '',
+        lvl: formValue.lvl ?? '',
+        siteId: formValue.siteId ? Number(formValue.siteId) : undefined
+      };
 
       this.authService.signup(userData).subscribe({
         next: (response) => {
@@ -268,7 +276,8 @@ export class HomeComponent implements OnInit {
       this.loginError = null;
       const { email, password } = this.loginForm.value;
       if (email && password) {
-        this.authService.login(email, password).subscribe({
+        // Pass an AuthLoginDto object as required by the updated service
+        this.authService.login({ login: email, password: password }).subscribe({
           next: (response) => {
             console.log('Login Successful', response);
             this.closeLogin();

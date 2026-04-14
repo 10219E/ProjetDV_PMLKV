@@ -1,0 +1,15 @@
+export * from './authController.service';
+import { AuthControllerService } from './authController.service';
+export * from './fieldController.service';
+import { FieldControllerService } from './fieldController.service';
+export * from './infoController.service';
+import { InfoControllerService } from './infoController.service';
+export * from './siteController.service';
+import { SiteControllerService } from './siteController.service';
+export * from './testLoginController.service';
+import { TestLoginControllerService } from './testLoginController.service';
+export * from './userController.service';
+import { UserControllerService } from './userController.service';
+export * from './userRegistrationController.service';
+import { UserRegistrationControllerService } from './userRegistrationController.service';
+export const APIS = [AuthControllerService, FieldControllerService, InfoControllerService, SiteControllerService, TestLoginControllerService, UserControllerService, UserRegistrationControllerService];

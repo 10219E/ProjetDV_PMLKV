@@ -1,17 +1,20 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { AuthApi } from '../api/auth.api';
-import { AuthLoginResponse } from '../models/auth.models';
+import { AuthControllerService } from '../api/api/authController.service';
+import { AuthLoginResponse } from '../api/model/authLoginResponse';
+import { AuthLoginDto } from '../api/model/authLoginDto';
+import { UserRegistrationDto } from '../api/model/userRegistrationDto';
+import { UserRegistrationControllerService } from '../api/api/userRegistrationController.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  constructor(private authApi: AuthApi) { }
+  constructor(private authControllerService: AuthControllerService, private userRegistrationControllerService: UserRegistrationControllerService) { }
 
-  login(login: string, password: string): Observable<AuthLoginResponse> {
-    return this.authApi.login({ login, password }).pipe(
+  login(loginDto: AuthLoginDto): Observable<AuthLoginResponse> {
+    return this.authControllerService.login(loginDto).pipe(
       tap(response => {
         if (response.accessToken) {
           localStorage.setItem('auth_token', response.accessToken);
@@ -32,8 +35,8 @@ export class AuthService {
     return !!this.getToken();
   }
 
-  signup(userData: any): Observable<any> {
-    return this.authApi.register(userData);
+  signup(userData: UserRegistrationDto): Observable<{ [key: string]: string; }> {
+    return this.userRegistrationControllerService.register(userData);
   }
 
   getUserRole(): string {
