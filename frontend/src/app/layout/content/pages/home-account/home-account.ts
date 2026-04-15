@@ -1,15 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { HomeAccountHeader } from '../../header/header';
 
 @Component({
   selector: 'app-home-account',
   standalone: true,
   imports: [CommonModule, RouterLink],
-  templateUrl: './home-account.component.html',
-  styleUrls: ['./home-account.component.css']
+  templateUrl: './home-account.html',
+  styleUrls: ['./home-account.css']
 })
-export class HomeAccountComponent implements OnInit {
+export class HomeAccount implements OnInit {
   userName = 'Utilisateur';
   isVip = true;
   todayDate = new Date();

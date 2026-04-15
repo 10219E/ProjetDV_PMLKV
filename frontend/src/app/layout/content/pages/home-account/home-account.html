@@ -1,13 +1,22 @@
-<div class="flex flex-col min-h-screen bg-gray-100 font-sans text-gray-800">
+<div class="relative flex flex-col min-h-screen bg-cover bg-center font-sans text-gray-800 px-4 md:px-8" style="background-image: url('/assets/paddle-multi.jpg'); background-position: 25% center;">
+  <!-- background overlay to fade the background image into white at the bottom -->
+  <div class="absolute inset-0 z-0 pointer-events-none backdrop-blur-sm"
+       style="background: linear-gradient(to bottom, rgba(0,0,0,0.12) 0%, rgba(255,255,255,0) 75%, rgba(255,255,255,1) 110%); background-repeat: no-repeat; background-size: 100% 120%;">
+  </div>
 
-  <!-- Header: Full on PC, collapsed on Tab & Mobile -->
-  <header class="bg-gray-300 w-full p-4 flex justify-between items-center shadow-sm">
-    <div class="text-sm md:text-base font-semibold text-gray-700">
+  <!-- Inline header bar: show today's date and a blue->white gradient background.
+       Replaced component tag to ensure the date renders correctly here without changing
+       any other page structure. -->
+  <!-- Header: use semi-transparent gradient to match nav-menu opacity and add subtle border to align visually -->
+  <!-- Make header align with the page padding so its inner edges match the main content and the right sidebar -->
+  <header class="w-full mt-6 p-4 md:p-6 px-4 md:px-8 flex justify-between items-center rounded-2xl shadow-lg relative z-10 border border-gray-200"
+          style="background: linear-gradient(90deg, rgba(30,64,175,0.5) 0%, rgba(255,255,255,0.5) 60%);">
+    <div class="text-sm md:text-base font-semibold text-white md:text-left">
       -- {{ todayDate | date:'dd MMMM yyyy HH:mm' }} + WEATHER --
     </div>
     <!-- Mobile hamburger trigger placeholder (Right aligned attached to header for nav menu if mobile) -->
-    <div class="md:hidden cursor-pointer" title="Menu">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="md:hidden cursor-pointer bg-white rounded-full p-1" title="Menu">
+      <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
       </svg>
     </div>
@@ -17,22 +26,22 @@
   <div class="flex flex-1 flex-col md:flex-row relative">
 
     <!-- Primary content area -->
-    <main class="flex-1 p-6 relative flex flex-col items-center">
+    <main class="flex-1 p-6 relative flex flex-col items-center z-10">
 
       <!-- Welcome block -->
-      <div class="w-full max-w-4xl border-2 border-black bg-white py-6 px-10 mb-8 text-center text-2xl md:text-4xl font-bold rounded-sm">
+      <div class="w-full max-w-4xl border-2 border-black bg-white py-6 px-10 mb-8 text-center text-2xl md:text-4xl font-bold rounded-3xl">
         Bienvenue
         <span [ngClass]="isVip ? 'text-orange-500' : 'text-black'">{{ userName }}</span>
       </div>
 
-      <!-- Wrapper with light teal border per image drawing -->
-      <div class="w-full max-w-6xl border-4 border-teal-300 p-6 flex flex-col items-center gap-8 rounded-md bg-white">
+      <!-- Wrapper styled like popups in home.html (transparent so cards float on background) -->
+      <div class="relative bg-transparent w-full max-w-4xl mx-4 p-8 md:p-10 rounded-3xl animate-fade-in-up flex flex-col items-center gap-8 z-10">
 
         <!-- Three columns row -->
-        <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-8">
 
-          <!-- Box 1: Mes Matchs à Venir -->
-          <div class="border-2 border-black p-4 flex flex-col relative h-[300px] overflow-hidden">
+          <!-- Box 1: Mes Matchs à Venir (card style, translucent, light orange edge) -->
+          <div class="bg-white/60 backdrop-blur-sm border-2 border-orange-300 p-6 flex flex-col relative min-h-[380px] overflow-hidden rounded-xl shadow-md">
             <h3 class="font-bold text-lg mb-4 text-center">MES MATCH À VENIR</h3>
             <div class="flex-1 overflow-y-auto pr-2 space-y-4">
               @for (match of upcomingMatches; track match) {
@@ -49,8 +58,8 @@
             </div>
           </div>
 
-          <!-- Box 2: Mes Invitations en Attente -->
-          <div class="border-2 border-black p-4 flex flex-col relative h-[300px] overflow-hidden">
+          <!-- Box 2: Mes Invitations en Attente (card style, translucent, light orange edge) -->
+          <div class="bg-white/60 backdrop-blur-sm border-2 border-orange-300 p-6 flex flex-col relative min-h-[380px] overflow-hidden rounded-xl shadow-md">
             <div class="flex flex-col items-center mb-4">
               <h3 class="font-bold text-lg leading-tight">MES INVITATIONS EN ATTENTE</h3>
               <span class="text-xs font-semibold">(TOTAL : {{ invitations.length }})</span>
@@ -71,8 +80,8 @@
             </div>
           </div>
 
-          <!-- Box 3: Mon Statut -->
-          <div class="border-2 border-black p-4 h-[300px]">
+          <!-- Box 3: Mon Statut (card style, translucent, light orange edge) -->
+          <div class="bg-white/60 backdrop-blur-sm border-2 border-orange-300 p-6 min-h-[380px] rounded-xl shadow-md">
             <h3 class="font-bold text-lg mb-6 text-center">MON STATUT</h3>
             <div class="flex flex-col gap-4 text-sm font-semibold">
               <div>MATCHS JOUÉS : {{ stats.played }}</div>
@@ -89,7 +98,7 @@
         </div>
 
         <!-- Box 4: Matchs Publics à Venir (Calendar representation) -->
-        <div class="mt-8 border-2 border-black w-full md:w-2/3 p-4 flex flex-col items-center min-h-[250px]">
+        <div class="mt-8 bg-white/60 backdrop-blur-sm border-2 border-orange-300 w-full md:w-3/4 p-6 flex flex-col items-center min-h-[320px] rounded-xl shadow-md">
           <h3 class="font-bold text-lg mb-4">MATCHS PUBLICS À VENIR</h3>
           <div class="border border-black w-full max-w-sm flex-1 flex flex-col">
             <div class="border-b border-black text-center font-bold p-1 bg-gray-200">CALENDAR</div>
@@ -115,7 +124,7 @@
     </main>
 
     <!-- Right Sidebar Nav Menu (Desktop) / Hidden on mobile strictly unless triggered -->
-    <aside class="hidden md:flex flex-col w-64 bg-yellow-100 border-l border-gray-400 p-6 flex-shrink-0 min-h-full font-bold">
+    <aside class="hidden md:flex flex-col w-72 bg-white/50 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 p-6 flex-shrink-0 self-start mt-6 mr-2 md:mr-6 z-20 mb-8 font-bold min-h-[70vh]">
       <h2 class="text-xl mb-8 border-b-2 border-black inline-block uppercase w-max tracking-wide">
         NAV - MENU
       </h2>
@@ -146,11 +155,5 @@
 
   </div>
 
-  <!-- Footer -->
-  <footer class="bg-gray-400 p-8 text-center border-t border-gray-500 mt-auto">
-    <h2 class="text-4xl text-gray-800 tracking-widest uppercase font-serif">
-      Footer
-    </h2>
-  </footer>
 
 </div>
