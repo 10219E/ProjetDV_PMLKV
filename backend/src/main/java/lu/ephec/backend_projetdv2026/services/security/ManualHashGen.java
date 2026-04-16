@@ -7,8 +7,8 @@ public class ManualHashGen {
         BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
 
         System.out.println("A001 -> " + enc.encode("S@dminPML!"));
-        System.out.println("G0001 -> " + enc.encode("VIP@ccess!"));
-        System.out.println("L0001 -> " + enc.encode("Invite@Usr!"));
-        System.out.println("S0001 -> " + enc.encode("Norm@lS!te"));
+        System.out.println("G0001 -> " + enc.encode("VIP@ccess!")); //mchlo@ephec.be
+        System.out.println("L0001 -> " + enc.encode("Invite@Usr!")); //sbernard@ephec.be
+        System.out.println("S0001 -> " + enc.encode("Norm@lS!te")); //jmartin@ephec.be
     }
 }
