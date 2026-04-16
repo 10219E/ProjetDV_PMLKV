@@ -32,8 +32,26 @@
       <div class="w-full max-w-full mb-8 text-center">
         <div class="text-white text-4xl md:text-6xl font-extrabold tracking-wider drop-shadow-2xl leading-tight inline-block">
           Bienvenue
-          <!-- color the full user name (fname + lname) according to role -->
-          <span [class]="roleClass">{{ userFullName }}</span>
+          <!-- first + last name always white -->
+          <span class="ml-3 font-extrabold text-white">{{ userFullName }}</span>
+          @if (isAdmin) {
+            <span class="ml-2 relative inline-flex items-center justify-center" aria-hidden="true">
+              <!-- slightly larger, more saturated faint pulsating circle behind icon -->
+              <span class="absolute rounded-full w-10 h-10 animate-pulse" style="background-color: rgba(239,68,68,0.18);"></span>
+              <span class="relative inline-flex items-center justify-center h-8 w-8 text-red-500">
+                <mat-icon class="leading-none">vpn_key</mat-icon>
+              </span>
+            </span>
+          }
+          @if (isVip && !isAdmin) {
+            <span class="ml-2 relative inline-flex items-center justify-center" aria-hidden="true">
+              <!-- slightly larger, more saturated faint pulsating circle behind icon -->
+              <span class="absolute rounded-full w-10 h-10 animate-pulse" style="background-color: rgba(249,115,22,0.18);"></span>
+              <span class="relative inline-flex items-center justify-center h-8 w-8 text-orange-400">
+                <mat-icon class="leading-none">star</mat-icon>
+              </span>
+            </span>
+          }
         </div>
       </div>
 

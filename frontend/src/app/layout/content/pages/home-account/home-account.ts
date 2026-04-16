@@ -1,19 +1,21 @@
 import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../../services/auth.service';
 import { UserService } from '../../../../services/user.service';
 
 @Component({
   selector: 'app-home-account',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, MatIconModule],
   templateUrl: './home-account.html',
   styleUrls: ['./home-account.css']
 })
 export class HomeAccount implements OnInit {
   userName = 'Utilisateur';
   isVip = true;
+  isAdmin = false;
   todayDate = new Date();
 
   // Dummy data for visual
@@ -47,11 +49,13 @@ export class HomeAccount implements OnInit {
       throw new Error('userId route parameter is required');
     }
 
-    // compute the role-based color class
+    // compute the role flags and the role-based color class
     const role = this.authService.getUserRole() || '';
-    if (role && role.toUpperCase().includes('ADMIN')) {
+    this.isAdmin = !!(role && role.toUpperCase().includes('ADMIN'));
+    this.isVip = !!(role && role.toUpperCase().includes('ALL_SITE_ACCESS'));
+    if (this.isAdmin) {
       this.roleClass = 'text-red-500';
-    } else if (role && role.toUpperCase().includes('ALL_SITE_ACCESS')) {
+    } else if (this.isVip) {
       this.roleClass = 'text-orange-500';
     } else {
       this.roleClass = 'text-white';
