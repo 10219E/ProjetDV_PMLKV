@@ -1,23 +1,24 @@
 import { Component as NgComponent, Input as NgInput } from '@angular/core';
-// CommonModule not required for this header (no structural directives used)
+import { CommonModule } from '@angular/common';
 
 @NgComponent({
   selector: 'app-home-account-header',
   standalone: true,
+  imports: [CommonModule],
   templateUrl: './header.html',
 })
 export class HomeAccountHeader {
   @NgInput() todayDate: Date | null = new Date();
-  get formattedDate(): string {
-    if (!this.todayDate) return '';
+
+  // Dispatch a global event that `NavMenu` listens to in order to toggle the mobile overlay.
+  toggleNav(): void {
     try {
-      return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(this.todayDate as Date);
-    } catch {
-      return this.todayDate.toString();
+      window.dispatchEvent(new CustomEvent('toggleNavMenu'));
+    } catch (e) {
+      // fallback for older environments
+      try { window.dispatchEvent(new Event('toggleNavMenu')); } catch {}
     }
   }
-  // Reference the getter to satisfy static analysis (used in template)
-  private _formattedDateUsed = this.formattedDate;
 }
 
 

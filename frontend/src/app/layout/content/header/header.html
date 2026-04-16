@@ -1,10 +1,11 @@
-<header class="w-full p-4 flex justify-between items-center" style="background: linear-gradient(90deg, var(--tw-color-blue-600) 0%, #ffffff 100%);">
-  <div class="text-sm md:text-base font-semibold text-white">
-    -- {{ formattedDate }} + WEATHER --
+<header class="w-full mt-6 p-4 md:p-6 px-4 md:px-8 flex justify-between items-center rounded-2xl shadow-lg relative z-10 border border-gray-200"
+        style="background: linear-gradient(90deg, rgba(30,64,175,0.5) 0%, rgba(255,255,255,0.5) 60%);">
+  <div class="text-sm md:text-base font-semibold text-white md:text-left">
+    -- {{ todayDate | date:'dd MMMM yyyy HH:mm' }} + WEATHER --
   </div>
-  <!-- Mobile hamburger trigger placeholder (Right aligned attached to header for nav menu if mobile) -->
-  <div class="md:hidden cursor-pointer bg-white rounded-full p-1" title="Menu">
-    <svg class="w-6 h-6 text-blue-600" fill=bg-blue-600 stroke="currentColor" viewBox="0 0 24 24">
+  <!-- Mobile hamburger trigger placeholder (Right aligned attached to header for mobile) -->
+  <div class="mid:hidden cursor-pointer bg-white rounded-full p-1" title="Menu" (click)="toggleNav()" role="button" aria-label="Open menu">
+    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
     </svg>
   </div>

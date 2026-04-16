@@ -9,18 +9,7 @@
        any other page structure. -->
   <!-- Header: use semi-transparent gradient to match nav-menu opacity and add subtle border to align visually -->
   <!-- Make header align with the page padding so its inner edges match the main content and the right sidebar -->
-  <header class="w-full mt-6 p-4 md:p-6 px-4 md:px-8 flex justify-between items-center rounded-2xl shadow-lg relative z-10 border border-gray-200"
-          style="background: linear-gradient(90deg, rgba(30,64,175,0.5) 0%, rgba(255,255,255,0.5) 60%);">
-    <div class="text-sm md:text-base font-semibold text-white md:text-left">
-      -- {{ todayDate | date:'dd MMMM yyyy HH:mm' }} + WEATHER --
-    </div>
-    <!-- Mobile hamburger trigger placeholder (Right aligned attached to header for nav menu if mobile) -->
-    <div class="mid:hidden cursor-pointer bg-white rounded-full p-1" title="Menu">
-      <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
-      </svg>
-    </div>
-  </header>
+  <app-home-account-header [todayDate]="todayDate"></app-home-account-header>
 
   <!-- Main Container -->
   <div class="flex flex-1 flex-col mid:flex-row relative">

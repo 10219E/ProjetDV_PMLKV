@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { NavMenu } from '../../nav-menu/nav-menu';
+import { HomeAccountHeader } from '../../header/header';
 import { AuthService } from '../../../../services/auth.service';
 import { UserService } from '../../../../services/user.service';
 
 @Component({
   selector: 'app-home-account',
   standalone: true,
-  imports: [CommonModule, MatIconModule, NavMenu],
+  imports: [CommonModule, MatIconModule, NavMenu, HomeAccountHeader],
   templateUrl: './home-account.html',
   styleUrls: ['./home-account.css']
 })
