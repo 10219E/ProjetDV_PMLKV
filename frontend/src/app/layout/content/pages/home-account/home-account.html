@@ -144,35 +144,8 @@
 
     </main>
 
-    <!-- Right Sidebar Nav Menu (Desktop) / Hidden on mobile strictly unless triggered -->
-    <aside class="hidden mid:flex flex-col w-72 bg-white/50 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 p-6 flex-shrink-0 self-start mt-6 mr-2 mid:mr-6 z-20 mb-8 font-bold min-h-[70vh]">
-      <h2 class="text-xl mb-8 border-b-2 border-black inline-block uppercase w-max tracking-wide">
-        NAV - MENU
-      </h2>
-      <nav class="flex flex-col gap-6 text-sm">
-        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
-          <span class="text-xl">👤</span> MON PROFIL
-        </a>
-        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
-          <span class="text-xl">🏓</span> MES MATCHS
-        </a>
-        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
-          <span class="text-xl">✉️</span> MES INVITATIONS
-        </a>
-        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
-          <span class="text-xl">➕</span> REJOINDRE UN MATCH PUBLIC
-        </a>
-        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
-          <span class="text-xl">⭐</span> CRÉER UN MATCH PRIVÉ
-        </a>
-        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3">
-          <span class="text-xl">⚙️</span> REGLAGES
-        </a>
-        <a routerLink="#" class="hover:text-amber-700 flex items-center gap-3 mt-4">
-          <span class="text-xl">⏻</span> SE DECONNECTER
-        </a>
-      </nav>
-    </aside>
+    <!-- Shared NavMenu component (desktop aside + mobile overlay) -->
+    <app-nav-menu></app-nav-menu>
 
   </div>
 
