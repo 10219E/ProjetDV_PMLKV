@@ -222,7 +222,7 @@ public class PaymentService {
         Optional<Double> balance = jpaUserAccountsRepo.getBalanceByUser(userId);
         if (balance.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No account found for user: " + userId);
+                    "No payment account found for user: " + userId);
         }
         return balance;
     }
