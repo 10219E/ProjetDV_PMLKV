@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/error").permitAll() //to handle errors
+                        .requestMatchers("/error").permitAll() //to allow Spring to actually tell there's a 500 error instead of 403 when an exception is thrown in the backend
                         .requestMatchers("/api/fscount").permitAll()
                         .requestMatchers("/api/sitelist").permitAll()
                         .requestMatchers("/api/identify").permitAll() //get user matricule by email for FE

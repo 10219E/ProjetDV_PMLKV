@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../services/auth.service';
@@ -39,7 +39,7 @@ export class HomeAccount implements OnInit {
   // full user display name (fname + lname)
   userFullName = '';
 
-  constructor(private route: ActivatedRoute, private authService: AuthService, private userService: UserService) {}
+  constructor(private route: ActivatedRoute, private authService: AuthService, private userService: UserService, private cd: ChangeDetectorRef, private ngZone: NgZone) {}
 
   ngOnInit(): void {
     const userId = this.route.snapshot.paramMap.get('userId');
@@ -61,20 +61,61 @@ export class HomeAccount implements OnInit {
     this.userFullName = 'Joueur ' + userId;
     this.userName = this.userFullName;
 
-    // Only call getUserById if userId is not null (now always string)
+    // Wait for token then try getCurrentUser first, fallback to getUserById
+    this.waitForTokenAndFetchUser(userId);
+  }
+
+  private waitForTokenAndFetchUser(userId: string, retries = 15) {
+    const token = this.authService.getToken();
+    if (token) {
+      // Try current user first
+      this.userService.getCurrentUser().subscribe({
+        next: (u: any) => {
+          console.debug('getCurrentUser response', u);
+          const fname = (u && u.firstName) || '';
+          const lname = (u && u.lastName) || '';
+          const full = (fname + ' ' + lname).trim();
+          if (full) {
+            // ensure change detection runs if this callback executes outside Angular zone
+            this.ngZone.run(() => {
+              this.userFullName = full;
+              this.userName = this.userFullName;
+              this.cd.detectChanges();
+            });
+            return;
+          }
+          // If current user doesn't provide a name, fallback to getUserById
+          this.fetchByIdFallback(userId);
+        },
+        error: (err) => {
+          console.warn('getCurrentUser failed, falling back to getUserById', err);
+          this.fetchByIdFallback(userId);
+        }
+      });
+    } else if (retries > 0) {
+      setTimeout(() => this.waitForTokenAndFetchUser(userId, retries - 1), 100);
+    } else {
+      console.warn('Token not available after waiting, skipping user fetch');
+    }
+  }
+
+  private fetchByIdFallback(userId: string) {
     this.userService.getUserById(userId).subscribe({
       next: (u: any) => {
-        const fname = (u && (u.fname || u.firstName || u.firstname)) || '';
-        const lname = (u && (u.lname || u.lastName || u.lastname)) || '';
+        console.debug('getUserById response', u);
+        const fname = (u && u.firstName) || '';
+        const lname = (u && u.lastName) || '';
         const full = (fname + ' ' + lname).trim();
         if (full) {
-          this.userFullName = full;
-          this.userName = this.userFullName;
+          this.ngZone.run(() => {
+            this.userFullName = full;
+            this.userName = this.userFullName;
+            this.cd.detectChanges();
+          });
         }
       },
       error: (err) => {
-        // leave the fallback (route param or default userName) in place
-        console.warn('getCurrentUser failed; keeping fallback display value', err);
+        console.warn('getUserById failed; keeping fallback display value', err);
       }
     });
   }
