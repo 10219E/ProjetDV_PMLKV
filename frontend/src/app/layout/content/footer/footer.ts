@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, OnDestroy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InfoService } from '../../../services/info.service';
 import { SiteInfo } from '../../../api/model/siteInfo';
@@ -22,19 +22,49 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
   private pauseHandler = () => this.pauseMarquee();
   private resumeHandler = () => this.resumeMarquee();
   private isDestroyed = false;
+  private sitesSub?: any;
+  private retryAttempts = 0;
+  private readonly maxRetryAttempts = 5;
+  private readonly retryIntervalMs = 2000;
 
-  constructor(private infoService: InfoService) {}
+  constructor(private infoService: InfoService, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
-    this.infoService.getSites().subscribe({
+    this.loadSitesOnce();
+  }
+
+  private loadSitesOnce() {
+    // unsubscribe previous if any
+    if (this.sitesSub) {
+      try { this.sitesSub.unsubscribe(); } catch (e) {}
+      this.sitesSub = undefined;
+    }
+
+    this.sitesSub = this.infoService.getSites().subscribe({
       next: (data: SiteInfo[]) => {
         this.sites = data;
-        // Wait for Angular to physically render the *for DOM elements based on new sites
-        setTimeout(() => this.setupMarquee(), 300);
+        // Let Angular pick up the change immediately (home.ts pattern)
+        try { this.cdr.detectChanges(); } catch (e) {}
+
+        if (data && data.length > 0) {
+          // Setup marquee after DOM nodes have been rendered
+          setTimeout(() => this.setupMarquee(), 300);
+        } else {
+          // empty: retry a few times (route reloads/back-end transient empty responses)
+          if (this.retryAttempts < this.maxRetryAttempts) {
+            this.retryAttempts++;
+            setTimeout(() => this.loadSitesOnce(), this.retryIntervalMs);
+          }
+        }
       },
       error: (err) => {
         console.error('Failed to load sites for footer', err);
         this.sites = [];
+        try { this.cdr.detectChanges(); } catch (e) {}
+        if (this.retryAttempts < this.maxRetryAttempts) {
+          this.retryAttempts++;
+          setTimeout(() => this.loadSitesOnce(), this.retryIntervalMs);
+        }
       }
     });
   }
@@ -70,6 +100,10 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
       this.containerEl.removeEventListener('mouseleave', this.resumeHandler);
       this.containerEl.removeEventListener('touchstart', this.pauseHandler as any);
       this.containerEl.removeEventListener('touchend', this.resumeHandler as any);
+    }
+    if (this.sitesSub) {
+      try { this.sitesSub.unsubscribe(); } catch (e) {}
+      this.sitesSub = undefined;
     }
   }
 
