@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { HomeAccountHeader } from '../../header/header';
+import { AuthService } from '../../../../services/auth.service';
+import { UserService } from '../../../../services/user.service';
 
 @Component({
   selector: 'app-home-account',
@@ -33,14 +34,49 @@ export class HomeAccount implements OnInit {
     publicParticipation: 7
   };
 
-  constructor(private route: ActivatedRoute) {}
+  // roleClass controls the color of the user full name
+  roleClass = 'text-white';
+  // full user display name (fname + lname)
+  userFullName = '';
+
+  constructor(private route: ActivatedRoute, private authService: AuthService, private userService: UserService) {}
 
   ngOnInit(): void {
     const userId = this.route.snapshot.paramMap.get('userId');
-    // Call user data if needed later
-    if (userId) {
-      this.userName = 'Joueur ' + userId;
+    if (!userId) {
+      throw new Error('userId route parameter is required');
     }
+
+    // compute the role-based color class
+    const role = this.authService.getUserRole() || '';
+    if (role && role.toUpperCase().includes('ADMIN')) {
+      this.roleClass = 'text-red-500';
+    } else if (role && role.toUpperCase().includes('ALL_SITE_ACCESS')) {
+      this.roleClass = 'text-orange-500';
+    } else {
+      this.roleClass = 'text-white';
+    }
+
+    // If a route param userId exists, use it immediately as fallback display (Joueur {id})
+    this.userFullName = 'Joueur ' + userId;
+    this.userName = this.userFullName;
+
+    // Only call getUserById if userId is not null (now always string)
+    this.userService.getUserById(userId).subscribe({
+      next: (u: any) => {
+        const fname = (u && (u.fname || u.firstName || u.firstname)) || '';
+        const lname = (u && (u.lname || u.lastName || u.lastname)) || '';
+        const full = (fname + ' ' + lname).trim();
+        if (full) {
+          this.userFullName = full;
+          this.userName = this.userFullName;
+        }
+      },
+      error: (err) => {
+        // leave the fallback (route param or default userName) in place
+        console.warn('getCurrentUser failed; keeping fallback display value', err);
+      }
+    });
   }
 
   acceptInvite(invite: any) {

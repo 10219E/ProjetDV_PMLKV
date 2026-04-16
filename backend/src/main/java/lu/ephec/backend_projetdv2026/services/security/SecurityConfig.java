@@ -33,7 +33,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
-                        //.requestMatchers("/error").permitAll() //to handle errors
+                        .requestMatchers("/error").permitAll() //to handle errors
                         .requestMatchers("/api/fscount").permitAll()
                         .requestMatchers("/api/sitelist").permitAll()
                         .requestMatchers("/api/identify").permitAll() //get user matricule by email for FE
