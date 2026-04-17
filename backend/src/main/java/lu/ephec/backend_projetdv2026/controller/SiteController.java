@@ -1,6 +1,6 @@
 package lu.ephec.backend_projetdv2026.controller;
 
-import lu.ephec.backend_projetdv2026.dto.SiteResponse;
+import lu.ephec.backend_projetdv2026.dto.SiteDto;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.services.SiteService;
 import org.springframework.http.ResponseEntity;
@@ -20,18 +20,18 @@ public class SiteController {
     }
 
     @GetMapping(produces = "application/json")
-    public ResponseEntity<List<SiteResponse>> getAllSites(@RequestParam(required = false, defaultValue = "true") boolean activeOnly) {
+    public ResponseEntity<List<SiteDto>> getAllSites(@RequestParam(required = false, defaultValue = "true") boolean activeOnly) {
         List<Site> sites = activeOnly ? siteService.fetchAllActive() : siteService.fetchAll();
-        List<SiteResponse> responses = sites.stream()
-                .map(SiteResponse::from)
+        List<SiteDto> responses = sites.stream()
+                .map(SiteDto::from)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
     @GetMapping(value="/{id}", produces = "application/json")
-    public ResponseEntity<SiteResponse> getSiteById(@PathVariable Integer id) {
+    public ResponseEntity<SiteDto> getSiteById(@PathVariable Integer id) {
         Site site = siteService.fetchById(id).orElseThrow();
-        return ResponseEntity.ok(SiteResponse.from(site));
+        return ResponseEntity.ok(SiteDto.from(site));
     }
 }
 

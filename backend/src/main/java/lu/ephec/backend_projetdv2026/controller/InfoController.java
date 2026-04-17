@@ -1,11 +1,9 @@
 package lu.ephec.backend_projetdv2026.controller;
 
 import lu.ephec.backend_projetdv2026.dto.InfoControllerDto;
-import lu.ephec.backend_projetdv2026.dto.UserProfileResponse;
 import lu.ephec.backend_projetdv2026.services.FieldService;
 import lu.ephec.backend_projetdv2026.services.SiteService;
 import lu.ephec.backend_projetdv2026.services.UserService;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;

@@ -3,7 +3,7 @@ package lu.ephec.backend_projetdv2026.dto;
 import lu.ephec.backend_projetdv2026.models.Site;
 import java.time.LocalTime;
 
-public class SiteResponse {
+public class SiteDto {
     private Integer siteId;
     private String name;
     private String address;
@@ -11,10 +11,10 @@ public class SiteResponse {
     private LocalTime closingTime;
     private Boolean isActive;
 
-    public SiteResponse() {
+    public SiteDto() {
     }
 
-    public SiteResponse(Integer siteId, String name, String address, LocalTime openingTime, LocalTime closingTime, Boolean isActive) {
+    public SiteDto(Integer siteId, String name, String address, LocalTime openingTime, LocalTime closingTime, Boolean isActive) {
         this.siteId = siteId;
         this.name = name;
         this.address = address;
@@ -23,8 +23,8 @@ public class SiteResponse {
         this.isActive = isActive;
     }
 
-    public static SiteResponse from(Site site) {
-        return new SiteResponse(
+    public static SiteDto from(Site site) {
+        return new SiteDto(
                 site.getSiteId(),
                 site.getName(),
                 site.getAddress(),

@@ -1,7 +1,8 @@
 <div>
   <!-- Mobile overlay: shown when visible on small screens -->
-  @if (visible) {
-    <div class="fixed inset-0 z-40 flex mid:hidden justify-end">
+  @if (visible && !preventMobileOverlay) {
+    <!-- mobile overlay: will be moved to document.body at runtime so it escapes any stacking-context and always sits above the floating header -->
+    <div class="fixed inset-0 nav-mobile-overlay flex mid:hidden justify-end" style="z-index:99999;">
       <div class="absolute inset-0 bg-black/40" (click)="close()" aria-hidden="true"></div>
       <div class="relative w-72 bg-white/95 backdrop-blur-sm p-6 border-l border-gray-200">
         <button class="absolute top-3 right-3 text-gray-600" (click)="close()">✕</button>
@@ -10,7 +11,7 @@
           <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">🏓 MES MATCHS</a>
           <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">✉️ MES INVITATIONS</a>
           <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">➕ MATCH PUBLIC</a>
-          <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">⭐ MATCH PRIVÉ</a>
+          <a href="#" (click)="$event.preventDefault(); goCreatePmatch()" class="hover:text-blue-600 flex font-bold items-center gap-3">⭐ Créer Match Privé</a>
           <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">🛠️ REGLAGES</a>
           <button (click)="onLogout()" class="mt-4 text-left hover:text-red-500 flex font-bold items-center gap-3 p-1">⏻ SE DECONNECTER</button>
         </nav>
@@ -25,7 +26,7 @@
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">🏓 Mes Matchs</a>
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">✉️ Mes Invitations</a>
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">➕ Rejoindre Match Public</a>
-      <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">⭐ Créer Match Privé</a>
+      <a href="#" (click)="$event.preventDefault(); goCreatePmatch()" class="hover:text-blue-600 flex items-center gap-3">⭐ Créer Match Privé</a>
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">🛠️ Reglages</a>
       <button (click)="onLogout()" class="hover:text-red-500 flex items-center gap-3 p-1">⏻ Se Déconnecter</button>
     </nav>

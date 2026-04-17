@@ -1,6 +1,6 @@
 package lu.ephec.backend_projetdv2026.controller;
 
-import lu.ephec.backend_projetdv2026.dto.UserProfileResponse;
+import lu.ephec.backend_projetdv2026.dto.UserProfileDto;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserAccounts;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
@@ -39,22 +39,22 @@ public class UserController {
     }
 
     @GetMapping(value = "/me", produces = "application/json")
-    public ResponseEntity<UserProfileResponse> getCurrentUser(Authentication authentication) {
+    public ResponseEntity<UserProfileDto> getCurrentUser(Authentication authentication) {
         String matricule = authentication.getName(); // JWT subject (matricule) is injected here
         User u = userService.fetchById(matricule).orElseThrow();
         return ResponseEntity.ok(fetchUserProfile(u));
     }
 
     @GetMapping(produces = "application/json")
-    public ResponseEntity<List<UserProfileResponse>> getAllUsers() {
-        List<UserProfileResponse> responses = userService.fetchAll().stream()
+    public ResponseEntity<List<UserProfileDto>> getAllUsers() {
+        List<UserProfileDto> responses = userService.fetchAll().stream()
                 .map(this::fetchUserProfile)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
     @GetMapping(value = "/{matricule}", produces = "application/json")
-    public ResponseEntity<UserProfileResponse> getUserByMatricule(@PathVariable String matricule) {
+    public ResponseEntity<UserProfileDto> getUserByMatricule(@PathVariable String matricule) {
         Optional<User> userOpt = userService.fetchById(matricule);
         if (userOpt.isEmpty()) {
             logger.warn("User with matricule {} not found", matricule);
@@ -64,7 +64,7 @@ public class UserController {
         return ResponseEntity.ok(fetchUserProfile(userOpt.get()));
     }
 
-    private UserProfileResponse fetchUserProfile(User u) {
+    private UserProfileDto fetchUserProfile(User u) {
         String matricule = u.getMatricule();
         Optional<UserAccounts> acc = Optional.empty();
         List<UsersSites> sites = List.of();
@@ -91,6 +91,6 @@ public class UserController {
         } catch (Exception e) {
             logger.warn("Exception while building profile for {}: {}", matricule, e.getMessage());
         }
-        return UserProfileResponse.from(u, acc.orElse(null), sites);
+        return UserProfileDto.from(u, acc.orElse(null), sites);
     }
 }
