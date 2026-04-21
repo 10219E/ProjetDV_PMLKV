@@ -32,12 +32,18 @@ export class NavMenu implements OnInit, OnDestroy {
       if (this.visible && !this.preventMobileOverlay) {
         // delay to allow the template to render the overlay element
         setTimeout(() => this.moveMobileOverlayToBody(), 0);
+      } else if (!this.visible && this._movedOverlay) {
+        // menu was closed — if we previously moved the overlay into body, remove it so
+        // a new NavMenu instance can render its own overlay cleanly (prevents orphaned overlay)
+        this.cleanupMovedOverlay();
       }
     });
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    // ensure any overlay left in body by this component is cleaned up when it is destroyed
+    this.cleanupMovedOverlay();
   }
 
   toggle(): void {
@@ -97,6 +103,43 @@ export class NavMenu implements OnInit, OnDestroy {
     } catch (e) {
       // ignore DOM errors
       console.warn('Failed to move nav mobile overlay to body', e);
+    }
+  }
+
+  /**
+   * Remove any nav mobile overlay that was previously moved into document.body.
+   * Called when the menu is closed or the component is destroyed so a new instance
+   * can re-render the overlay without conflicts.
+   */
+  private cleanupMovedOverlay(): void {
+    try {
+      const el = document.querySelector('.nav-mobile-overlay') as HTMLElement | null;
+      if (!el) {
+        this._movedOverlay = false;
+        return;
+      }
+      if (el.parentElement === document.body) {
+        // Smoothly fade/slide out instead of immediately removing to avoid a hard visual cut.
+        const panel = el.querySelector('.nav-mobile-panel') as HTMLElement | null;
+        try {
+          // add classes to animate out (Tailwind utility classes assumed present in build)
+          el.classList.add('opacity-0');
+          if (panel) panel.classList.add('translate-x-full');
+          // wait for the transition to finish (duration matches classes above: 200ms)
+          const removeDelay = 220;
+          setTimeout(() => {
+            // remove from DOM after animation
+            if (el.parentElement === document.body) el.remove();
+          }, removeDelay);
+        } catch (innerErr) {
+          // fallback: if animation fails, remove immediately
+          if (el.parentElement === document.body) el.remove();
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to cleanup nav mobile overlay from body', e);
+    } finally {
+      this._movedOverlay = false;
     }
   }
 

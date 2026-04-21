@@ -21,7 +21,7 @@ export class App implements OnInit {
     // Hide global nav on routes under /home/:userId because those pages render a page-level NavMenu
     this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe((ev: any) => {
       const url = ev.urlAfterRedirects || ev.url || '';
-      // Hide global nav on any /home route (including /home and /home/:userId/*)
+      // Hide global nav on any / route (including /home and /home/:userId/*)
       this.showGlobalNav = !url.startsWith('/');
     });
   }

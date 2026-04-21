@@ -2,9 +2,11 @@
   <!-- Mobile overlay: shown when visible on small screens -->
   @if (visible && !preventMobileOverlay) {
     <!-- mobile overlay: will be moved to document.body at runtime so it escapes any stacking-context and always sits above the floating header -->
-    <div class="fixed inset-0 nav-mobile-overlay flex mid:hidden justify-end" style="z-index:99999;">
-      <div class="absolute inset-0 bg-black/40" (click)="close()" aria-hidden="true"></div>
-      <div class="relative w-72 bg-white/95 backdrop-blur-sm p-6 border-l border-gray-200">
+    <!-- Smooth transitions: overlay fades, panel slides in from the right -->
+    <div class="fixed inset-0 nav-mobile-overlay flex mid:hidden justify-end transition-opacity duration-200" style="z-index:99999;" [class.opacity-100]="visible" [class.opacity-0]="!visible">
+      <!-- backdrop kept transparent so page is not darkened during transitions -->
+      <div class="absolute inset-0 bg-transparent transition-opacity duration-200" (click)="close()" aria-hidden="true" [class.opacity-100]="visible" [class.opacity-0]="!visible"></div>
+      <div class="relative nav-mobile-panel w-72 bg-white/95 backdrop-blur-sm p-6 border-l border-gray-200 transform transition-transform duration-200" [class.translate-x-0]="visible" [class.translate-x-full]="!visible">
         <button class="absolute top-3 right-3 text-gray-600" (click)="close()">✕</button>
         <nav class="flex flex-col gap-6 text-lg">
           <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">👤 MON PROFIL</a>
