@@ -1,40 +1,26 @@
 <div class="max-w-xl mx-auto">
+  <!-- calendar component overlay shown before the form if enabled -->
+  <app-match-cal *ngIf="showCalendarOverlay" [selected]="tempSelectedDate" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
   <form [formGroup]="form" (ngSubmit)="submit()" class="bg-white p-6 rounded shadow">
 	<h2 class="text-xl font-bold mb-4">Create Match</h2>
 
+	<!-- Field moved to top (type is hidden per request) -->
 	<div class="mb-3">
 	  <label class="block text-sm font-medium">Field</label>
-			  <select formControlName="fieldId" class="w-full border rounded p-2">
-				<option value="">-- Select field --</option>
-				@for (f of fields; track f.fieldId) {
-				  <option [value]="f.fieldId">{{f.fieldId}} - {{f.siteId}}</option>
-				}
-			  </select>
-	</div>
-
-	<div class="mb-3">
-	  <label class="block text-sm font-medium">Type</label>
-	  <select formControlName="type" [disabled]="!!defaultType" class="w-full border rounded p-2">
-		<option value="">-- Select --</option>
-		<option value="private">Private</option>
-		<option value="public">Public</option>
+	  <select formControlName="fieldId" class="w-full border rounded p-2">
+		<option value="">-- Select field --</option>
+		@for (f of fields; track f.fieldId) {
+		  <option [value]="f.fieldId">{{f.fieldId}} - {{f.siteId}}</option>
+		}
 	  </select>
 	</div>
 
-	<div class="mb-3">
-	  <label class="block text-sm font-medium">Pub Status</label>
-	  <input formControlName="pubStatus" class="w-full border rounded p-2" placeholder="open/closed/completed" />
-	</div>
-
-	<div class="mb-3">
-	  <label class="block text-sm font-medium">Priv Status</label>
-	  <input formControlName="privStatus" class="w-full border rounded p-2" placeholder="awaiting/confirmed/completed" />
-	</div>
-
+	<!-- Date / Start / End moved below field (kept at top area) -->
 	<div class="grid grid-cols-3 gap-3 mb-3">
 	  <div>
 		<label class="block text-sm font-medium">Date</label>
-		<input type="date" formControlName="matchDate" class="w-full border rounded p-2" />
+		<!-- readonly text input shows selected date; clicking reopens calendar and clears Start/End -->
+		<input type="text" formControlName="matchDate" [readonly]="dateReadOnly" (click)="onDateInputClick()" [class.bg-gray-50]="dateReadOnly" class="w-full border rounded p-2" />
 	  </div>
 	  <div>
 		<label class="block text-sm font-medium">Start</label>
@@ -46,15 +32,14 @@
 	  </div>
 	</div>
 
-	<div class="mb-3">
-	  <label class="block text-sm font-medium">Pricing</label>
-	  <input type="number" formControlName="pricing" class="w-full border rounded p-2" />
-	</div>
+	<!-- Pub Status, Priv Status and Pricing are hidden per request -->
 
 	<div class="mb-3">
 	  <label class="block text-sm font-medium">Organiser</label>
-	  <input formControlName="organiserId" readonly class="w-full border rounded p-2 bg-gray-50" />
-	  <div class="text-sm text-gray-600 mt-1">{{organiserName}}</div>
+	  <!-- hidden input keeps the organiserId in the reactive form for submission -->
+	  <input type="hidden" formControlName="organiserId" />
+	  <!-- visible readonly field shows first + last name only (populated in component) -->
+	  <input [value]="organiserName || ''" readonly class="w-full border rounded p-2 bg-gray-50" />
 	</div>
 
 	@if (isPrivate()) {
