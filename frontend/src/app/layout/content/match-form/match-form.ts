@@ -6,6 +6,7 @@ import { FieldControllerService } from '../../../api/api/fieldController.service
 import { SiteControllerService } from '../../../api/api/siteController.service';
 import { AuthService } from '../../../services/auth.service';
 import { UserService } from '../../../services/user.service';
+import { SessionService } from '../../../services/session.service';
 import { Router } from '@angular/router';
 import { MatchCal } from '../match-cal/match-cal';
 
@@ -47,8 +48,8 @@ export class MatchForm implements OnInit {
    ])
   });
 
-  // calendar overlay state
-  showCalendarOverlay = true;
+  // calendar overlay state (do not prompt overlay on form load)
+  showCalendarOverlay = false;
   tempSelectedDate: Date | null = null;
   dateReadOnly = false;
 
@@ -56,19 +57,13 @@ export class MatchForm implements OnInit {
   sessionsForSite: any[] = [];
   private updatingFromSession = false;
 
-  constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private router: Router, private cd: ChangeDetectorRef) {}
+  constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private router: Router, private cd: ChangeDetectorRef) {}
 
   ngOnInit(): void {
-    // determine whether to show calendar overlay (hide if matchDate already set)
+    // ensure calendar overlay is not prompted on initial form load
     const existingDate = this.form.get('matchDate')?.value;
-    if (existingDate) {
-      this.showCalendarOverlay = false;
-      this.dateReadOnly = true; // keep the date visually non-editable but allow click to open calendar
-      // leave control enabled for validation
-    } else {
-      this.showCalendarOverlay = true;
-      this.dateReadOnly = false;
-    }
+    this.showCalendarOverlay = false;
+    this.dateReadOnly = !!existingDate;
 
     // prefill organiser if provided and fetch organiser name (first + last only)
     if (this.organiserId) {
@@ -112,31 +107,41 @@ export class MatchForm implements OnInit {
     // keep endTime disabled (greyed) and set placeholder via template; we'll still set its value programmatically
     this.form.get('endTime')?.disable();
 
-    // react to site selection changes -> filter displayed fields
-          this.form.get('siteId')?.valueChanges.subscribe((siteId) => {
+    // react to site selection changes -> fetch fields for the selected site
+    this.form.get('siteId')?.valueChanges.subscribe((siteId) => {
       const id = siteId ? Number(siteId) : null;
       if (!id) {
         this.fields = [];
+        this.sessionsForSite = [];
+        // clear date and times when site is deselected
+        this.form.get('matchDate')?.setValue(null);
+        this.form.get('startTime')?.setValue(null);
+        this.form.get('endTime')?.setValue(null);
+        this.form.get('fieldId')?.setValue(null);
+        this.tempSelectedDate = null;
+        this.dateReadOnly = false;
         return;
       }
-        // ensure Authorization header is set on the field service before calling
-        this.setAuthHeaderForService(this.fieldService);
-        // fetch fields for the selected site using the per-site endpoint
-        this.fieldService.getFieldsBySite(id).subscribe({
-          next: (data: any[]) => {
-            this.fields = data || [];
-            // load sessions embedded in the selected site (controller returns sessions per-site)
-            const site = (this.sites || []).find((x: any) => Number(x.siteId) === Number(id));
-            this.sessionsForSite = (site && site.sessions) ? (site.sessions as any[]).map((ss: any) => this.normalizeSessionForUi(ss)) : [];
-            // Clear sessions if no date is selected
-            this.updateSessionsBasedOnDate();
-            this.cd.detectChanges();
-          },
-          error: (err) => {
-            console.error('Failed to load fields for site', id, err);
-            this.fields = [];
-          }
-        });
+      // When changing the selected site (complexe sportif), clear date and start time
+      this.form.get('matchDate')?.setValue(null);
+      this.form.get('startTime')?.setValue(null);
+      this.form.get('endTime')?.setValue(null);
+      // clear selected field and sessions so user picks a field for the new site
+      this.form.get('fieldId')?.setValue(null);
+      this.sessionsForSite = [];
+      this.tempSelectedDate = null;
+      this.dateReadOnly = false;
+      // fetch fields only; sessions will be loaded when a field is selected
+      this.sessionService.fetchFieldsBySite(id).subscribe({
+        next: (data: any[]) => {
+          this.fields = data || [];
+          this.cd.detectChanges();
+        },
+        error: (err) => {
+          console.error('Failed to load fields for site', id, err);
+          this.fields = [];
+        }
+      });
     });
 
     // when user selects a start time (from dropdown), populate endTime based on the session with matching _start
@@ -162,21 +167,59 @@ export class MatchForm implements OnInit {
       this.updatingFromSession = false;
     });
 
-    // React to date changes - clear sessions if date is not selected
+    // Load sessions when a field is selected (instead of when a site is selected)
+    this.form.get('fieldId')?.valueChanges.subscribe((fieldId) => {
+      // If we're updating the form from a session selection, avoid clearing state
+      if (this.updatingFromSession) return;
+      const fid = fieldId ? Number(fieldId) : null;
+      // When the user explicitly changes the field, clear only start/end times
+      // (preserve the selected date per requested behaviour)
+      this.form.get('startTime')?.setValue(null);
+      this.form.get('endTime')?.setValue(null);
+
+      if (!fid) {
+        this.sessionsForSite = [];
+        return;
+      }
+      // try to find the field in the currently loaded fields to get its siteId
+      const fld = (this.fields || []).find((f: any) => Number(f.fieldId) === Number(fid));
+      const siteId = fld?.siteId ? Number(fld.siteId) : Number(this.form.get('siteId')?.value) || null;
+      if (!siteId) {
+        this.sessionsForSite = [];
+        return;
+      }
+      this.sessionService.loadSessionsForSite(siteId, this.form.get('matchDate')?.value).subscribe((sessions) => {
+        // filter sessions to the selected field when possible
+        this.sessionsForSite = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
+        this.cd.detectChanges();
+      });
+    });
+
+    // React to date changes - clear selected field and times when the user explicitly changes the date
     this.form.get('matchDate')?.valueChanges.subscribe((date) => {
+      // If the date change originates from a session selection, do not clear the field
+      if (this.updatingFromSession) {
+        this.updateSessionsBasedOnDate();
+        return;
+      }
+      // Clear selected field and start/end times when the date changes
+      this.form.get('fieldId')?.setValue(null);
+      this.form.get('startTime')?.setValue(null);
+      this.form.get('endTime')?.setValue(null);
       this.updateSessionsBasedOnDate();
     });
 
     // Load user's accessible sites and then load fields filtered by those sites.
         this.userService.getCurrentUser().subscribe({
           next: (profile: any) => {
+
             const roleId = profile?.roleId ?? -1;
             // role ids that grant access to all sites: ALL_SITE_ACCESS(2), SITE_ADMIN(7), ADMIN(9)
             const isAllSites = [2, 7, 9].includes(Number(roleId)) || (profile?.sites && profile.sites.some((s: any) => s.isVip));
             if (isAllSites) {
               // fetch all sites
               // ensure Authorization header is set on the site controller
-              this.setAuthHeaderForService(this.siteController);
+              this.sessionService.setAuthHeader(this.siteController);
               this.siteController.getAllSites(true).subscribe({
                 next: (sites: any[]) => {
                   this.sites = sites || [];
@@ -226,17 +269,7 @@ export class MatchForm implements OnInit {
 
   }
 
-  // Helper to set Authorization header on generated API services that expose defaultHeaders
-  private setAuthHeaderForService(service: any): void {
-    try {
-      const token = this.authService.getToken();
-      if (token && service && service.defaultHeaders && service.defaultHeaders.set) {
-        service.defaultHeaders = service.defaultHeaders.set('Authorization', `Bearer ${token}`);
-      }
-    } catch (e) {
-      // ignore failures setting headers
-    }
-  }
+  // ...existing code...
 
   // Load fields and filter by allowed site ids. If allowedSiteIds is undefined, do not filter (load all fields)
   private loadFieldsForAllowedSites(allowedSiteIds?: number[] | undefined): void {
@@ -261,30 +294,11 @@ export class MatchForm implements OnInit {
     const siteId = site?.siteId;
     if (!siteId) return;
 
-    // ensure Authorization header is set on the field service before calling
-    this.setAuthHeaderForService(this.fieldService);
-
-    // fetch fields for the selected site using the per-site endpoint
-    this.fieldService.getFieldsBySite(siteId).subscribe({
+    this.sessionService.fetchFieldsBySite(siteId).subscribe({
       next: (data: any[]) => {
+        // only fetch fields for the preselected site; do not load sessions until a field is selected
         this.fields = data || [];
-        // For normal users, we need to get the site details with sessions from the API
-        // The site object from user profile might not contain sessions data
-        this.setAuthHeaderForService(this.siteController);
-        this.siteController.getSiteById(siteId).subscribe({
-          next: (siteWithSessions: any) => {
-            // load sessions embedded in the site (controller returns sessions per-site)
-            this.sessionsForSite = (siteWithSessions && siteWithSessions.sessions) ?
-                (siteWithSessions.sessions as any[]).map((ss: any) => this.normalizeSessionForUi(ss)) : [];
-            // Clear sessions if no date is selected
-            this.updateSessionsBasedOnDate();
-            this.cd.detectChanges();
-          },
-          error: (err) => {
-            console.error('Failed to load site details for preselected site', siteId, err);
-            this.sessionsForSite = [];
-          }
-        });
+        this.cd.detectChanges();
       },
       error: (err) => {
         console.error('Failed to load fields for preselected site', siteId, err);
@@ -295,25 +309,37 @@ export class MatchForm implements OnInit {
 
   // Update sessionsForSite based on whether a date is selected
   private updateSessionsBasedOnDate(): void {
-    const hasDate = !!this.form.get('matchDate')?.value;
-    if (!hasDate && this.sessionsForSite.length > 0) {
-      // Store the original sessions temporarily
-      if (!this._originalSessions) {
-        this._originalSessions = [...this.sessionsForSite];
-      }
+    const matchDate = this.form.get('matchDate')?.value;
+    const fid = Number(this.form.get('fieldId')?.value) || null;
+    // If no field selected, clear sessions (we load sessions when a field is selected)
+    if (!fid) {
       this.sessionsForSite = [];
-      this.form.get('startTime')?.setValue(null);
-      this.form.get('endTime')?.setValue(null);
-    } else if (hasDate && this._originalSessions && this._originalSessions.length > 0) {
-      // Restore sessions when date is selected
-      this.sessionsForSite = [...this._originalSessions];
-      this._originalSessions = null;
+      if (!matchDate) {
+        this.form.get('startTime')?.setValue(null);
+        this.form.get('endTime')?.setValue(null);
+      }
+      this.cd.detectChanges();
+      return;
     }
-    this.cd.detectChanges();
+    // find site's id from loaded fields if possible
+    const fld = (this.fields || []).find((f: any) => Number(f.fieldId) === Number(fid));
+    const siteId = fld?.siteId ? Number(fld.siteId) : Number(this.form.get('siteId')?.value) || null;
+    if (!siteId) {
+      this.sessionsForSite = [];
+      this.cd.detectChanges();
+      return;
+    }
+    this.sessionService.onDateChange(siteId, matchDate).subscribe((sessions) => {
+      this.sessionsForSite = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
+      if (!matchDate) {
+        this.form.get('startTime')?.setValue(null);
+        this.form.get('endTime')?.setValue(null);
+      }
+      this.cd.detectChanges();
+    });
   }
 
-  // Temporary storage for original sessions when date is not selected
-  private _originalSessions: any[] | null = null;
+  // ...existing code...
 
   onDateSelected(date: Date | null): void {
     this.tempSelectedDate = date;
@@ -345,44 +371,9 @@ export class MatchForm implements OnInit {
     return null;
   }
 
-  // format a Date into HH:mm string
-  private formatTimeHHMM(d: Date): string {
-    const hh = d.getHours().toString().padStart(2, '0');
-    const mm = d.getMinutes().toString().padStart(2, '0');
-    return `${hh}:${mm}`;
-  }
+  // ...existing code...
 
-  // normalize a raw session into UI-friendly fields: _start, _end and label
-  private normalizeSessionForUi(s: any): any {
-    const out: any = { ...s };
-
-    // Handle both formats: startedAt/endedAt (datetime) and start_time/end_time (time strings)
-    let startTimeStr = s.start_time || null;
-    let endTimeStr = s.end_time || null;
-
-    // If we have datetime fields, convert them to time strings
-    if (s.startedAt && !startTimeStr) {
-      const startDate = this.parseDateTime(s.startedAt);
-      startTimeStr = startDate ? this.formatTimeHHMM(startDate) : null;
-    }
-    if (s.endedAt && !endTimeStr) {
-      const endDate = this.parseDateTime(s.endedAt);
-      endTimeStr = endDate ? this.formatTimeHHMM(endDate) : null;
-    }
-
-    // If we have time strings but they're in HH:MM:SS format, convert to HH:MM
-    if (startTimeStr && startTimeStr.includes(':')) {
-      startTimeStr = startTimeStr.split(':').slice(0, 2).join(':');
-    }
-    if (endTimeStr && endTimeStr.includes(':')) {
-      endTimeStr = endTimeStr.split(':').slice(0, 2).join(':');
-    }
-
-    out._start = startTimeStr;
-    out._end = endTimeStr;
-    out.label = out._start ? `${out._start}` : `Slot ${out.match_set_id ?? out.sessionId ?? ''}`;
-    return out;
-  }
+  // ...existing code...
 
   confirmDate(): void {
     if (!this.tempSelectedDate) return;
