@@ -3,6 +3,8 @@ package lu.ephec.backend_projetdv2026.controller;
 import lu.ephec.backend_projetdv2026.dto.SiteDto;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.services.SiteService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +16,7 @@ import java.util.stream.Collectors;
 public class SiteController {
 
     private final SiteService siteService;
+    private static final Logger logger = LoggerFactory.getLogger(SiteController.class);
 
     public SiteController(SiteService siteService) {
         this.siteService = siteService;
@@ -21,17 +24,36 @@ public class SiteController {
 
     @GetMapping(produces = "application/json")
     public ResponseEntity<List<SiteDto>> getAllSites(@RequestParam(required = false, defaultValue = "true") boolean activeOnly) {
+        logger.debug("getAllSites called with activeOnly={}", activeOnly);
         List<Site> sites = activeOnly ? siteService.fetchAllActive() : siteService.fetchAll();
         List<SiteDto> responses = sites.stream()
-                .map(SiteDto::from)
+                .map(site -> {
+                    // fetch sessions for each site (may be parsed JSON as List)
+                    List<?> sessions = null;
+                    try {
+                        sessions = siteService.fetchSessionTimesForSite(site.getSiteId());
+                    } catch (Exception ex) {
+                        // if sessions not found or parsing fails, keep null
+                        logger.warn("Failed to fetch sessions for site {} — leaving sessions=null", site.getSiteId(), ex);
+                    }
+                    return SiteDto.from(site, sessions);
+                })
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
     @GetMapping(value="/{id}", produces = "application/json")
     public ResponseEntity<SiteDto> getSiteById(@PathVariable Integer id) {
+        logger.debug("getSiteById called with id={}", id);
         Site site = siteService.fetchById(id).orElseThrow();
-        return ResponseEntity.ok(SiteDto.from(site));
+        List<?> sessions = null;
+        try {
+            sessions = siteService.fetchSessionTimesForSite(site.getSiteId());
+        } catch (Exception ex) {
+            // leave sessions null if not found / parsing error
+            logger.warn("Failed to fetch sessions for site {} (id={}) — leaving sessions=null", site.getSiteId(), id, ex);
+        }
+        return ResponseEntity.ok(SiteDto.from(site, sessions));
     }
 }
 

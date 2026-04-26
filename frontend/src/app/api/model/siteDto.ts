@@ -17,5 +17,6 @@ export interface SiteDto {
     openingTime?: LocalTime;
     closingTime?: LocalTime;
     isActive?: boolean;
+    sessions?: Array<object>;
 }
 
