@@ -2,15 +2,13 @@ package lu.ephec.backend_projetdv2026.dto;
 
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserAccounts;
-import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.models.UsersSites;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class UserProfileResponse {
+public class UserProfileDto {
     private String matricule;
     private String firstName;
     private String lastName;
@@ -24,10 +22,10 @@ public class UserProfileResponse {
     private List<UserPenaltyDto> penalties;
     private List<UserSiteDto> sites;
 
-    public UserProfileResponse() {
+    public UserProfileDto() {
     }
 
-    public UserProfileResponse(String matricule, String firstName, String lastName, String email, LocalDate birthDate, String level, Boolean isActive, Short roleId, UserAccountDto account, List<UserPenaltyDto> penalties, List<UserSiteDto> sites) {
+    public UserProfileDto(String matricule, String firstName, String lastName, String email, LocalDate birthDate, String level, Boolean isActive, Short roleId, UserAccountDto account, List<UserPenaltyDto> penalties, List<UserSiteDto> sites) {
         this.matricule = matricule;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -41,7 +39,7 @@ public class UserProfileResponse {
         this.sites = sites;
     }
 
-    public static UserProfileResponse from(User user, UserAccounts accountModel, List<UsersSites> userSites) {
+    public static UserProfileDto from(User user, UserAccounts accountModel, List<UsersSites> userSites) {
         Short rId = null;
         if (user.getRole() != null) {
             rId = user.getRole().getId();
@@ -74,7 +72,7 @@ public class UserProfileResponse {
             )).collect(Collectors.toList());
         }
 
-        return new UserProfileResponse(
+        return new UserProfileDto(
                 user.getMatricule(),
                 user.getFirstName(),
                 user.getLastName(),

@@ -2,19 +2,22 @@ package lu.ephec.backend_projetdv2026.dto;
 
 import lu.ephec.backend_projetdv2026.models.Site;
 import java.time.LocalTime;
+import java.util.List;
 
-public class SiteResponse {
+public class SiteDto {
     private Integer siteId;
     private String name;
     private String address;
     private LocalTime openingTime;
     private LocalTime closingTime;
     private Boolean isActive;
+    // Parsed sessions for the site (may be null when not requested)
+    private List<?> sessions;
 
-    public SiteResponse() {
+    public SiteDto() {
     }
 
-    public SiteResponse(Integer siteId, String name, String address, LocalTime openingTime, LocalTime closingTime, Boolean isActive) {
+    public SiteDto(Integer siteId, String name, String address, LocalTime openingTime, LocalTime closingTime, Boolean isActive) {
         this.siteId = siteId;
         this.name = name;
         this.address = address;
@@ -23,14 +26,33 @@ public class SiteResponse {
         this.isActive = isActive;
     }
 
-    public static SiteResponse from(Site site) {
-        return new SiteResponse(
+    // Overloaded constructor including sessions
+    public SiteDto(Integer siteId, String name, String address, LocalTime openingTime, LocalTime closingTime, Boolean isActive, List<?> sessions) {
+        this(siteId, name, address, openingTime, closingTime, isActive);
+        this.sessions = sessions;
+    }
+
+    public static SiteDto from(Site site) {
+        return new SiteDto(
                 site.getSiteId(),
                 site.getName(),
                 site.getAddress(),
                 site.getOpeningTime(),
                 site.getClosingTime(),
                 site.getIsActive()
+        );
+    }
+
+
+    public static SiteDto from(Site site, List<?> sessions) {
+        return new SiteDto(
+                site.getSiteId(),
+                site.getName(),
+                site.getAddress(),
+                site.getOpeningTime(),
+                site.getClosingTime(),
+                site.getIsActive(),
+                sessions
         );
     }
 
@@ -46,5 +68,7 @@ public class SiteResponse {
     public void setClosingTime(LocalTime closingTime) { this.closingTime = closingTime; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public List<?> getSessions() { return sessions; }
+    public void setSessions(List<?> sessions) { this.sessions = sessions; }
 }
 

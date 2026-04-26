@@ -1,0 +1,103 @@
+<div class="max-w-xl mx-auto">
+  <!-- calendar component overlay shown before the form if enabled -->
+  @if (showCalendarOverlay) {
+    <app-match-cal [selected]="tempSelectedDate" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
+  }
+  <form [formGroup]="form" (ngSubmit)="submit()" class="bg-white p-6 rounded shadow">
+    <h2 class="text-xl font-bold mb-4">Créer un Match</h2>
+
+    <!-- Field moved to top (type is hidden per request) -->
+    <!-- Site select (above Field) -->
+    <div class="mb-3">
+      <label class="block text-sm font-medium">Complexe sportif</label>
+      <select formControlName="siteId" class="w-full border rounded p-2" [class.bg-gray-100]="sites.length === 1" [class.border-red-500]="form.get('siteId')?.invalid && form.get('siteId')?.touched">
+        <option value="">-- Sélectionnez le complexe --</option>
+        @for (s of sites; track s.siteId) {
+          <option [value]="s.siteId">{{ s.name || s.siteName || ('Site ' + s.siteId) }}</option>
+        }
+      </select>
+      @if (form.get('siteId')?.invalid && form.get('siteId')?.touched) {
+        <p class="text-red-500 text-xs mt-1">Le complexe sportif est obligatoire</p>
+      }
+    </div>
+
+    <div class="mb-3">
+      <label class="block text-sm font-medium">Terrain</label>
+      <select formControlName="fieldId" class="w-full border rounded p-2" [class.border-red-500]="form.get('fieldId')?.invalid && form.get('fieldId')?.touched">
+        <option value="">-- Sélectionnez le terrain --</option>
+        @for (f of fields; track f.fieldId) {
+          <option [value]="f.fieldId">Field {{f.fieldId}} - {{ f.isIndoor ? 'en Intérieur' : 'en Extérieur' }}</option>
+        }
+      </select>
+      @if (form.get('fieldId')?.invalid && form.get('fieldId')?.touched) {
+        <p class="text-red-500 text-xs mt-1">Le terrain est obligatoire</p>
+      }
+    </div>
+
+    <!-- Date / Start / End moved below field (kept at top area) -->
+    <div class="grid grid-cols-3 gap-3 mb-3">
+      <div>
+        <label class="block text-sm font-medium">Date</label>
+        <!-- readonly text input shows selected date; clicking reopens calendar and clears Start/End -->
+        <input type="text" formControlName="matchDate" [readonly]="dateReadOnly" (click)="onDateInputClick()" [class.bg-gray-50]="dateReadOnly" [class.border-red-500]="form.get('matchDate')?.invalid && form.get('matchDate')?.touched" class="w-full border rounded p-2" />
+        @if (form.get('matchDate')?.invalid && form.get('matchDate')?.touched) {
+          <p class="text-red-500 text-xs mt-1">La date est obligatoire</p>
+        }
+      </div>
+                    <div>
+                      <label class="block text-sm font-medium">Heure du début</label>
+                      <select formControlName="startTime" class="w-full border rounded p-2" [class.border-red-500]="form.get('startTime')?.invalid && form.get('startTime')?.touched">
+                        <option value="">-- Sélectionner l'heure du début --</option>
+                        @for (ss of sessionsForSite; track ss.match_set_id ?? ss.sessionId ?? $index) {
+                          <option [value]="ss._start">{{ ss.label }}</option>
+                        }
+                      </select>
+                      @if (form.get('startTime')?.invalid && form.get('startTime')?.touched) {
+                        <p class="text-red-500 text-xs mt-1">L'heure de début est obligatoire</p>
+                      }
+                    </div>
+                                                                                  <div>
+                                                                                  <label class="block text-sm font-medium">Fin</label>
+                                                                                  <input type="text" class="w-full border rounded p-2 bg-gray-50" [value]="form.get('endTime')?.value || '--:--'" />
+                                                                                  </div>
+    </div>
+
+    <!-- Pub Status, Priv Status and Pricing are hidden per request -->
+
+    <div class="mb-3">
+      <label class="block text-sm font-medium">Organisateur</label>
+      <!-- hidden input keeps the organiserId in the reactive form for submission -->
+      <input type="hidden" formControlName="organiserId" />
+      <!-- visible readonly field shows first + last name only (populated in component) -->
+      <input [value]="organiserName || ''" readonly class="w-full border rounded p-2 bg-gray-50" [class.border-red-500]="form.get('organiserId')?.invalid && form.get('organiserId')?.touched" />
+      @if (form.get('organiserId')?.invalid && form.get('organiserId')?.touched) {
+        <p class="text-red-500 text-xs mt-1">L'organisateur est obligatoire</p>
+      }
+    </div>
+
+    @if (isPrivate()) {
+      <div class="mb-3" formArrayName="invites">
+        <label class="block text-sm font-medium mb-2">Invités (veuillez inviter 3 joueurs)</label>
+        @for (i of [0,1,2]; track i) {
+          <div class="mb-2">
+            <input [formControlName]="i" placeholder="Numéro de matricule de l'invité" class="w-full border rounded p-2" [class.border-red-500]="getInviteControl(i)?.invalid && getInviteControl(i)?.touched" />
+            @if (getInviteControl(i)?.invalid && getInviteControl(i)?.touched) {
+              <p class="text-red-500 text-xs mt-1">Le numéro de matricule est obligatoire</p>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    @if (error) {
+      <div class="text-red-600 mb-2">{{error}}</div>
+    }
+    @if (successMessage) {
+      <div class="text-green-600 mb-2">{{successMessage}}</div>
+    }
+
+    <div class="flex justify-end">
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded" [disabled]="loading">{{ loading ? 'Création...' : 'Créer le Match' }}</button>
+    </div>
+  </form>
+</div>

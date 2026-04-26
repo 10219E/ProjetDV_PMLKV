@@ -1,6 +1,6 @@
 package lu.ephec.backend_projetdv2026.controller;
 
-import lu.ephec.backend_projetdv2026.dto.FieldResponse;
+import lu.ephec.backend_projetdv2026.dto.FieldDto;
 import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.services.FieldService;
 import org.springframework.http.ResponseEntity;
@@ -20,31 +20,31 @@ public class FieldController {
     }
 
     @GetMapping(produces = "application/json")
-    public ResponseEntity<List<FieldResponse>> getAllFields() {
-        List<FieldResponse> responses = fieldService.fetchAll().stream()
-                .map(FieldResponse::from)
+    public ResponseEntity<List<FieldDto>> getAllFields() {
+        List<FieldDto> responses = fieldService.fetchAll().stream()
+                .map(FieldDto::from)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
     @GetMapping(value ="/{id}", produces = "application/json")
-    public ResponseEntity<FieldResponse> getFieldById(@PathVariable Integer id) {
+    public ResponseEntity<FieldDto> getFieldById(@PathVariable Integer id) {
         Field field = fieldService.fetchById(id).orElseThrow();
-        return ResponseEntity.ok(FieldResponse.from(field));
+        return ResponseEntity.ok(FieldDto.from(field));
     }
 
     @GetMapping(value= "/site/{siteId}", produces = "application/json")
-    public ResponseEntity<List<FieldResponse>> getFieldsBySite(@PathVariable Integer siteId) {
-        List<FieldResponse> responses = fieldService.fetchBySite(siteId).stream()
-                .map(FieldResponse::from)
+    public ResponseEntity<List<FieldDto>> getFieldsBySite(@PathVariable Integer siteId) {
+        List<FieldDto> responses = fieldService.fetchBySite(siteId).stream()
+                .map(FieldDto::from)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
     @GetMapping(value = "/site/{siteId}/active", produces = "application/json")
-    public ResponseEntity<List<FieldResponse>> getActiveFieldsBySite(@PathVariable Integer siteId) {
-        List<FieldResponse> responses = fieldService.fetchActiveFieldsByActiveSite(siteId).stream()
-                .map(FieldResponse::from)
+    public ResponseEntity<List<FieldDto>> getActiveFieldsBySite(@PathVariable Integer siteId) {
+        List<FieldDto> responses = fieldService.fetchActiveFieldsByActiveSite(siteId).stream()
+                .map(FieldDto::from)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }

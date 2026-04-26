@@ -1,6 +1,7 @@
 import { Routes, CanActivateFn, Router } from '@angular/router';
 import { HomeComponent } from './layout/content/pages/home/home';
 import { HomeAccount } from './layout/content/pages/home-account/home-account';
+import { NewPrivMatch } from './layout/content/pages/new-priv-match/new-priv-match';
 import { inject } from '@angular/core';
 import { AuthService } from './services/auth.service';
 import { UserService } from './services/user.service';
@@ -53,6 +54,7 @@ export const routes: Routes = [
   { path: '', component: HomeComponent, pathMatch: 'full' },
   // Visiting /home (no userId) should redirect the authenticated user to their own /home/:userId
   { path: 'home', component: HomeComponent, canActivate: [authGuard] },
+  { path: 'home/:userId/create_pmatch', component: NewPrivMatch, canActivate: [authGuard] },
   { path: 'home/:userId', component: HomeAccount, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];

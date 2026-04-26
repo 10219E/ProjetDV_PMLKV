@@ -2,8 +2,8 @@ import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { NavMenu } from '../../nav-menu/nav-menu';
 import { HomeAccountHeader } from '../../header/header';
+import { NavMenu } from '../../nav-menu/nav-menu';
 import { AuthService } from '../../../../services/auth.service';
 import { UserService } from '../../../../services/user.service';
 

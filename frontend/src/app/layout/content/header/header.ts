@@ -1,5 +1,6 @@
 import { Component, Input, LOCALE_ID } from '@angular/core';
 import { CommonModule, registerLocaleData } from '@angular/common';
+import { NavService } from '../../../services/nav.service';
 import localeFr from '@angular/common/locales/fr';
 
 // Register French locale data for date pipe when this module loads.
@@ -14,15 +15,11 @@ registerLocaleData(localeFr);
 })
 export class HomeAccountHeader {
   @Input() todayDate: Date | null = new Date();
+  constructor(private navService: NavService) {}
 
-  // Dispatch a global event that `NavMenu` listens to in order to toggle the mobile overlay.
+  // Toggle the shared nav menu via service so header doesn't need to know where the nav component is rendered.
   toggleNav(): void {
-    try {
-      window.dispatchEvent(new CustomEvent('toggleNavMenu'));
-    } catch (e) {
-      // fallback for older environments
-      try { window.dispatchEvent(new Event('toggleNavMenu')); } catch {}
-    }
+    this.navService.toggle();
   }
 }
 

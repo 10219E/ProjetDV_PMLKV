@@ -3,7 +3,7 @@ package lu.ephec.backend_projetdv2026.dto;
 import lu.ephec.backend_projetdv2026.models.Field;
 import java.time.LocalDate;
 
-public class FieldResponse {
+public class FieldDto {
     private Integer fieldId;
     private Integer siteId;
     private Boolean isIndoor;
@@ -11,9 +11,9 @@ public class FieldResponse {
     private LocalDate maintenanceFromDate;
     private LocalDate maintenanceToDate;
 
-    public FieldResponse() {}
+    public FieldDto() {}
 
-    public FieldResponse(Integer fieldId, Integer siteId, Boolean isIndoor, Boolean isActive, LocalDate maintenanceFromDate, LocalDate maintenanceToDate) {
+    public FieldDto(Integer fieldId, Integer siteId, Boolean isIndoor, Boolean isActive, LocalDate maintenanceFromDate, LocalDate maintenanceToDate) {
         this.fieldId = fieldId;
         this.siteId = siteId;
         this.isIndoor = isIndoor;
@@ -22,8 +22,8 @@ public class FieldResponse {
         this.maintenanceToDate = maintenanceToDate;
     }
 
-    public static FieldResponse from(Field field) {
-        return new FieldResponse(
+    public static FieldDto from(Field field) {
+        return new FieldDto(
                 field.getFieldId(),
                 field.getSite() != null ? field.getSite().getSiteId() : null,
                 field.getIsIndoor(),
