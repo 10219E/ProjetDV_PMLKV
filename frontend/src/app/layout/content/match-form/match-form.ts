@@ -614,7 +614,7 @@ export class MatchForm implements OnInit {
     this.cd.detectChanges();
   }
 
-  onDateInputClick(): void {
+  async onDateInputClick(): Promise<void> {
     // open calendar overlay for selecting a new date
     // do not allow opening the calendar until a field is selected
     const fid = this.form.get('fieldId')?.value ? Number(this.form.get('fieldId')?.value) : null;
@@ -622,6 +622,18 @@ export class MatchForm implements OnInit {
       this.error = 'Merci de sélectionner le terrain avant de choisir une date.';
       return;
     }
+    // Ensure we have the current user's role before opening the calendar to avoid defaulting
+    // to 'subscribed' (14 days) while the profile is still loading.
+    if (this.currentUserRoleId === undefined || this.currentUserRoleId === null) {
+      try {
+        const profile = await firstValueFrom(this.userService.getCurrentUser());
+        this.currentUserRoleId = profile?.roleId ?? null;
+      } catch (e) {
+        // If fetching fails, we still allow opening the calendar but prefer explicit reservationWindowDays
+        console.warn('Failed to fetch user profile before opening calendar', e);
+      }
+    }
+
     // set tempSelectedDate from current form value if present
     const v = this.form.get('matchDate')?.value;
     if (v) {
