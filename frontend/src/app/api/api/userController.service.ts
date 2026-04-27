@@ -138,18 +138,18 @@ export class UserControllerService extends BaseService {
     }
 
     /**
-     * @endpoint get /api/users/{matricule}
-     * @param matricule 
+     * @endpoint get /api/users/{identifier}
+     * @param identifier 
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public getUserByMatricule(matricule: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<UserProfileDto>;
-    public getUserByMatricule(matricule: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<UserProfileDto>>;
-    public getUserByMatricule(matricule: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<UserProfileDto>>;
-    public getUserByMatricule(matricule: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        if (matricule === null || matricule === undefined) {
-            throw new Error('Required parameter matricule was null or undefined when calling getUserByMatricule.');
+    public getUserByIdentifier(identifier: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<UserProfileDto>;
+    public getUserByIdentifier(identifier: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<UserProfileDto>>;
+    public getUserByIdentifier(identifier: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<UserProfileDto>>;
+    public getUserByIdentifier(identifier: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        if (identifier === null || identifier === undefined) {
+            throw new Error('Required parameter identifier was null or undefined when calling getUserByIdentifier.');
         }
 
         let localVarHeaders = this.defaultHeaders;
@@ -177,7 +177,7 @@ export class UserControllerService extends BaseService {
             }
         }
 
-        let localVarPath = `/api/users/${this.configuration.encodeParam({name: "matricule", value: matricule, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: undefined})}`;
+        let localVarPath = `/api/users/${this.configuration.encodeParam({name: "identifier", value: identifier, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: undefined})}`;
         const { basePath, withCredentials } = this.configuration;
         return this.httpClient.request<UserProfileDto>('get', `${basePath}${localVarPath}`,
             {

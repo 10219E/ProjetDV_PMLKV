@@ -144,12 +144,12 @@ export class InfoControllerService extends BaseService {
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public getUserByEmail(email: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<InfoControllerDto>;
-    public getUserByEmail(email: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<InfoControllerDto>>;
-    public getUserByEmail(email: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<InfoControllerDto>>;
-    public getUserByEmail(email: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+    public getUserMatByEmail(email: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<InfoControllerDto>;
+    public getUserMatByEmail(email: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<InfoControllerDto>>;
+    public getUserMatByEmail(email: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<InfoControllerDto>>;
+    public getUserMatByEmail(email: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
         if (email === null || email === undefined) {
-            throw new Error('Required parameter email was null or undefined when calling getUserByEmail.');
+            throw new Error('Required parameter email was null or undefined when calling getUserMatByEmail.');
         }
 
         let localVarQueryParameters = new OpenApiHttpParams(this.encoder);

@@ -52,7 +52,7 @@ public class InfoController {
 
 	//GET USER MATRICULE
 	@GetMapping(value="/identify", produces = "application/json")
-	public InfoControllerDto getUserByEmail(@RequestParam("email") String email) {
+	public InfoControllerDto getUserMatByEmail(@RequestParam("email") String email) {
 		String matricule = userService.fetchByMail(email).orElseThrow().getMatricule();
 		logger.info("Identified user with email {} as matricule {}", email, matricule);
 		return new InfoControllerDto(matricule);

@@ -45,9 +45,10 @@ export class MatchForm implements OnInit {
    endTime: new FormControl<string | null>({value: null, disabled: true}, [Validators.required]),
    organiserId: new FormControl<string | null>(null, [Validators.required]),
    invites: new FormArray([
-     new FormControl<string | null>(null),
-     new FormControl<string | null>(null),
-     new FormControl<string | null>(null)
+     // use the same strong email validation as `user-form` (email + pattern for domain suffix)
+     new FormControl<string | null>(null, [Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)]),
+     new FormControl<string | null>(null, [Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)]),
+     new FormControl<string | null>(null, [Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)])
    ])
   });
 
@@ -61,6 +62,13 @@ export class MatchForm implements OnInit {
   private updatingFromSession = false;
   // Fully booked dates for the calendar (Set of YYYY-MM-DD)
   fullyBookedDates: Set<string> = new Set();
+
+  // per-invite validation state (idle, checking, found, not_found, error)
+  inviteStates: Array<{ status: 'idle' | 'checking' | 'found' | 'not_found' | 'error', user?: any }> = [
+    { status: 'idle' },
+    { status: 'idle' },
+    { status: 'idle' }
+  ];
 
   constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef) {}
 
@@ -108,13 +116,38 @@ export class MatchForm implements OnInit {
     }
 
     // Add validators to invite fields for private matches
+    // always ensure email syntax validator is present; for private matches also require the field
+    const invitesArray = this.form.get('invites') as FormArray;
+    const emailPattern = Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/);
     if (this.isPrivate()) {
-      const invitesArray = this.form.get('invites') as FormArray;
       invitesArray.controls.forEach(control => {
-        control.setValidators([Validators.required]);
+        control.setValidators([Validators.required, Validators.email, emailPattern]);
+        control.updateValueAndValidity();
+      });
+    } else {
+      // ensure email + pattern validator remains applied (non-required)
+      invitesArray.controls.forEach(control => {
+        control.setValidators([Validators.email, emailPattern]);
         control.updateValueAndValidity();
       });
     }
+
+    // Reset invite validation UI/state when the user edits the invite input.
+    // If the user changes the email text, clear any previous 'found'/'not_found' message
+    // and reset the button/status to idle so they can re-validate the new value.
+    invitesArray.controls.forEach((control, idx) => {
+      control.valueChanges.subscribe(() => {
+        // only change state if it's not already 'checking' to avoid interrupting an in-flight check
+        if (this.inviteStates[idx]?.status !== 'checking') {
+          this.inviteStates[idx] = { status: 'idle' };
+        }
+        // if user cleared the input, ensure the control is untouched so UI validation messages hide
+        if (!control.value) {
+          control.markAsUntouched();
+        }
+        this.cd.detectChanges();
+      });
+    });
 
     // keep endTime disabled (greyed) and set placeholder via template; we'll still set its value programmatically
     this.form.get('endTime')?.disable();
@@ -549,6 +582,65 @@ export class MatchForm implements OnInit {
   // Helper method to get individual invite control for validation
   getInviteControl(index: number): any {
     return (this.form.get('invites') as FormArray).at(index);
+  }
+
+  // Validate invite email at given index: call backend to see if user exists
+  validateInvite(index: number): void {
+    const control = this.getInviteControl(index);
+    if (!control) return;
+    const email = control.value ? String(control.value).trim() : '';
+    // mark touched so validation messages show
+    control.markAsTouched();
+    // do not proceed if the control is invalid (either empty when required or bad email syntax)
+    if (control.invalid) {
+      // ensure the template disables the button, but protect here as well
+      return;
+    }
+
+    // set checking state
+    this.inviteStates[index] = { status: 'checking' };
+    this.cd.detectChanges();
+
+    // call UserService to lookup by email
+    try {
+      this.userService.getUserByEmail(email).subscribe({
+        next: (user) => {
+          // user found -> keep email in control but store user (matricule) for later use
+          this.inviteStates[index] = { status: 'found', user };
+          this.cd.detectChanges();
+        },
+        error: (err) => {
+          // if backend returns 404 or similar, mark as not_found
+          console.warn('Invite validation error for', email, err);
+          this.inviteStates[index] = { status: 'not_found' };
+          this.cd.detectChanges();
+        }
+      });
+    } catch (e) {
+      console.error('validateInvite caught', e);
+      this.inviteStates[index] = { status: 'error' };
+      this.cd.detectChanges();
+    }
+  }
+
+  // Clear invite input and its state
+  clearInvite(index: number): void {
+    const control = this.getInviteControl(index);
+    if (!control) return;
+    control.setValue(null);
+    this.inviteStates[index] = { status: 'idle' };
+    control.markAsUntouched();
+    this.cd.detectChanges();
+  }
+
+  // Called when user clicks the "Inviter ?" button for a not-found email.
+  // For now we just log; later this will open the signup/user-form prefilled with the email.
+  inviteUser(index: number): void {
+    const control = this.getInviteControl(index);
+    if (!control) return;
+    const email = control.value ? String(control.value).trim() : '';
+    console.log('Invite user flow should start for', email);
+    // TODO: open UserFormComponent with prefilled email (handled in later step)
   }
 
   submit(): void {

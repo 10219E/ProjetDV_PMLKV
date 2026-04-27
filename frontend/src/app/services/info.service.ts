@@ -21,7 +21,7 @@ export class InfoService {
   }
 
   getMatriculeByEmail(email: string): Observable<string | undefined> {
-    return this.infoControllerService.getUserByEmail(email).pipe(
+    return this.infoControllerService.getUserMatByEmail(email).pipe(
       map(profile => profile?.matricule)
     );
   }

@@ -53,26 +53,35 @@ public class UserController {
         return ResponseEntity.ok(responses);
     }
 
-    @GetMapping(value= "/{email}", produces = "application/json")
-    public ResponseEntity<UserProfileDto> getUserByEmail(@PathVariable String email) {
-        Optional<User> userOpt = userService.fetchByMail(email);
-        if (userOpt.isEmpty()) {
-            logger.warn("User with email {} not found", email);
+    // Single endpoint to fetch by either email or matricule to avoid ambiguous mappings when both
+    // routes would match the same path segment. If the identifier contains '@' it is treated as an email.
+    @GetMapping(value = "/{identifier}", produces = "application/json")
+    public ResponseEntity<UserProfileDto> getUserByIdentifier(@PathVariable String identifier) {
+        if (identifier == null) {
             return ResponseEntity.notFound().build();
         }
-        logger.info("User with email {} found", email);
-        return ResponseEntity.ok(fetchUserProfile(userOpt.get()));
-    }
-
-    @GetMapping(value = "/{matricule}", produces = "application/json")
-    public ResponseEntity<UserProfileDto> getUserByMatricule(@PathVariable String matricule) {
-        Optional<User> userOpt = userService.fetchById(matricule);
-        if (userOpt.isEmpty()) {
-            logger.warn("User with matricule {} not found", matricule);
-            return ResponseEntity.notFound().build();
+        try {
+            if (identifier.contains("@")) {
+                Optional<User> userOpt = userService.fetchByMail(identifier);
+                if (userOpt.isEmpty()) {
+                    logger.warn("User with email {} not found", identifier);
+                    return ResponseEntity.notFound().build();
+                }
+                logger.info("User with email {} found", identifier);
+                return ResponseEntity.ok(fetchUserProfile(userOpt.get()));
+            } else {
+                Optional<User> userOpt = userService.fetchById(identifier);
+                if (userOpt.isEmpty()) {
+                    logger.warn("User with matricule {} not found", identifier);
+                    return ResponseEntity.notFound().build();
+                }
+                logger.info("User with matricule {} found", identifier);
+                return ResponseEntity.ok(fetchUserProfile(userOpt.get()));
+            }
+        } catch (Exception e) {
+            logger.error("Error while fetching user by identifier {}: {}", identifier, e.getMessage());
+            return ResponseEntity.internalServerError().build();
         }
-        logger.info("User with matricule {} found", matricule);
-        return ResponseEntity.ok(fetchUserProfile(userOpt.get()));
     }
 
     private UserProfileDto fetchUserProfile(User u) {
