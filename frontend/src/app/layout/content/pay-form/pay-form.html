@@ -1,0 +1,23 @@
+<div class="fixed inset-0 flex items-center justify-center z-40">
+  <div class="absolute inset-0 bg-black opacity-40" (click)="cancel()"></div>
+  <div class="bg-white rounded shadow-lg p-6 w-full max-w-sm z-50">
+    <h3 class="text-lg font-bold mb-3">Paiement</h3>
+    <p class="text-sm text-gray-600 mb-4">Montant à payer: <span class="font-semibold">{{ amount | number:'1.0-2' }} €</span></p>
+
+    <label class="block text-sm font-medium mb-1">Numéro de carte</label>
+    <input type="text" [formControl]="cardNumber" maxlength="16" placeholder="1234123412341234" class="w-full border rounded p-2 mb-2" />
+    @if (cardNumber.touched && cardNumber.invalid) {
+      <p class="text-red-500 text-xs">Le numéro de carte doit contenir 16 chiffres.</p>
+    }
+
+    @if (error) {
+      <div class="text-red-600 text-sm mb-2">{{ error }}</div>
+    }
+
+    <div class="flex justify-end gap-2 mt-4">
+      <button type="button" (click)="cancel()" class="px-3 py-2 rounded border bg-white">Annuler</button>
+      <button type="button" (click)="pay()" class="px-3 py-2 rounded bg-green-600 text-white" [disabled]="loading">{{ loading ? 'Paiement...' : 'Payer' }}</button>
+    </div>
+  </div>
+</div>
+

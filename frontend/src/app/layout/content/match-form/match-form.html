@@ -168,3 +168,7 @@
   <app-user-form [sites]="sites" [prefillEmail]="userFormPrefillEmail" [prefillSiteId]="form.get('siteId')?.value" [prefillSiteName]="getSelectedSiteName()" [inviteMode]="true" (close)="onUserFormClose()" (signupCompleted)="onSignupCompleted($event)"></app-user-form>
 }
 
+@if (showPayForm) {
+  <app-pay-form [amount]="payAmount" (paid)="onPaymentCompleted($event)" (cancelled)="onPaymentCancelled()"></app-pay-form>
+}
+

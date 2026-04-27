@@ -13,11 +13,12 @@ import { AvailabilityService } from '../../../services/availability.service';
 import { Router } from '@angular/router';
 import { MatchCal } from '../match-cal/match-cal';
 import { UserFormComponent } from '../user-form/user-form';
+import { PayFormComponent } from '../pay-form/pay-form';
 
 @Component({
   selector: 'app-match-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatchCal, UserFormComponent],
+    imports: [CommonModule, ReactiveFormsModule, MatchCal, UserFormComponent, PayFormComponent],
   templateUrl: './match-form.html',
   styleUrls: ['./match-form.css']
 })
@@ -83,8 +84,17 @@ export class MatchForm implements OnInit {
   showUserForm = false;
   userFormPrefillEmail?: string | null = null;
   userFormInviteIndex: number | null = null;
+  // pay form overlay state
+  showPayForm = false;
+  payAmount = 0;
+  // DTO stored while waiting for payment
+  private pendingDto: any | null = null;
 
   constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef) {}
+  // keep a direct reference to PayFormComponent to satisfy analyzers that the imported component is used
+  // (template uses <app-pay-form> conditionally with @if which some static analyzers may not detect)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private _payFormRef = PayFormComponent;
 
   ngOnInit(): void {
     // ensure calendar overlay is not prompted on initial form load
@@ -847,7 +857,8 @@ export class MatchForm implements OnInit {
     this.cd.detectChanges();
   }
 
-  submit(): void {
+  async submit(): Promise<void> {
+    // Instead of creating immediately, open a lightweight pay form.
     this.error = null;
     this.successMessage = null;
     if (this.form.invalid) {
@@ -855,20 +866,71 @@ export class MatchForm implements OnInit {
       return;
     }
 
-      // build DTO according to generated MatchCreationDto (omit hidden fields)
-       const dto: any = {
-         fieldId: Number(this.form.get('fieldId')?.value),
-         type: this.defaultType ?? this.form.get('type')?.value,
-         matchDate: this.form.get('matchDate')?.value,
-         startTime: this.form.get('startTime')?.value,
-         endTime: this.form.get('endTime')?.value,
-         organiserId: this.form.get('organiserId')?.value,
-       };
+    // build DTO and keep it pending until payment completes
+    const organiserVal = this.form.get('organiserId')?.value;
+    const dto: any = {
+      fieldId: Number(this.form.get('fieldId')?.value),
+      type: this.defaultType ?? this.form.get('type')?.value,
+      matchDate: this.form.get('matchDate')?.value,
+      startTime: this.form.get('startTime')?.value,
+      endTime: this.form.get('endTime')?.value,
+      organiserId: organiserVal !== null && organiserVal !== undefined ? String(organiserVal) : null,
+    };
 
     if (this.isPrivate()) {
-      const invites = (this.form.get('invites') as FormArray).controls.map(c => c.value).filter((v: any) => v && v.toString().trim() !== '');
-      dto.invites = invites;
+      // Convert invite inputs (which may contain emails) into matricules expected by backend.
+      const controls = (this.form.get('invites') as FormArray).controls;
+      const invitesMat: string[] = [];
+      for (let i = 0; i < controls.length; i++) {
+        const raw = controls[i].value;
+        if (!raw) continue;
+        const v = String(raw).trim();
+        if (!v) continue;
+
+        const state = this.inviteStates[i];
+        if (state && state.status === 'found' && state.user && state.user.matricule) {
+          invitesMat.push(state.user.matricule);
+          continue;
+        }
+
+        // If value looks like an email, resolve it to matricule now
+        if (v.includes('@')) {
+          try {
+            const user = await firstValueFrom(this.userService.getUserByEmail(v));
+            if (!user || !user.matricule) {
+              this.error = `Invited user not found for ${v}`;
+              this.cd.detectChanges();
+              return;
+            }
+            invitesMat.push(user.matricule);
+          } catch (e) {
+            this.error = `Invited user not found for ${v}`;
+            this.cd.detectChanges();
+            return;
+          }
+        } else {
+          // assume the user entered a matricule directly
+          invitesMat.push(v);
+        }
+      }
+
+      dto.invites = invitesMat;
     }
+
+    // set the amount: 60 / 4 = 15 (hardcoded as requested)
+    this.payAmount = 60 / 4;
+    this.pendingDto = dto;
+    // show the pay form overlay
+    this.showPayForm = true;
+    this.cd.detectChanges();
+  }
+
+  // Handler called when PayFormComponent emits a successful payment
+  onPaymentCompleted(payload: { amount: number; cardLast4?: string }): void {
+    if (!this.pendingDto) return;
+    // attach payment info to DTO; backend may ignore unknown fields but keep in case
+    this.pendingDto.paidAmount = payload.amount;
+    if (payload.cardLast4) this.pendingDto.cardLast4 = payload.cardLast4;
 
     // Set Authorization header from AuthService token (if available)
     const token = this.authService.getToken();
@@ -876,23 +938,35 @@ export class MatchForm implements OnInit {
       this.matchCreationService.defaultHeaders = this.matchCreationService.defaultHeaders.set('Authorization', `Bearer ${token}`);
     }
 
+    // hide pay form while creating
+    this.showPayForm = false;
     this.loading = true;
-    this.matchCreationService.create(dto).subscribe({
+    this.matchCreationService.create(this.pendingDto).subscribe({
       next: (resp: any) => {
         this.loading = false;
         const id = resp && resp['matchId'];
         this.successMessage = id ? `Match created (id=${id})` : 'Match created';
+        this.pendingDto = null;
         // optionally navigate to user's home after creating
         if (this.organiserId) {
           this.router.navigate(['/home', this.organiserId]);
         }
+        this.cd.detectChanges();
       },
       error: (err) => {
         console.error('Create match failed', err);
         this.loading = false;
         this.error = err?.message || 'Failed to create match';
+        this.pendingDto = null;
         this.cd.detectChanges();
       }
     });
+  }
+
+  // Handler when user cancels payment
+  onPaymentCancelled(): void {
+    this.showPayForm = false;
+    this.pendingDto = null;
+    this.cd.detectChanges();
   }
 }
