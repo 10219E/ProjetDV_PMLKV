@@ -11,5 +11,6 @@ public class ManualHashGen {
         System.out.println("L0001 -> " + enc.encode("Invite@Usr!")); //sbernard@ephec.be
         System.out.println("S0001 -> " + enc.encode("Norm@lS!te")); //jmartin@ephec.be
         System.out.println("L0005 -> " + enc.encode("Invite@123!")); //invite@me.com
+        System.out.println("L0006 -> " + enc.encode("S@dmin1!")); //sone@ephec.be
     }
 }

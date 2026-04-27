@@ -135,7 +135,7 @@ public class UserController {
         try {
             if (roleId != null && roleId.shortValue() == ROLE_ADMIN_ID) {
                 // ADMIN: no payment account, no sites
-                logger.info("User {} is ADMIN (roleId={}), skipping payment account and sites.", matricule, roleId);
+                logger.info("User {} is SUPER_ADMIN (roleId={}), skipping payment account and sites.", matricule, roleId);
             } else if (roleId != null && roleId.equals(ROLE_SITE_ADMIN_ID)) {
                 // SITE_ADMIN: only sites
                 logger.info("User {} is SITE_ADMIN (roleId={}), skipping payment account.", matricule, roleId);

@@ -26,6 +26,8 @@ export class MatchForm implements OnInit {
   @Input() organiserId?: string | null;
   @Input() organiserName?: string | null;
   @Input() defaultType?: string | null; // e.g. 'private' or 'public'
+  @Input() hideOrganiser?: boolean | null;
+  @Input() hideInvites?: boolean | null;
 
   fields: any[] = [];
   // all fields loaded from server (unfiltered). `fields` is the currently displayed list after site filtering.
@@ -138,6 +140,21 @@ export class MatchForm implements OnInit {
       }
     }
 
+    // If parent requests organiser to be hidden, remove requirement and disable control
+    if (this.hideOrganiser) {
+      try {
+        const org = this.form.get('organiserId');
+        if (org) {
+          org.clearValidators();
+          org.setValue(null);
+          org.disable({ emitEvent: false });
+          org.updateValueAndValidity({ emitEvent: false });
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
     // prefill type if provided and disable changing it
     if (this.defaultType) {
       this.form.get('type')?.setValue(this.defaultType);
@@ -148,7 +165,10 @@ export class MatchForm implements OnInit {
     // always ensure email syntax validator is present; for private matches also require the field
     const invitesArray = this.form.get('invites') as FormArray;
     const emailPattern = Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/);
-    if (this.isPrivate()) {
+    // if hideInvites flag is provided, disable invite controls entirely
+    if (this.hideInvites) {
+      invitesArray.controls.forEach(control => { control.clearValidators(); control.setValue(null); control.disable({ emitEvent: false }); control.updateValueAndValidity({ emitEvent: false }); });
+    } else if (this.isPrivate()) {
       invitesArray.controls.forEach(control => {
         control.setValidators([Validators.required, Validators.email, emailPattern]);
         control.updateValueAndValidity();
@@ -356,8 +376,9 @@ export class MatchForm implements OnInit {
           next: (profile: any) => {
 
             const roleId = profile?.roleId ?? -1;
-            // role ids that grant access to all sites: ALL_SITE_ACCESS(2), SITE_ADMIN(7), ADMIN(9)
-            const isAllSites = [2, 7, 9].includes(Number(roleId)) || (profile?.sites && profile.sites.some((s: any) => s.isVip));
+            // role ids that grant access to all sites: ALL_SITE_ACCESS(2), ADMIN(9)
+            // NOTE: SITE_ADMIN (7) should NOT be treated as 'all-sites' here — site_admins must be bound to their site(s)
+            const isAllSites = [2, 9].includes(Number(roleId)) || (profile?.sites && profile.sites.some((s: any) => s.isVip));
             if (isAllSites) {
               // fetch all sites
               // ensure Authorization header is set on the site controller
@@ -898,7 +919,8 @@ export class MatchForm implements OnInit {
   }
 
   async submit(): Promise<void> {
-    // Instead of creating immediately, open a lightweight pay form.
+    // Submit handler: for private matches the flow requires payment first;
+    // for public matches we create immediately and show a confirmation message.
     this.error = null;
     this.successMessage = null;
     if (this.form.invalid) {
@@ -906,7 +928,7 @@ export class MatchForm implements OnInit {
       return;
     }
 
-    // build DTO and keep it pending until payment completes
+    // build DTO
     const organiserVal = this.form.get('organiserId')?.value;
     const dto: any = {
       fieldId: Number(this.form.get('fieldId')?.value),
@@ -917,6 +939,7 @@ export class MatchForm implements OnInit {
       organiserId: organiserVal !== null && organiserVal !== undefined ? String(organiserVal) : null,
     };
 
+    // if private, resolve invites and require payment flow
     if (this.isPrivate()) {
       // Convert invite inputs (which may contain emails) into matricules expected by backend.
       const controls = (this.form.get('invites') as FormArray).controls;
@@ -955,14 +978,48 @@ export class MatchForm implements OnInit {
       }
 
       dto.invites = invitesMat;
+
+      // set the amount: 60 / 4 = 15 (hardcoded as requested)
+      this.payAmount = 60 / 4;
+      this.pendingDto = dto;
+      // show the pay form overlay for private matches
+      this.showPayForm = true;
+      this.cd.detectChanges();
+      return;
     }
 
-    // set the amount: 60 / 4 = 15 (hardcoded as requested)
-    this.payAmount = 60 / 4;
-    this.pendingDto = dto;
-    // show the pay form overlay
-    this.showPayForm = true;
-    this.cd.detectChanges();
+    // Public match: create immediately without payment and show confirmation
+    try {
+      this.loading = true;
+      // ensure Authorization header from AuthService token if available
+      const token = this.authService.getToken();
+      if (token) {
+        this.matchCreationService.defaultHeaders = this.matchCreationService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      }
+      this.matchCreationService.create(dto).subscribe({
+        next: (resp: any) => {
+          this.loading = false;
+          const rawDate = this.form.get('matchDate')?.value || '';
+          const rawStart = this.form.get('startTime')?.value || '';
+          const rawEnd = this.form.get('endTime')?.value || '';
+          const dateFr = this.formatDateForDisplay(rawDate);
+          // Simple confirmation message for public matches (no payment instruction)
+          this.popupMessage = `Votre match public du ${dateFr} de ${rawStart} à ${rawEnd} a été créé.`;
+          this.showSuccessDialog = true;
+          this.cd.detectChanges();
+        },
+        error: (err) => {
+          console.error('Echec de la création du match', err);
+          this.loading = false;
+          this.error = err?.message || 'Echec de la création du match';
+          this.cd.detectChanges();
+        }
+      });
+    } catch (e) {
+      console.error('submit error', e);
+      this.loading = false;
+      this.error = 'Erreur lors de la soumission';
+    }
   }
 
   // Handler called when PayFormComponent emits a successful payment
