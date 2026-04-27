@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
@@ -16,12 +16,19 @@ import { Subscription } from 'rxjs';
 export class NavMenu implements OnInit, OnDestroy {
   visible = false;
   private sub?: Subscription;
+  isAdmin = false;
   // track whether we attempted to move the mobile overlay to body
   private _movedOverlay = false;
   // When true the component will not render/move the mobile overlay (useful for page-level placements)
   @Input() preventMobileOverlay = false;
 
-  constructor(private authService: AuthService, private router: Router, private userService: UserService, private navService: NavService) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private userService: UserService,
+    private navService: NavService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     // Subscribe to the shared NavService so header can toggle the menu from anywhere.
@@ -38,6 +45,23 @@ export class NavMenu implements OnInit, OnDestroy {
         this.cleanupMovedOverlay();
       }
     });
+
+    // determine if current user is an admin (roleId 7 or 9)
+    try {
+      this.userService.getCurrentUser().pipe(take(1)).subscribe({
+        next: (u: any) => {
+          const rid = Number(u?.roleId ?? -1);
+          this.isAdmin = [7, 9].includes(rid);
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.isAdmin = false;
+          this.cdr.detectChanges();
+        }
+      });
+    } catch (e) {
+      this.isAdmin = false;
+    }
   }
 
   ngOnDestroy(): void {
@@ -68,7 +92,8 @@ export class NavMenu implements OnInit, OnDestroy {
       next: (u: any) => {
         const id = u && u.matricule;
         if (id) {
-          this.router.navigate([`/home`, id, `create_pmatch`]);
+          const segment = this.isAdmin ? 'create_public' : 'create_pmatch';
+          this.router.navigate([`/home`, id, segment]);
           this.close();
           return;
         }
@@ -83,8 +108,9 @@ export class NavMenu implements OnInit, OnDestroy {
     // router.url might be something like /home/123 or /home/123/other
     const url = this.router.url || '';
     const m = url.match(/\/home\/(\w+)/);
+    const segment = this.isAdmin ? 'create_public' : 'create_pmatch';
     if (m && m[1]) {
-      this.router.navigate([`/home`, m[1], `create_pmatch`]);
+      this.router.navigate([`/home`, m[1], segment]);
     } else {
       // no user id available; navigate to a safe default (home root)
       this.router.navigate(['/']);

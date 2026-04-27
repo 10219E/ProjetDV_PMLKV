@@ -12,7 +12,10 @@ import lu.ephec.backend_projetdv2026.repo.JPAUserSiteRepo;
 import lu.ephec.backend_projetdv2026.services.UserSiteSubService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -60,8 +63,11 @@ public class UserController {
         if (identifier == null) {
             return ResponseEntity.notFound().build();
         }
-        try {
-            if (identifier.contains("@")) {
+
+        // Attempt to fetch by email or matricule. Treat NOT_FOUND as a normal condition (warning)
+        // and only log errors for unexpected failures.
+        if (identifier.contains("@")) {
+            try {
                 Optional<User> userOpt = userService.fetchByMail(identifier);
                 if (userOpt.isEmpty()) {
                     logger.warn("User with email {} not found", identifier);
@@ -69,7 +75,28 @@ public class UserController {
                 }
                 logger.info("User with email {} found", identifier);
                 return ResponseEntity.ok(fetchUserProfile(userOpt.get()));
-            } else {
+            } catch (HttpClientErrorException hce) {
+                if (hce.getStatusCode() == HttpStatus.NOT_FOUND) {
+                    logger.warn("User with email {} not found: {}", identifier, hce.getMessage());
+                    return ResponseEntity.notFound().build();
+                }
+                logger.error("HTTP error while fetching user by email {}: {}", identifier, hce.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            } catch (ResponseStatusException rse) {
+                // Some services throw ResponseStatusException; check message for not-found hints.
+                final String msg = rse.getMessage() != null ? rse.getMessage() : "";
+                if (msg.contains("404") || msg.contains("NOT_FOUND")) {
+                    logger.warn("User with email {} not found: {}", identifier, rse.getReason());
+                    return ResponseEntity.notFound().build();
+                }
+                logger.error("Error while fetching user by email {}: {}", identifier, rse.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            } catch (Exception e) {
+                logger.error("Unexpected error while fetching user by email {}: {}", identifier, e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+        } else {
+            try {
                 Optional<User> userOpt = userService.fetchById(identifier);
                 if (userOpt.isEmpty()) {
                     logger.warn("User with matricule {} not found", identifier);
@@ -77,10 +104,25 @@ public class UserController {
                 }
                 logger.info("User with matricule {} found", identifier);
                 return ResponseEntity.ok(fetchUserProfile(userOpt.get()));
+            } catch (HttpClientErrorException hce) {
+                if (hce.getStatusCode() == HttpStatus.NOT_FOUND) {
+                    logger.warn("User with matricule {} not found: {}", identifier, hce.getMessage());
+                    return ResponseEntity.notFound().build();
+                }
+                logger.error("HTTP error while fetching user by matricule {}: {}", identifier, hce.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            } catch (ResponseStatusException rse) {
+                final String msg = rse.getMessage() != null ? rse.getMessage() : "";
+                if (msg.contains("404") || msg.contains("NOT_FOUND")) {
+                    logger.warn("User with matricule {} not found: {}", identifier, rse.getReason());
+                    return ResponseEntity.notFound().build();
+                }
+                logger.error("Error while fetching user by matricule {}: {}", identifier, rse.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            } catch (Exception e) {
+                logger.error("Unexpected error while fetching user by matricule {}: {}", identifier, e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
             }
-        } catch (Exception e) {
-            logger.error("Error while fetching user by identifier {}: {}", identifier, e.getMessage());
-            return ResponseEntity.internalServerError().build();
         }
     }
 
@@ -93,7 +135,7 @@ public class UserController {
         try {
             if (roleId != null && roleId.shortValue() == ROLE_ADMIN_ID) {
                 // ADMIN: no payment account, no sites
-                logger.info("User {} is ADMIN (roleId={}), skipping payment account and sites.", matricule, roleId);
+                logger.info("User {} is SUPER_ADMIN (roleId={}), skipping payment account and sites.", matricule, roleId);
             } else if (roleId != null && roleId.equals(ROLE_SITE_ADMIN_ID)) {
                 // SITE_ADMIN: only sites
                 logger.info("User {} is SITE_ADMIN (roleId={}), skipping payment account.", matricule, roleId);

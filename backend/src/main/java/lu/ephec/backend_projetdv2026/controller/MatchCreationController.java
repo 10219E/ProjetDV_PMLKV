@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -29,7 +30,7 @@ public class MatchCreationController {
     }
 
     @PostMapping(produces = "application/json")
-    public ResponseEntity<Map<String,Object>> create(@RequestBody MatchCreationDto dto) {
+    public ResponseEntity<Map<String,Object>> create(@RequestBody MatchCreationDto dto, HttpServletRequest request) {
         logger.info("Create match request received: fieldId={} type={} organiser={}",
                 dto != null ? dto.getFieldId() : null,
                 dto != null ? dto.getType() : null,
@@ -46,8 +47,32 @@ public class MatchCreationController {
         try {
             Match m = new Match();
             m.setType(dto.getType());
-            m.setPubStatus(dto.getPubStatus());
-            m.setPrivStatus(dto.getPrivStatus());
+            // If the request originates from the frontend path "/create_pmatch" then force
+            // public status to NULL and private status to "awaiting" as requested.
+            String referer = request != null ? request.getHeader("Referer") : null;
+            boolean fromCreatePmatch = referer != null && referer.contains("/create_pmatch");
+            if (fromCreatePmatch) {
+                // Explicitly treat requests that originated from the create_pmatch frontend route
+                // as private matches awaiting confirmation.
+                m.setType("private");
+                m.setPubStatus(null);
+                m.setPrivStatus("awaiting");
+            } else {
+                // Respect the caller-provided match type when available.
+                String dtoType = dto.getType() != null ? dto.getType().trim().toLowerCase() : "";
+                if ("private".equals(dtoType)) {
+                    m.setType("private");
+                    m.setPubStatus(null);
+                    // default to 'awaiting' when privStatus is omitted
+                    m.setPrivStatus(dto.getPrivStatus() == null || dto.getPrivStatus().isBlank() ? "awaiting" : dto.getPrivStatus());
+                } else {
+                    // default to public when type is not explicitly 'private'
+                    m.setType("public");
+                    m.setPrivStatus(null);
+                    // default public status to 'open' when omitted
+                    m.setPubStatus(dto.getPubStatus() == null || dto.getPubStatus().isBlank() ? "open" : dto.getPubStatus());
+                }
+            }
             m.setMatchDate(LocalDate.parse(dto.getMatchDate()));
             m.setStartTime(LocalTime.parse(dto.getStartTime()));
             m.setEndTime(LocalTime.parse(dto.getEndTime()));
@@ -65,8 +90,18 @@ public class MatchCreationController {
 
             List<String> invites = dto.getInvites();
 
+            // Log an attempt to create the match (helps diagnose when success log doesn't appear)
+            logger.info("Attempting to create match: field={} date={} start={} end={} organiser={}",
+                    dto.getFieldId(), dto.getMatchDate(), dto.getStartTime(), dto.getEndTime(), dto.getOrganiserId());
+
             Match saved = matchService.newMatch(m, invites);
-            logger.info("Match created id={} field={} type={}", saved.getMatchId(), saved.getField() != null ? saved.getField().getFieldId() : null, saved.getType());
+            // Log a clear success message including match id, date and organiser matricule
+            String organiserMat = (saved.getOrganiser() != null && saved.getOrganiser().getMatricule() != null)
+                    ? saved.getOrganiser().getMatricule()
+                    : (dto.getOrganiserId() != null ? dto.getOrganiserId() : "_public_");
+            logger.info("Match created successfully: id={} date={} by organiser={} field={} type={}",
+                    saved.getMatchId(), saved.getMatchDate(), organiserMat,
+                    saved.getField() != null ? saved.getField().getFieldId() : null, saved.getType());
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("matchId", saved.getMatchId()));
         } catch (Exception ex) {
             logger.error("Error creating match", ex);

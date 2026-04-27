@@ -10,7 +10,6 @@ import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -87,13 +86,17 @@ public class MatchService {
         //Validate that organiser is not wrongly assigned (public=null/private=user)
         ValidationBoiler.verifyOrganizerConsistency(match.getType(), match.getOrganiser());
         if (match.getOrganiser() != null && match.getOrganiser().getMatricule() != null) {
-            ValidationBoiler.verifyExists(jpaUserRepo.existsById(match.getOrganiser().getMatricule()),
-                    "User", match.getOrganiser().getMatricule());
+            String organiserId = match.getOrganiser().getMatricule();
+            ValidationBoiler.verifyExists(jpaUserRepo.existsById(organiserId), "User", organiserId);
 
-            ValidationBoiler.verifyUserActive(match.getOrganiser().getIsActive(), match.getOrganiser().getMatricule()); //verify if active
-
-            var organizer = jpaUserRepo.findById(match.getOrganiser().getMatricule()).orElseThrow();
+            // Load full user record from DB and validate fields (including isActive)
+            var organizer = jpaUserRepo.findById(organiserId).orElseThrow();
+            // Log the loaded organiser and its active flag to help diagnose frontend/DB discrepancies
+            ValidationBoiler.verifyUserActive(organizer.getIsActive(), organiserId); // verify if active using DB value
             ValidationBoiler.verifyNotAdminUser(organizer.getRole().getId(), organizer.getMatricule());
+
+            // Ensure the match.organiser contains the loaded user for later use
+            match.setOrganiser(organizer);
         }
 
         //Validate status consistency

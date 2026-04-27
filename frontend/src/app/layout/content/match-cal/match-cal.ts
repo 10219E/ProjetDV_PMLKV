@@ -13,6 +13,20 @@ export class MatchCal {
   @Output() dateChange = new EventEmitter<Date | null>();
   @Output() confirm = new EventEmitter<Date>();
   @Output() cancel = new EventEmitter<void>();
+  // Role-based reservation window. Accepts numeric role codes or role names.
+  // Known roles (from backend):
+  // 0 = invite (Membre externe invité) -> max 5 days
+  // 1 = subscribed (Membre with subscription to at least one site) -> max 14 days
+  // 2 = all_site (Membre VIP multi-sites) -> max 21 days
+  // 7 = site_admin (site administrator) -> admin: 3 months (~90 days)
+  // 9 = as_admin (super administrator) -> admin: 3 months (~90 days)
+  // You can also pass strings: 'invite','subscribed','all_site','site_admin','as_admin'.
+  @Input() role: number | string = 'subscribed';
+  // Optional override to set the number of days allowed for reservation (including today when reservationWindowIncludesToday = true).
+  // If provided, this value takes precedence over `role` mapping.
+  @Input() reservationWindowDays?: number;
+  // If true, the reservation window count includes today. Default: true as requested.
+  @Input() reservationWindowIncludesToday = true;
   /**
    * Optional: list or predicate of fully booked dates. Accepts either:
    * - Array of ISO date strings (YYYY-MM-DD) or Date objects
@@ -50,7 +64,7 @@ export class MatchCal {
   get calendarDays() {
     // Each entry includes date, whether it's past and whether it's fully booked. This avoids
     // repeated timezone-sensitive conversions in the template and centralizes the logic here.
-    const days: { date: Date; isPast: boolean; isFullyBooked: boolean }[] = [];
+    const days: { date: Date; isPast: boolean; isFullyBooked: boolean; isBeyondWindow: boolean }[] = [];
     const year = this.viewDate.getFullYear();
     const month = this.viewDate.getMonth();
     const firstDay = new Date(year, month, 1);
@@ -59,13 +73,13 @@ export class MatchCal {
     // Fill blanks
     for (let i = 0; i < startDay; i++) {
       const d = new Date(year, month, 1 - startDay + i);
-      days.push({ date: d, isPast: this.isPast(d), isFullyBooked: this.isFullyBooked(d) });
+      days.push({ date: d, isPast: this.isPast(d), isFullyBooked: this.isFullyBooked(d), isBeyondWindow: this.isBeyondReservationWindow(d) });
     }
     // Fill days
     for (let d = 1; d <= lastDay.getDate(); d++) {
       const date = new Date(year, month, d);
       const isPast = this.isPast(date);
-      days.push({ date, isPast, isFullyBooked: this.isFullyBooked(date) });
+      days.push({ date, isPast, isFullyBooked: this.isFullyBooked(date), isBeyondWindow: this.isBeyondReservationWindow(date) });
     }
     return days;
   }
@@ -87,13 +101,63 @@ export class MatchCal {
       this.disabledSelectAttempt.emit(this._toIsoYMD(date));
       return;
     }
+    if (this.isBeyondReservationWindow(date)) {
+      // emit reason that date is beyond allowed reservation window
+      this.disabledSelectAttempt.emit(`beyond-window:${this._toIsoYMD(date)}`);
+      return;
+    }
     this.selected = date;
     this.dateChange.emit(date);
   }
 
   /** Combined check used by UI: not past and not fully booked */
   isSelectable(date: Date) {
-    return !this.isPast(date) && !this.isFullyBooked(date);
+    return !this.isPast(date) && !this.isFullyBooked(date) && !this.isBeyondReservationWindow(date);
+  }
+
+  /** Returns true when the given date is beyond the configured reservation window. */
+  isBeyondReservationWindow(date: Date) {
+    const last = this._computeLastAllowedDate();
+    if (!last) return false; // no limit configured
+    // Normalize times to midnight local for comparison
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    return d > last;
+  }
+
+  private _computeLastAllowedDate(): Date | null {
+    const days = this._getMaxReservationDays();
+    if (!days || days <= 0) return null;
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    // If includesToday is true, count includes today. So lastAllowed = start + (days - 1)
+    const offset = this.reservationWindowIncludesToday ? days - 1 : days;
+    return new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset);
+  }
+
+  private _getMaxReservationDays(): number {
+    if (typeof this.reservationWindowDays === 'number') return this.reservationWindowDays;
+    const r = (this.role ?? '').toString().toLowerCase();
+    switch (r) {
+      case '0':
+      case 'invite':
+      case 'l':
+        return 5; // invite / visiteur: max 5 days (including today)
+      case '1':
+      case 'subscribed':
+      case 's':
+        return 14; // subscribed / member single-site: 2 weeks = 14 days
+      case '2':
+      case 'all_site':
+      case 'g':
+        return 21; // VIP / multi-site: 3 weeks = 21 days
+      case 'site_admin':
+      case '7':
+      case '9':
+      case 'as_admin':
+        return 90; // admin roles: ~3 months = 90 days
+      default:
+        return 14; // sensible default: 2 weeks
+    }
   }
 
   isFullyBooked(date: Date) {

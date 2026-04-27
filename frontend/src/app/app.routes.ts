@@ -1,12 +1,13 @@
 import { Routes, CanActivateFn, Router } from '@angular/router';
 import { HomeComponent } from './layout/content/pages/home/home';
 import { HomeAccount } from './layout/content/pages/home-account/home-account';
-import { NewPrivMatch } from './layout/content/pages/new-priv-match/new-priv-match';
+import { NewPubMatch } from './layout/content/pages/new-pub-match/new-pub-match';
 import { inject } from '@angular/core';
 import { AuthService } from './services/auth.service';
 import { UserService } from './services/user.service';
 import { map, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
+import { NewPrivMatch } from './layout/content/pages/new-priv-match/new-priv-match';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
@@ -39,7 +40,27 @@ export const authGuard: CanActivateFn = (route, state) => {
   return userService.getCurrentUser().pipe(
     map(u => {
       const currentMatricule = u?.matricule;
-      if (currentMatricule === requestedId) return true;
+      // If the authenticated user is the requested user, allow access except for
+      // specific role-based restrictions on create routes.
+      if (currentMatricule === requestedId) {
+        const roleId = u?.roleId ?? -1;
+        const url = state.url || '';
+        const isAdmin = [7, 9].includes(Number(roleId));
+
+        // Protect private match creation from admins
+        if (url.includes('create_pmatch') && isAdmin) {
+          // redirect admins to their home
+          return router.createUrlTree(['/home', currentMatricule]);
+        }
+
+        // Protect public match creation from non-admin users
+        if (url.includes('create_public') && !isAdmin) {
+          return router.createUrlTree(['/home', currentMatricule]);
+        }
+
+        return true;
+      }
+
       // mismatch -> redirect to the authenticated user's home
       if (currentMatricule) {
         return router.createUrlTree(['/home', currentMatricule]);
@@ -55,6 +76,7 @@ export const routes: Routes = [
   // Visiting /home (no userId) should redirect the authenticated user to their own /home/:userId
   { path: 'home', component: HomeComponent, canActivate: [authGuard] },
   { path: 'home/:userId/create_pmatch', component: NewPrivMatch, canActivate: [authGuard] },
+  { path: 'home/:userId/create_public', component: NewPubMatch, canActivate: [authGuard] },
   { path: 'home/:userId', component: HomeAccount, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];

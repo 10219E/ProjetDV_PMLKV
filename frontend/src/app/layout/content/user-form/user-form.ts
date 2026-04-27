@@ -1,10 +1,9 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectorRef, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../services/auth.service';
 import { SiteInfo } from '../../../api/model/siteInfo';
-import { UserRegistrationDto } from '../../../api/model/userRegistrationDto';
 
 // validators copied from previous Home component
 export function passwordsMatchValidator(): ValidatorFn {
@@ -54,7 +53,9 @@ export function ageValidator(minAge: number): ValidatorFn {
   templateUrl: './user-form.html',
   styleUrls: ['./user-form.css']
 })
-export class UserFormComponent {
+export class UserFormComponent implements AfterViewInit, OnDestroy {
+  // track if the host element has been moved to document.body
+  private _movedToBody: boolean = false;
   @Input() sites: SiteInfo[] = [];
   @Input() prefillEmail?: string | null;
   // optional: prefill the selected site when the form is opened from another component
@@ -81,7 +82,43 @@ export class UserFormComponent {
 	siteId: new FormControl('', Validators.required)
   }, { validators: passwordsMatchValidator() });
 
-  constructor(private authService: AuthService, private cdr: ChangeDetectorRef) {}
+  constructor(private authService: AuthService, private cdr: ChangeDetectorRef, private el: ElementRef) {}
+
+  ngAfterViewInit(): void {
+	// move the component host to document.body to avoid stacking-context issues
+	// (similar approach used elsewhere in the project for mobile overlays)
+	try {
+	  // small timeout to ensure view is rendered
+	  setTimeout(() => this.moveHostToBody(), 0);
+	} catch (e) {
+	  console.warn('Failed to move user-form host to body', e);
+	}
+  }
+
+  ngOnDestroy(): void {
+	// cleanup moved host if still present
+	try {
+	  if (this._movedToBody && this.el && this.el.nativeElement && this.el.nativeElement.parentElement === document.body) {
+		// remove from body — Angular will clean up component node
+		document.body.removeChild(this.el.nativeElement);
+	  }
+	} catch (e) {
+	  // ignore
+	}
+  }
+
+  private moveHostToBody(): void {
+	try {
+	  const host = this.el?.nativeElement as HTMLElement | null;
+	  if (!host) return;
+	  if (host.parentElement !== document.body) {
+		document.body.appendChild(host);
+		this._movedToBody = true;
+	  }
+	} catch (e) {
+	  console.warn('moveHostToBody error', e);
+	}
+  }
 
   ngOnInit() {
 	// if parent prefilled an email (e.g. from match-form invite flow), set it
