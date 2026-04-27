@@ -1,7 +1,7 @@
 <div class="max-w-xl mx-auto">
   <!-- calendar component overlay shown before the form if enabled -->
   @if (showCalendarOverlay) {
-    <app-match-cal [selected]="tempSelectedDate" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
+    <app-match-cal [selected]="tempSelectedDate" [fullyBooked]="fullyBookedDates" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
   }
   <form [formGroup]="form" (ngSubmit)="submit()" class="bg-white p-6 rounded shadow">
     <h2 class="text-xl font-bold mb-4">Créer un Match</h2>
@@ -21,16 +21,6 @@
       }
     </div>
 
-    <!-- Date placed below Site and above Field as requested -->
-    <div class="mb-3">
-      <label class="block text-sm font-medium">Date</label>
-      <!-- readonly text input shows selected date; clicking reopens calendar and clears Start/End -->
-      <input type="text" formControlName="matchDate" [readonly]="dateReadOnly" (click)="onDateInputClick()" [class.bg-gray-50]="dateReadOnly" [class.border-red-500]="form.get('matchDate')?.invalid && form.get('matchDate')?.touched" class="w-full border rounded p-2" />
-      @if (form.get('matchDate')?.invalid && form.get('matchDate')?.touched) {
-        <p class="text-red-500 text-xs mt-1">La date est obligatoire</p>
-      }
-    </div>
-
     <div class="mb-3">
       <label class="block text-sm font-medium">Terrain</label>
       <select formControlName="fieldId" class="w-full border rounded p-2" [class.border-red-500]="form.get('fieldId')?.invalid && form.get('fieldId')?.touched">
@@ -44,7 +34,16 @@
       }
     </div>
 
-    <!-- Start/End times moved below Field as requested -->
+    <!-- Date placed below Site and above Field as requested -->
+    <div class="mb-3">
+      <label class="block text-sm font-medium">Date</label>
+      <!-- readonly text input shows selected date; clicking reopens calendar and clears Start/End -->
+      <input type="text" formControlName="matchDate" [readonly]="dateReadOnly" (click)="onDateInputClick()" [class.bg-gray-50]="dateReadOnly" [class.border-red-500]="form.get('matchDate')?.invalid && form.get('matchDate')?.touched" class="w-full border rounded p-2" />
+      @if (form.get('matchDate')?.invalid && form.get('matchDate')?.touched) {
+        <p class="text-red-500 text-xs mt-1">La date est obligatoire</p>
+      }
+    </div>
+
     <div class="grid grid-cols-2 gap-3 mb-3">
       <div>
         <label class="block text-sm font-medium">Heure du début</label>
@@ -64,7 +63,7 @@
       </div>
     </div>
 
-    <!-- Pub Status, Priv Status and Pricing are hidden per request -->
+
 
     <div class="mb-3">
       <label class="block text-sm font-medium">Organisateur</label>

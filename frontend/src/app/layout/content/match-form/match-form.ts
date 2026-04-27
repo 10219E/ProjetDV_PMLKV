@@ -1,12 +1,14 @@
 import { Component, Input, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators, FormArray } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { MatchCreationControllerService } from '../../../api/api/matchCreationController.service';
 import { FieldControllerService } from '../../../api/api/fieldController.service';
 import { SiteControllerService } from '../../../api/api/siteController.service';
 import { AuthService } from '../../../services/auth.service';
 import { UserService } from '../../../services/user.service';
 import { SessionService } from '../../../services/session.service';
+import { AvailabilityService } from '../../../services/availability.service';
 import { Router } from '@angular/router';
 import { MatchCal } from '../match-cal/match-cal';
 
@@ -37,8 +39,9 @@ export class MatchForm implements OnInit {
    siteId: new FormControl<number | null>({value: null, disabled: false}, [Validators.required]),
    fieldId: new FormControl<number | null>(null, [Validators.required]),
    type: new FormControl<string | null>(null),
-   matchDate: new FormControl<string | null>(null, [Validators.required]),
-   startTime: new FormControl<string | null>(null, [Validators.required]),
+    matchDate: new FormControl<string | null>(null, [Validators.required]),
+    // matchDate must be chosen after a field is selected; startTime is disabled until a date is set
+    startTime: new FormControl<string | null>({value: null, disabled: true}, [Validators.required]),
    endTime: new FormControl<string | null>({value: null, disabled: true}, [Validators.required]),
    organiserId: new FormControl<string | null>(null, [Validators.required]),
    invites: new FormArray([
@@ -56,14 +59,23 @@ export class MatchForm implements OnInit {
   // sessions for the currently selected site (normalized for UI: _start/_end labels)
   sessionsForSite: any[] = [];
   private updatingFromSession = false;
+  // Fully booked dates for the calendar (Set of YYYY-MM-DD)
+  fullyBookedDates: Set<string> = new Set();
 
-  constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private router: Router, private cd: ChangeDetectorRef) {}
+  constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     // ensure calendar overlay is not prompted on initial form load
     const existingDate = this.form.get('matchDate')?.value;
     this.showCalendarOverlay = false;
     this.dateReadOnly = !!existingDate;
+
+    // Disable date selection until a field is selected
+    if (!this.form.get('fieldId')?.value) {
+      this.form.get('matchDate')?.disable();
+      // startTime already initialized as disabled; ensure endTime is disabled as well
+      this.form.get('endTime')?.disable();
+    }
 
     // prefill organiser if provided and fetch organiser name (first + last only)
     if (this.organiserId) {
@@ -136,6 +148,8 @@ export class MatchForm implements OnInit {
         next: (data: any[]) => {
           this.fields = data || [];
           this.cd.detectChanges();
+          // recompute fully booked dates for newly selected site (no specific field)
+          this.updateFullyBookedDates(null);
         },
         error: (err) => {
           console.error('Failed to load fields for site', id, err);
@@ -149,17 +163,22 @@ export class MatchForm implements OnInit {
       if (this.updatingFromSession) return;
       if (!val) {
         this.form.get('endTime')?.setValue(null);
+        // keep endTime disabled until a valid startTime is chosen
+        this.form.get('endTime')?.disable();
         return;
       }
       const session = (this.sessionsForSite || []).find(s => s._start === val);
       if (!session) {
         this.form.get('endTime')?.setValue(null);
+        this.form.get('endTime')?.disable();
         return;
       }
       this.updatingFromSession = true;
       if (session.fieldId) this.form.get('fieldId')?.setValue(session.fieldId);
       if (session.siteId) this.form.get('siteId')?.setValue(session.siteId);
       if (session._end) this.form.get('endTime')?.setValue(session._end);
+      // enable endTime now that a startTime (and matching session) is selected
+      this.form.get('endTime')?.enable();
       if (session.startedAt) {
         const sd = this.parseDateTime(session.startedAt);
         if (sd) this.form.get('matchDate')?.setValue(this.formatDateForInput(sd));
@@ -176,9 +195,26 @@ export class MatchForm implements OnInit {
       // (preserve the selected date per requested behaviour)
       this.form.get('startTime')?.setValue(null);
       this.form.get('endTime')?.setValue(null);
+      // When a field is selected, enable the date picker. When no field is selected, disable date and times.
+      if (!fid) {
+        // disable date selection until a field is chosen
+        this.form.get('matchDate')?.setValue(null);
+        this.form.get('matchDate')?.disable();
+        // disable time selection until a date is chosen
+        this.form.get('startTime')?.disable();
+        this.form.get('endTime')?.disable();
+      } else {
+        this.form.get('matchDate')?.enable();
+        this.error = null;
+        // startTime remains disabled until a date is chosen
+        this.form.get('startTime')?.disable();
+        this.form.get('endTime')?.disable();
+      }
 
       if (!fid) {
         this.sessionsForSite = [];
+        // recompute fully booked dates for site-level (no specific field)
+        this.updateFullyBookedDates(null);
         return;
       }
       // try to find the field in the currently loaded fields to get its siteId
@@ -190,22 +226,49 @@ export class MatchForm implements OnInit {
       }
       this.sessionService.loadSessionsForSite(siteId, this.form.get('matchDate')?.value).subscribe((sessions) => {
         // filter sessions to the selected field when possible
-        this.sessionsForSite = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
-        this.cd.detectChanges();
+        let filtered = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
+        const matchDate = this.form.get('matchDate')?.value;
+        if (matchDate) {
+          this.availabilityService.filterSessionsByAvailability(siteId, filtered, matchDate, fid).subscribe({
+            next: (res) => {
+              this.sessionsForSite = res;
+              this.cd.detectChanges();
+            },
+            error: () => {
+              this.sessionsForSite = filtered;
+              this.cd.detectChanges();
+            }
+          });
+        } else {
+          this.sessionsForSite = filtered;
+          this.cd.detectChanges();
+        }
+        // recompute fully booked dates for the selected field
+        this.updateFullyBookedDates(fid);
       });
     });
 
-    // React to date changes - clear selected field and times when the user explicitly changes the date
+    // React to date changes - do NOT clear the selected field when the user changes the date.
+    // Instead enable startTime only after a date is set. If the change originates from a session
+    // selection, we still update sessions based on the date.
     this.form.get('matchDate')?.valueChanges.subscribe((date) => {
       // If the date change originates from a session selection, do not clear the field
       if (this.updatingFromSession) {
+        // ensure startTime is enabled when session set a date
+        if (date) this.form.get('startTime')?.enable();
         this.updateSessionsBasedOnDate();
         return;
       }
-      // Clear selected field and start/end times when the date changes
-      this.form.get('fieldId')?.setValue(null);
+      // Do not clear the fieldId when the user changes the date (requested behaviour)
+      // Clear only start/end times and enable startTime when a valid date is present
       this.form.get('startTime')?.setValue(null);
       this.form.get('endTime')?.setValue(null);
+      if (date) {
+        this.form.get('startTime')?.enable();
+      } else {
+        this.form.get('startTime')?.disable();
+        this.form.get('endTime')?.disable();
+      }
       this.updateSessionsBasedOnDate();
     });
 
@@ -299,6 +362,8 @@ export class MatchForm implements OnInit {
         // only fetch fields for the preselected site; do not load sessions until a field is selected
         this.fields = data || [];
         this.cd.detectChanges();
+        // compute fully booked dates for preselected site (no field selected yet)
+        this.updateFullyBookedDates(null);
       },
       error: (err) => {
         console.error('Failed to load fields for preselected site', siteId, err);
@@ -330,13 +395,70 @@ export class MatchForm implements OnInit {
       return;
     }
     this.sessionService.onDateChange(siteId, matchDate).subscribe((sessions) => {
-      this.sessionsForSite = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
-      if (!matchDate) {
-        this.form.get('startTime')?.setValue(null);
-        this.form.get('endTime')?.setValue(null);
+      let filtered = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
+      if (matchDate) {
+        this.availabilityService.filterSessionsByAvailability(siteId, filtered, matchDate, fid).subscribe({
+          next: (res) => {
+            this.sessionsForSite = res;
+            if (!matchDate) {
+              this.form.get('startTime')?.setValue(null);
+              this.form.get('endTime')?.setValue(null);
+            }
+            this.cd.detectChanges();
+          },
+          error: () => {
+            this.sessionsForSite = filtered;
+            if (!matchDate) {
+              this.form.get('startTime')?.setValue(null);
+              this.form.get('endTime')?.setValue(null);
+            }
+            this.cd.detectChanges();
+          }
+        });
+      } else {
+        this.sessionsForSite = filtered;
+        if (!matchDate) {
+          this.form.get('startTime')?.setValue(null);
+          this.form.get('endTime')?.setValue(null);
+        }
+        this.cd.detectChanges();
       }
-      this.cd.detectChanges();
     });
+  }
+
+  /**
+   * Compute fully booked dates for the calendar. For the next N days, load sessions for the site
+   * and use AvailabilityService to determine if any session slots remain for the selected field.
+   * This is async and updates `fullyBookedDates` when complete.
+   */
+  private async updateFullyBookedDates(fieldId: number | null): Promise<void> {
+    this.fullyBookedDates = new Set();
+    const siteId = Number(this.form.get('siteId')?.value) || null;
+    if (!siteId) {
+      this.cd.detectChanges();
+      return;
+    }
+
+    const days = 14; // check next 14 days
+    const today = new Date();
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+      const iso = this.formatDateForInput(d);
+      try {
+        // load normalized sessions for this site/date
+        const sessions: any[] = await firstValueFrom(this.sessionService.loadSessionsForSite(siteId, iso));
+        let sessionsForField = sessions || [];
+        if (fieldId) sessionsForField = (sessionsForField || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fieldId));
+        const available: any[] = await firstValueFrom(this.availabilityService.filterSessionsByAvailability(siteId, sessionsForField, iso, fieldId ?? null));
+        if (!available || available.length === 0) {
+          this.fullyBookedDates.add(iso);
+        }
+      } catch (e) {
+        // ignore single-day failures; do not block overall computation
+        console.warn('updateFullyBookedDates error for', iso, e);
+      }
+    }
+    this.cd.detectChanges();
   }
 
   // ...existing code...
@@ -375,6 +497,8 @@ export class MatchForm implements OnInit {
 
   // ...existing code...
 
+  // ...existing code...
+
   confirmDate(): void {
     if (!this.tempSelectedDate) return;
     const formatted = this.formatDateForInput(this.tempSelectedDate);
@@ -387,6 +511,12 @@ export class MatchForm implements OnInit {
 
   onDateInputClick(): void {
     // open calendar overlay for selecting a new date
+    // do not allow opening the calendar until a field is selected
+    const fid = this.form.get('fieldId')?.value ? Number(this.form.get('fieldId')?.value) : null;
+    if (!fid) {
+      this.error = 'Please select a field before choosing a date.';
+      return;
+    }
     // set tempSelectedDate from current form value if present
     const v = this.form.get('matchDate')?.value;
     if (v) {
