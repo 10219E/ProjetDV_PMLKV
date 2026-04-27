@@ -56,8 +56,14 @@ export function ageValidator(minAge: number): ValidatorFn {
 })
 export class UserFormComponent {
   @Input() sites: SiteInfo[] = [];
+  @Input() prefillEmail?: string | null;
+  // optional: prefill the selected site when the form is opened from another component
+  @Input() prefillSiteId?: number | string | null;
+  @Input() prefillSiteName?: string | null;
+  @Input() inviteMode: boolean = false; // when true register as invite (matricule 'L')
   @Output() close = new EventEmitter<void>();
   @Output() openLogin = new EventEmitter<void>();
+  @Output() signupCompleted = new EventEmitter<any>();
 
   showForm: boolean = true;
   signupSuccess: boolean = false;
@@ -77,6 +83,47 @@ export class UserFormComponent {
 
   constructor(private authService: AuthService, private cdr: ChangeDetectorRef) {}
 
+  ngOnInit() {
+	// if parent prefilled an email (e.g. from match-form invite flow), set it
+	if (this.prefillEmail) {
+	  this.signupForm.get('email')?.setValue(this.prefillEmail);
+	  // keep the field touched so validation messages may show if invalid
+	  this.signupForm.get('email')?.markAsTouched();
+	}
+
+	// if parent prefilled a site id (e.g. from match-form), set it on the form
+	if (this.prefillSiteId !== undefined && this.prefillSiteId !== null) {
+	  // control stores string values for binding; ensure we set a string
+	  this.signupForm.get('siteId')?.setValue(String(this.prefillSiteId));
+	  this.signupForm.get('siteId')?.markAsTouched();
+	}
+
+				// If inviteMode is set, preselect defaults and make the email and site fields non-editable
+				// according to the following rules (match-form behaviour):
+				// - If a prefilled site id was provided by the parent (match-form), use it and disable the site control.
+				// - Otherwise, if only one site is available for the user, preselect that site and disable the control.
+				// - If multiple sites are available and no prefill was provided, leave the site control enabled so the
+				//   invite can choose the appropriate site.
+				if (this.inviteMode) {
+
+				  // prefill email already set above; lock it
+				  this.signupForm.get('email')?.disable({ onlySelf: true });
+
+				  // If parent passed a specific site to prefill (match-form selected site), prefer that and lock it.
+				  if (this.prefillSiteId !== undefined && this.prefillSiteId !== null && String(this.prefillSiteId).trim() !== '') {
+					this.signupForm.get('siteId')?.setValue(String(this.prefillSiteId));
+					this.signupForm.get('siteId')?.disable({ onlySelf: true });
+				  } else if (this.sites && this.sites.length === 1) {
+					// only one site available for this user -> preselect and lock it (match-form behaviour)
+					this.signupForm.get('siteId')?.setValue(String(this.sites[0].siteId));
+					this.signupForm.get('siteId')?.disable({ onlySelf: true });
+				  } else {
+					// multiple sites available and no explicit prefill -> allow choosing
+					this.signupForm.get('siteId')?.enable();
+				  }
+				}
+  }
+
   togglePasswordVisibility() {
 	this.showPassword = !this.showPassword;
 	this.cdr.detectChanges();
@@ -92,20 +139,33 @@ export class UserFormComponent {
 	  this.signupError = null;
 	  this.signupSuccess = false;
 	  const formValue = this.signupForm.value;
+	  // Disabled controls (email when inviteMode) are not included in form.value,
+	  // so read the email from the control directly to ensure it's submitted.
+	  const emailValue = this.signupForm.get('email')?.value ?? formValue.email ?? '';
 
-	  const userData: UserRegistrationDto = {
-		fname: formValue.fname ?? '',
-		lname: formValue.lname ?? '',
-		email: formValue.email ?? '',
-		password: formValue.password ?? '',
-		bdate: formValue.bdate ?? '',
-		lvl: formValue.lvl ?? '',
-		siteId: formValue.siteId ? Number(formValue.siteId) : undefined
-	  };
+			  // siteId may be disabled (inviteMode) so read from control first
+			  const siteIdControlValue = this.signupForm.get('siteId')?.value ?? formValue.siteId;
+			  const userData: any = {
+				fname: formValue.fname ?? '',
+				lname: formValue.lname ?? '',
+				email: emailValue,
+				password: formValue.password ?? '',
+				bdate: formValue.bdate ?? '',
+				lvl: formValue.lvl ?? '',
+				siteId: siteIdControlValue ? Number(siteIdControlValue) : undefined
+			  };
+	  // If we're in invite mode, set the roleId for INVITE users so backend will
+	  // generate a matricule with the 'L' prefix server-side (EnumUserRolesType.INVITE => id 0)
+	  // (backend generates matricule from roleId via MatriculeHandler.generateMatricule)
+	  if (this.inviteMode) {
+		userData['roleId'] = 0; // INVITE role -> prefix 'L'
+	  }
 
 	  this.authService.signup(userData).subscribe({
 		next: (response) => {
 		  console.log('Signup Successful', response);
+		  // emit event so parent (match-form) can register the created user as an invite
+		  try { this.signupCompleted.emit(response); } catch {}
 		  // Hide the form and show the success popup inside this component
 		  this.showForm = false;
 		  this.signupSuccess = true;

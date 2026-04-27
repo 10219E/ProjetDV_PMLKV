@@ -2,6 +2,7 @@ import { Component, Input, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators, FormArray } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { MatchCreationControllerService } from '../../../api/api/matchCreationController.service';
 import { FieldControllerService } from '../../../api/api/fieldController.service';
 import { SiteControllerService } from '../../../api/api/siteController.service';
@@ -11,11 +12,12 @@ import { SessionService } from '../../../services/session.service';
 import { AvailabilityService } from '../../../services/availability.service';
 import { Router } from '@angular/router';
 import { MatchCal } from '../match-cal/match-cal';
+import { UserFormComponent } from '../user-form/user-form';
 
 @Component({
   selector: 'app-match-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatchCal],
+  imports: [CommonModule, ReactiveFormsModule, MatchCal, UserFormComponent],
   templateUrl: './match-form.html',
   styleUrls: ['./match-form.css']
 })
@@ -69,6 +71,18 @@ export class MatchForm implements OnInit {
     { status: 'idle' },
     { status: 'idle' }
   ];
+
+  // current user info (used to prevent inviting self or admins)
+  currentUserEmail?: string | null;
+  currentUserMatricule?: string | null;
+  currentUserRoleId?: number | null;
+  // timers for invite lookups to avoid indefinite spinner
+  private inviteTimeouts: Array<any> = [null, null, null];
+
+  // user-form overlay state
+  showUserForm = false;
+  userFormPrefillEmail?: string | null = null;
+  userFormInviteIndex: number | null = null;
 
   constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef) {}
 
@@ -145,6 +159,8 @@ export class MatchForm implements OnInit {
         if (!control.value) {
           control.markAsUntouched();
         }
+        // re-run cross-field validation: uniqueness and self-invite checks
+        this.runInviteCrossValidation();
         this.cd.detectChanges();
       });
     });
@@ -319,6 +335,12 @@ export class MatchForm implements OnInit {
               this.siteController.getAllSites(true).subscribe({
                 next: (sites: any[]) => {
                   this.sites = sites || [];
+                        // store current user info if present on profile
+                        if (profile) {
+                          this.currentUserEmail = profile.email ?? null;
+                          this.currentUserMatricule = profile.matricule ?? null;
+                          this.currentUserRoleId = profile.roleId ?? null;
+                        }
                   const allowed = (this.sites || []).map(s => s.siteId).filter((id: any) => id !== undefined && id !== null);
                   this.loadFieldsForAllowedSites(allowed);
 
@@ -340,7 +362,11 @@ export class MatchForm implements OnInit {
               });
             } else {
               // use sites from user profile
-              this.sites = profile?.sites || [];
+                  this.sites = profile?.sites || [];
+                  // store current user info from profile
+                  this.currentUserEmail = profile?.email ?? null;
+                  this.currentUserMatricule = profile?.matricule ?? null;
+                  this.currentUserRoleId = profile?.roleId ?? null;
               const userSites = (this.sites || []).map((s: any) => s.siteId).filter((id: any) => id !== undefined && id !== null);
               this.loadFieldsForAllowedSites(userSites);
 
@@ -579,9 +605,78 @@ export class MatchForm implements OnInit {
     return (this.form.get('invites') as FormArray).controls as any[];
   }
 
+  // Return the display name of the currently selected site (used to prefill child forms)
+  getSelectedSiteName(): string | null {
+    const siteId = this.form.get('siteId')?.value;
+    // handle number | null | string cases safely to satisfy strict type checks
+    if (siteId === null || siteId === undefined) return null;
+    // treat an empty-string siteId as unset; use String(...) to satisfy strict typing
+    if (String(siteId).trim() === '') return null;
+    const idNum = Number(siteId);
+    const s = (this.sites || []).find((x: any) => Number(x.siteId) === idNum);
+    if (!s) return null;
+    return s.name || s.siteName || null;
+  }
+
   // Helper method to get individual invite control for validation
   getInviteControl(index: number): any {
     return (this.form.get('invites') as FormArray).at(index);
+  }
+
+  // Cross-field validation for invites: ensure all entered invites are unique and
+  // none equals the current user's email (self-invite). This sets specific
+  // errors on individual controls so the template can display targeted messages.
+  private runInviteCrossValidation(): void {
+    const arr = this.form.get('invites') as FormArray;
+    if (!arr || !arr.controls) return;
+    const seen = new Map<string, number[]>();
+    // collect normalized emails
+    arr.controls.forEach((c: any, idx: number) => {
+      const v = (c.value || '').toString().trim().toLowerCase();
+      if (!v) return;
+      if (!seen.has(v)) seen.set(v, []);
+      seen.get(v)!.push(idx);
+    });
+    // clear previous duplicate/self errors, but preserve other errors (like pattern)
+    arr.controls.forEach((c: any) => {
+      if (!c) return;
+      const errors = c.errors || {};
+      // remove our custom keys
+      delete errors['duplicate'];
+      delete errors['selfInvite'];
+      delete errors['adminNotAllowed'];
+      delete errors['timeout'];
+      // if no other errors remain, clear; otherwise set back
+      if (Object.keys(errors).length === 0) {
+        c.setErrors(null);
+      } else {
+        c.setErrors(errors);
+      }
+    });
+    // mark duplicates
+    seen.forEach((indices, email) => {
+      if (indices.length > 1) {
+        indices.forEach(i => {
+          const c = arr.at(i);
+          const err = c.errors || {};
+          err['duplicate'] = true;
+          c.setErrors(err);
+        });
+      }
+    });
+    // mark self-invite if matches current user's email
+    if (this.currentUserEmail) {
+      const norm = this.currentUserEmail.toString().trim().toLowerCase();
+      const matches = seen.get(norm);
+      if (matches && matches.length > 0) {
+        matches.forEach(i => {
+          const c = arr.at(i);
+          const err = c.errors || {};
+          err['selfInvite'] = true;
+          c.setErrors(err);
+        });
+      }
+    }
   }
 
   // Validate invite email at given index: call backend to see if user exists
@@ -603,19 +698,98 @@ export class MatchForm implements OnInit {
 
     // call UserService to lookup by email
     try {
-      this.userService.getUserByEmail(email).subscribe({
+      // start watchdog timer BEFORE subscribing to avoid races with synchronous observables
+      if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); }
+      let sub: any = null;
+      this.inviteTimeouts[index] = setTimeout(() => {
+        if (this.inviteStates[index]?.status === 'checking') {
+          // mark as not_found so UI stops showing spinner
+          this.inviteStates[index] = { status: 'not_found' };
+          const c = this.getInviteControl(index);
+          if (c) {
+            const errs = c.errors || {};
+            errs['timeout'] = true;
+            c.setErrors(errs);
+          }
+          // unsubscribe if still subscribed
+          try { sub?.unsubscribe?.(); } catch {}
+          this.cd.detectChanges();
+        }
+      }, 3000);
+
+      sub = this.userService.getUserByEmail(email).pipe(finalize(() => {
+        // finalize: ensure timeout is cleared and spinner is not left running
+        if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+        // if still checking (no next/error received), mark as not_found to stop spinner
+        if (this.inviteStates[index]?.status === 'checking') {
+          this.inviteStates[index] = { status: 'not_found' };
+          const c = this.getInviteControl(index);
+          if (c) {
+            const errs = c.errors || {};
+            errs['timeout'] = true;
+            c.setErrors(errs);
+          }
+          this.cd.detectChanges();
+        }
+      })).subscribe({
         next: (user) => {
-          // user found -> keep email in control but store user (matricule) for later use
+          // user found -> if admin, disallow invite; otherwise accept
+          const roleId = user?.roleId ?? null;
+          if (roleId === 7 || roleId === 9) {
+            // cannot invite admins
+            const control = this.getInviteControl(index);
+            if (control) {
+              const err = control.errors || {};
+              err['adminNotAllowed'] = true;
+              control.setErrors(err);
+            }
+            this.inviteStates[index] = { status: 'error', user };
+            // clear any pending timeout
+            if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+            this.cd.detectChanges();
+            return;
+          }
+          // otherwise user found -> keep email in control but store user (matricule) for later use
+          // clear any adminNotAllowed error
+          const control = this.getInviteControl(index);
+          if (control) {
+            const errs = control.errors || {};
+            delete errs['adminNotAllowed'];
+            if (Object.keys(errs).length === 0) control.setErrors(null); else control.setErrors(errs);
+          }
           this.inviteStates[index] = { status: 'found', user };
+          // re-run cross-field validation in case this email creates a duplicate/self-invite
+          this.runInviteCrossValidation();
+          // clear any pending timeout
+          if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
           this.cd.detectChanges();
         },
         error: (err) => {
           // if backend returns 404 or similar, mark as not_found
           console.warn('Invite validation error for', email, err);
           this.inviteStates[index] = { status: 'not_found' };
+          // clear any pending timeout
+          if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
           this.cd.detectChanges();
         }
       });
+      // start a watchdog timer to avoid infinite spinner; if it fires, mark as not_found and set timeout error
+      if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); }
+      this.inviteTimeouts[index] = setTimeout(() => {
+        if (this.inviteStates[index]?.status === 'checking') {
+          // mark as not_found so UI stops showing spinner
+          this.inviteStates[index] = { status: 'not_found' };
+          const c = this.getInviteControl(index);
+          if (c) {
+            const errs = c.errors || {};
+            errs['timeout'] = true;
+            c.setErrors(errs);
+          }
+          // unsubscribe if still subscribed
+          try { sub?.unsubscribe?.(); } catch {}
+          this.cd.detectChanges();
+        }
+      }, 3000);
     } catch (e) {
       console.error('validateInvite caught', e);
       this.inviteStates[index] = { status: 'error' };
@@ -639,8 +813,38 @@ export class MatchForm implements OnInit {
     const control = this.getInviteControl(index);
     if (!control) return;
     const email = control.value ? String(control.value).trim() : '';
-    console.log('Invite user flow should start for', email);
-    // TODO: open UserFormComponent with prefilled email (handled in later step)
+    // open embedded UserFormComponent overlay with prefilled email and mark invite-mode
+    this.userFormPrefillEmail = email || undefined;
+    this.userFormInviteIndex = index;
+    this.showUserForm = true;
+    this.cd.detectChanges();
+  }
+
+  onUserFormClose(): void {
+    this.showUserForm = false;
+    this.userFormPrefillEmail = null;
+    this.userFormInviteIndex = null;
+    this.cd.detectChanges();
+  }
+
+  // Called when UserFormComponent emits signupCompleted with the created user
+  onSignupCompleted(createdUser: any): void {
+    const idx = this.userFormInviteIndex;
+    if (idx === null || idx === undefined) {
+      this.onUserFormClose();
+      return;
+    }
+    // set the invite input to the created user's email and mark as found
+    const control = this.getInviteControl(idx);
+    if (control) {
+      control.setValue(createdUser?.email || control.value);
+      control.markAsTouched();
+    }
+    this.inviteStates[idx] = { status: 'found', user: createdUser };
+    // re-run cross-field validation
+    this.runInviteCrossValidation();
+    this.onUserFormClose();
+    this.cd.detectChanges();
   }
 
   submit(): void {

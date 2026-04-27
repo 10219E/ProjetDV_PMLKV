@@ -1,5 +1,5 @@
 @if (showForm) {
-<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+<div class="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
   <div class="relative bg-white w-full max-w-lg mx-4 p-8 rounded-2xl shadow-2xl animate-fade-in-up max-h-[105vh] overflow-y-auto">
 	<button (click)="doClose()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors">
 	  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -108,18 +108,24 @@
 		}
 	  </div>
 
-	  <div class="flex flex-col gap-1 mt-4">
-		<label for="siteId" class="text-sm font-semibold text-gray-700">Site *</label>
-		<select id="siteId" formControlName="siteId" class="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:outline-none">
-		  <option [ngValue]="null" disabled>Choisissez un site</option>
-		  @for (s of sites; track s.siteId) {
-			<option [ngValue]="s.siteId">{{s.name}} — {{s.address}}</option>
-		  }
-		</select>
-		@if (signupForm.get('siteId')?.touched && signupForm.get('siteId')?.hasError('required')) {
-		  <span class="text-red-500 text-xs mt-1">Veuillez choisir un site.</span>
-		}
-	  </div>
+				  <div class="flex flex-col gap-1 mt-4">
+					<label for="siteId" class="text-sm font-semibold text-gray-700">Site *</label>
+																	@if (signupForm.get('siteId')?.disabled && prefillSiteName) {
+																	  <!-- When the site is locked (invite-mode with a prefilling site), show a readonly display of the site name -->
+																	  <input type="text" readonly class="border border-gray-300 rounded-lg p-2 bg-gray-50" [value]="prefillSiteName" />
+																	}
+																	@if (!(signupForm.get('siteId')?.disabled && prefillSiteName)) {
+																	  <select id="siteId" formControlName="siteId" class="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:outline-none">
+																		<option [ngValue]="null" disabled>Choisissez un site</option>
+																		@for (s of sites; track s.siteId) {
+																		  <option [ngValue]="s.siteId">{{s.name}} — {{s.address}}</option>
+																		}
+																	  </select>
+																	}
+					@if (signupForm.get('siteId')?.touched && signupForm.get('siteId')?.hasError('required')) {
+					  <span class="text-red-500 text-xs mt-1">Veuillez choisir un site.</span>
+					}
+				  </div>
 
 	  <div class="flex flex-col gap-2 mt-2">
 		<label class="text-sm font-semibold text-gray-700 text-center">Niveau *</label>
