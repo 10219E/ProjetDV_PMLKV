@@ -37,6 +37,8 @@ export class MatchForm implements OnInit {
   loading = false;
   error: string | null = null;
   successMessage: string | null = null;
+  // show a simple confirmation popup after successful creation
+  showSuccessDialog = false;
 
   form = new FormGroup({
    siteId: new FormControl<number | null>({value: null, disabled: false}, [Validators.required]),
@@ -945,12 +947,14 @@ export class MatchForm implements OnInit {
       next: (resp: any) => {
         this.loading = false;
         const id = resp && resp['matchId'];
-        this.successMessage = id ? `Match created (id=${id})` : 'Match created';
+        // Build French confirmation message using values directly from the form (no extra formatting)
+        const rawDate = this.form.get('matchDate')?.value || '';
+        const rawStart = this.form.get('startTime')?.value || '';
+        const rawEnd = this.form.get('endTime')?.value || '';
+        this.successMessage = `Votre match du ${rawDate} de ${rawStart} à ${rawEnd} est réservé. Veuillez contacter vos invités pour compléter le paiement ; ils ont également été informés par e-mail.`;
         this.pendingDto = null;
-        // optionally navigate to user's home after creating
-        if (this.organiserId) {
-          this.router.navigate(['/home', this.organiserId]);
-        }
+        // show a simple confirmation popup and wait for the user to click OK
+        this.showSuccessDialog = true;
         this.cd.detectChanges();
       },
       error: (err) => {
@@ -967,6 +971,21 @@ export class MatchForm implements OnInit {
   onPaymentCancelled(): void {
     this.showPayForm = false;
     this.pendingDto = null;
+    this.cd.detectChanges();
+  }
+
+  // Called when the user clicks OK on the confirmation popup
+  acknowledgeSuccess(): void {
+    this.showSuccessDialog = false;
+    const organiser = this.organiserId;
+    const navigateTo = organiser ? ['/home', organiser] : ['/home'];
+    // clear success message and navigate
+    this.successMessage = null;
+    try {
+      this.router.navigate(navigateTo);
+    } catch (e) {
+      console.error('Navigation after acknowledgement failed', e);
+    }
     this.cd.detectChanges();
   }
 }
