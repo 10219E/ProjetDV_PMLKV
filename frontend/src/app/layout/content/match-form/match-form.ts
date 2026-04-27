@@ -36,7 +36,10 @@ export class MatchForm implements OnInit {
   allowedSiteIds?: number[] | undefined;
   loading = false;
   error: string | null = null;
+  // legacy inline success message (kept for compatibility) - prefer popupMessage for modal
   successMessage: string | null = null;
+  // message shown inside the confirmation popup only
+  popupMessage: string | null = null;
   // show a simple confirmation popup after successful creation
   showSuccessDialog = false;
 
@@ -158,6 +161,17 @@ export class MatchForm implements OnInit {
       });
     }
 
+    // Manage invite controls' enabled state from the component (avoid template [disabled] binding).
+    // If no site is selected initially, keep invite inputs disabled; enable them when a site is chosen.
+    const siteSelected = !!this.form.get('siteId')?.value;
+    invitesArray.controls.forEach(control => {
+      if (siteSelected) {
+        control.enable({ emitEvent: false });
+      } else {
+        control.disable({ emitEvent: false });
+      }
+    });
+
     // Reset invite validation UI/state when the user edits the invite input.
     // If the user changes the email text, clear any previous 'found'/'not_found' message
     // and reset the button/status to idle so they can re-validate the new value.
@@ -184,6 +198,8 @@ export class MatchForm implements OnInit {
     this.form.get('siteId')?.valueChanges.subscribe((siteId) => {
       const id = siteId ? Number(siteId) : null;
       if (!id) {
+        // disable invite inputs when no site selected
+        invitesArray.controls.forEach(control => { control.disable(); control.updateValueAndValidity(); });
         this.fields = [];
         this.sessionsForSite = [];
         // clear date and times when site is deselected
@@ -211,6 +227,8 @@ export class MatchForm implements OnInit {
           this.cd.detectChanges();
           // recompute fully booked dates for newly selected site (no specific field)
           this.updateFullyBookedDates(null);
+          // enable invite inputs now that a site is selected
+          invitesArray.controls.forEach(control => { control.enable(); control.updateValueAndValidity(); });
         },
         error: (err) => {
           console.error('Failed to load fields for site', id, err);
@@ -556,6 +574,22 @@ export class MatchForm implements OnInit {
     return `${y}-${m}-${day}`;
   }
 
+  // Format an ISO date (yyyy-MM-dd or full ISO datetime) into French display dd/MM/yyyy
+  formatDateForDisplay(dateStr: string | null | undefined): string {
+    if (!dateStr) return '';
+    try {
+      // if full datetime provided, extract date part
+      const dpart = String(dateStr).split('T')[0];
+      const parts = dpart.split('-');
+      if (parts.length === 3) {
+        return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+      }
+      return dateStr;
+    } catch {
+      return dateStr || '';
+    }
+  }
+
   // parse ISO datetime or timestamp-ish strings into Date or return null
   private parseDateTime(v: any): Date | null {
     if (!v) return null;
@@ -585,7 +619,7 @@ export class MatchForm implements OnInit {
     // do not allow opening the calendar until a field is selected
     const fid = this.form.get('fieldId')?.value ? Number(this.form.get('fieldId')?.value) : null;
     if (!fid) {
-      this.error = 'Please select a field before choosing a date.';
+      this.error = 'Merci de sélectionner le terrain avant de choisir une date.';
       return;
     }
     // set tempSelectedDate from current form value if present
@@ -699,6 +733,13 @@ export class MatchForm implements OnInit {
     // mark touched so validation messages show
     control.markAsTouched();
     // do not proceed if the control is invalid (either empty when required or bad email syntax)
+    // protect against disabled controls (we manage enable/disable from component)
+    if (control.disabled) {
+      return;
+    }
+    if (!email) {
+      return;
+    }
     if (control.invalid) {
       // ensure the template disables the button, but protect here as well
       return;
@@ -711,9 +752,9 @@ export class MatchForm implements OnInit {
     // call UserService to lookup by email
     try {
       // start watchdog timer BEFORE subscribing to avoid races with synchronous observables
-      if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); }
+      if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
       let sub: any = null;
-      this.inviteTimeouts[index] = setTimeout(() => {
+      const watchdog = () => setTimeout(() => {
         if (this.inviteStates[index]?.status === 'checking') {
           // mark as not_found so UI stops showing spinner
           this.inviteStates[index] = { status: 'not_found' };
@@ -728,6 +769,7 @@ export class MatchForm implements OnInit {
           this.cd.detectChanges();
         }
       }, 3000);
+      this.inviteTimeouts[index] = watchdog();
 
       sub = this.userService.getUserByEmail(email).pipe(finalize(() => {
         // finalize: ensure timeout is cleared and spinner is not left running
@@ -756,8 +798,8 @@ export class MatchForm implements OnInit {
               control.setErrors(err);
             }
             this.inviteStates[index] = { status: 'error', user };
-            // clear any pending timeout
-            if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+              // clear any pending timeout
+              if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
             this.cd.detectChanges();
             return;
           }
@@ -785,23 +827,7 @@ export class MatchForm implements OnInit {
           this.cd.detectChanges();
         }
       });
-      // start a watchdog timer to avoid infinite spinner; if it fires, mark as not_found and set timeout error
-      if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); }
-      this.inviteTimeouts[index] = setTimeout(() => {
-        if (this.inviteStates[index]?.status === 'checking') {
-          // mark as not_found so UI stops showing spinner
-          this.inviteStates[index] = { status: 'not_found' };
-          const c = this.getInviteControl(index);
-          if (c) {
-            const errs = c.errors || {};
-            errs['timeout'] = true;
-            c.setErrors(errs);
-          }
-          // unsubscribe if still subscribed
-          try { sub?.unsubscribe?.(); } catch {}
-          this.cd.detectChanges();
-        }
-      }, 3000);
+      // watchdog already scheduled before subscribe; nothing more to do here
     } catch (e) {
       console.error('validateInvite caught', e);
       this.inviteStates[index] = { status: 'error' };
@@ -864,7 +890,7 @@ export class MatchForm implements OnInit {
     this.error = null;
     this.successMessage = null;
     if (this.form.invalid) {
-      this.error = 'Form is invalid. Please check required fields.';
+      this.error = 'Formulaire invalide. Merci de vérifier les champs manquants.';
       return;
     }
 
@@ -900,13 +926,13 @@ export class MatchForm implements OnInit {
           try {
             const user = await firstValueFrom(this.userService.getUserByEmail(v));
             if (!user || !user.matricule) {
-              this.error = `Invited user not found for ${v}`;
+              this.error = `Utilisateur invité non-trouvé - ${v}`;
               this.cd.detectChanges();
               return;
             }
             invitesMat.push(user.matricule);
           } catch (e) {
-            this.error = `Invited user not found for ${v}`;
+            this.error = `Utilisateur invité non-trouvé - ${v}`;
             this.cd.detectChanges();
             return;
           }
@@ -951,16 +977,18 @@ export class MatchForm implements OnInit {
         const rawDate = this.form.get('matchDate')?.value || '';
         const rawStart = this.form.get('startTime')?.value || '';
         const rawEnd = this.form.get('endTime')?.value || '';
-        this.successMessage = `Votre match du ${rawDate} de ${rawStart} à ${rawEnd} est réservé. Veuillez contacter vos invités pour compléter le paiement ; ils ont également été informés par e-mail.`;
+        const dateFr = this.formatDateForDisplay(rawDate);
+        // store the text for the popup only (avoid populating inline successMessage which is rendered under the form)
+        this.popupMessage = `Votre match du ${dateFr} de ${rawStart} à ${rawEnd} est réservé. Veuillez contacter vos invités pour compléter le paiement ; ils ont également été informés par e-mail.`;
         this.pendingDto = null;
         // show a simple confirmation popup and wait for the user to click OK
         this.showSuccessDialog = true;
         this.cd.detectChanges();
       },
       error: (err) => {
-        console.error('Create match failed', err);
+        console.error('Echec de la création du match', err);
         this.loading = false;
-        this.error = err?.message || 'Failed to create match';
+        this.error = err?.message || 'Echec de la création du match';
         this.pendingDto = null;
         this.cd.detectChanges();
       }
@@ -979,7 +1007,8 @@ export class MatchForm implements OnInit {
     this.showSuccessDialog = false;
     const organiser = this.organiserId;
     const navigateTo = organiser ? ['/home', organiser] : ['/home'];
-    // clear success message and navigate
+    // clear popup message and legacy inline message, then navigate
+    this.popupMessage = null;
     this.successMessage = null;
     try {
       this.router.navigate(navigateTo);

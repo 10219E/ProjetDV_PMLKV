@@ -90,8 +90,18 @@ public class MatchCreationController {
 
             List<String> invites = dto.getInvites();
 
+            // Log an attempt to create the match (helps diagnose when success log doesn't appear)
+            logger.info("Attempting to create match: field={} date={} start={} end={} organiser={}",
+                    dto.getFieldId(), dto.getMatchDate(), dto.getStartTime(), dto.getEndTime(), dto.getOrganiserId());
+
             Match saved = matchService.newMatch(m, invites);
-            logger.info("Match created id={} field={} type={}", saved.getMatchId(), saved.getField() != null ? saved.getField().getFieldId() : null, saved.getType());
+            // Log a clear success message including match id, date and organiser matricule
+            String organiserMat = (saved.getOrganiser() != null && saved.getOrganiser().getMatricule() != null)
+                    ? saved.getOrganiser().getMatricule()
+                    : (dto.getOrganiserId() != null ? dto.getOrganiserId() : "_public_");
+            logger.info("Match created successfully: id={} date={} by organiser={} field={} type={}",
+                    saved.getMatchId(), saved.getMatchDate(), organiserMat,
+                    saved.getField() != null ? saved.getField().getFieldId() : null, saved.getType());
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("matchId", saved.getMatchId()));
         } catch (Exception ex) {
             logger.error("Error creating match", ex);

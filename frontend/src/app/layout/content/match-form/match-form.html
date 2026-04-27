@@ -37,8 +37,9 @@
     <!-- Date placed below Site and above Field as requested -->
     <div class="mb-3">
       <label class="block text-sm font-medium">Date</label>
-      <!-- readonly text input shows selected date; clicking reopens calendar and clears Start/End -->
-      <input type="text" formControlName="matchDate" [readonly]="dateReadOnly" (click)="onDateInputClick()" [class.bg-gray-50]="dateReadOnly" [class.border-red-500]="form.get('matchDate')?.invalid && form.get('matchDate')?.touched" class="w-full border rounded p-2" />
+      <!-- hidden control holds actual ISO date value for form submission; visible input shows French date for display only -->
+      <input type="hidden" formControlName="matchDate" />
+      <input type="text" [value]="formatDateForDisplay(form.get('matchDate')?.value)" [readonly]="dateReadOnly" (click)="onDateInputClick()" [class.bg-gray-50]="dateReadOnly" [class.border-red-500]="form.get('matchDate')?.invalid && form.get('matchDate')?.touched" class="w-full border rounded p-2" />
       @if (form.get('matchDate')?.invalid && form.get('matchDate')?.touched) {
         <p class="text-red-500 text-xs mt-1">La date est obligatoire</p>
       }
@@ -83,7 +84,7 @@
           <div class="mb-2">
             <div class="flex items-center gap-2">
               <!-- Disable invite entry until a complexe sportif (site) is selected, unless a site was prefilled -->
-              <input [formControlName]="i" placeholder="Email de l'invité" class="flex-1 border rounded p-2" [class.border-red-500]="getInviteControl(i)?.invalid && getInviteControl(i)?.touched" [disabled]="!form.get('siteId')?.value" />
+              <input [formControlName]="i" placeholder="Email de l'invité" class="flex-1 border rounded p-2" [class.border-red-500]="getInviteControl(i)?.invalid && getInviteControl(i)?.touched" />
 
                <!-- Confirm / validate button -->
                <button type="button" (click)="validateInvite(i)" class="flex-none inline-flex items-center justify-center h-8 w-8 rounded border bg-white hover:bg-gray-50" [disabled]="!form.get('siteId')?.value || getInviteControl(i)?.invalid || inviteStates[i]?.status === 'checking'" aria-label="Vérifier l'email">
