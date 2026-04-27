@@ -53,6 +53,17 @@ public class UserController {
         return ResponseEntity.ok(responses);
     }
 
+    @GetMapping(value= "/{email}", produces = "application/json")
+    public ResponseEntity<UserProfileDto> getUserByEmail(@PathVariable String email) {
+        Optional<User> userOpt = userService.fetchByMail(email);
+        if (userOpt.isEmpty()) {
+            logger.warn("User with email {} not found", email);
+            return ResponseEntity.notFound().build();
+        }
+        logger.info("User with email {} found", email);
+        return ResponseEntity.ok(fetchUserProfile(userOpt.get()));
+    }
+
     @GetMapping(value = "/{matricule}", produces = "application/json")
     public ResponseEntity<UserProfileDto> getUserByMatricule(@PathVariable String matricule) {
         Optional<User> userOpt = userService.fetchById(matricule);
