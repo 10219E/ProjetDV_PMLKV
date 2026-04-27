@@ -2,60 +2,20 @@ import { Component, ElementRef, OnInit, ViewChild, ChangeDetectorRef, HostListen
 import { CommonModule } from '@angular/common';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import { ReactiveFormsModule, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
+import { ReactiveFormsModule, FormGroup, FormControl, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../../services/auth.service';
 import { InfoService } from '../../../../services/info.service';
 import { SiteInfo } from '../../../../api/model/siteInfo';
 import { UserRegistrationDto } from '../../../../api/model/userRegistrationDto';
+import { UserFormComponent } from '../../user-form/user-form';
 
-export function passwordsMatchValidator(): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    const password = control.get('password');
-    const confirmPassword = control.get('confirmPassword');
-
-    if (password && confirmPassword && password.value !== confirmPassword.value) {
-      return { passwordsMismatch: true };
-    }
-    return null;
-  };
-}
-
-export function passwordStrengthValidator(): ValidatorFn {
-  // at least one uppercase, one lowercase, one digit, one special from set @ ! - + & $ €,
-  // only allow letters, digits and those special chars, minimum 8 chars
-  const pattern = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@!\-\+&\$€])[A-Za-z0-9@!\-\+&\$€]{8,}$/;
-  return (control: AbstractControl): ValidationErrors | null => {
-    const v = control.value as string | null | undefined;
-    if (!v) return { weakPassword: true };
-    return pattern.test(v) ? null : { weakPassword: true };
-  };
-}
-
-// allow letters (including common accented ranges), spaces, apostrophe and hyphen
-export const NAME_REGEX: RegExp = /^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/;
-
-export function ageValidator(minAge: number): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    const v = control.value;
-    if (!v) return null; // required will handle empty
-    const date = (v instanceof Date) ? v : new Date(v);
-    if (isNaN(date.getTime())) return { invalidDate: true };
-
-    const today = new Date();
-    let age = today.getFullYear() - date.getFullYear();
-    const m = today.getMonth() - date.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
-      age--;
-    }
-    return age >= minAge ? null : { underAge: { requiredAge: minAge, actualAge: age } };
-  };
-}
+// Signup validators and logic moved into `UserFormComponent`
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatIconModule],
+  imports: [CommonModule, ReactiveFormsModule, MatIconModule, UserFormComponent],
   templateUrl: './home.html',
   styleUrls: ['./home.css']
 })
@@ -71,19 +31,7 @@ export class HomeComponent implements OnInit {
   isSignupOpen = false;
   isLoginOpen = false;
   showPassword = false;
-
-  signupForm = new FormGroup({
-    // first and last name: at least 2 chars, no symbols (allow accents, spaces, apostrophe and hyphen)
-    fname: new FormControl('', [Validators.required, Validators.minLength(2), Validators.pattern(NAME_REGEX)]),
-    lname: new FormControl('', [Validators.required, Validators.minLength(2), Validators.pattern(NAME_REGEX)]),
-    // email: require RFC-like email and common TLD (2-6 letters)
-    email: new FormControl('', [Validators.required, Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)]),
-    password: new FormControl('', [Validators.required, Validators.minLength(8), passwordStrengthValidator()]),
-    confirmPassword: new FormControl('', Validators.required),
-    bdate: new FormControl('', [Validators.required, ageValidator(16)]),
-    lvl: new FormControl('', Validators.required),
-    siteId: new FormControl('', Validators.required)
-  }, { validators: passwordsMatchValidator() });
+  // signup form and validators moved to UserFormComponent
 
   loginForm = new FormGroup({
     email: new FormControl('', [Validators.required, Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)]),
@@ -91,8 +39,7 @@ export class HomeComponent implements OnInit {
   });
 
   loginError: string | null = null;
-  signupError: string | null = null;
-  signupSuccess: boolean = false;
+
 
   sitesTotal: number = 0;
   fieldsTotal: number = 0;
@@ -199,7 +146,6 @@ export class HomeComponent implements OnInit {
 
   closeSignup() {
     this.isSignupOpen = false;
-    this.signupForm.reset();
     this.cdr.detectChanges();
   }
 
@@ -219,58 +165,9 @@ export class HomeComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  selectLevel(level: string) {
-    this.signupForm.get('lvl')?.setValue(level);
-    this.cdr.detectChanges();
-  }
+  // signup-specific helpers moved to UserFormComponent
 
-  submitSignup() {
-    if (this.signupForm.valid) {
-      this.signupError = null;
-      this.signupSuccess = false;
-      const formValue = this.signupForm.value;
-
-      // Ensure the form value conforms to the UserRegistrationDto
-      const userData: UserRegistrationDto = {
-        fname: formValue.fname ?? '',
-        lname: formValue.lname ?? '',
-        email: formValue.email ?? '',
-        password: formValue.password ?? '',
-        bdate: formValue.bdate ?? '',
-        lvl: formValue.lvl ?? '',
-        siteId: formValue.siteId ? Number(formValue.siteId) : undefined
-      };
-
-      this.authService.signup(userData).subscribe({
-        next: (response) => {
-          console.log('Signup Successful', response);
-          this.signupSuccess = true;
-          // keep the signup overlay closed but show the success popup
-          this.closeSignup();
-          this.cdr.detectChanges();
-          return response;
-        },
-        error: (err) => {
-          console.error('Signup Failed', err);
-          this.signupError = "Une erreur est survenue lors de l'inscription.";
-          this.cdr.detectChanges();
-        }
-      });
-    }
-  }
-
-  /** Close the signup-success popup without opening login */
-  closeSignupSuccess() {
-    this.signupSuccess = false;
-    this.cdr.detectChanges();
-  }
-
-  /** Close popup and open the login overlay */
-  ackSignupSuccessOpenLogin() {
-    this.signupSuccess = false;
-    this.openLogin();
-    this.cdr.detectChanges();
-  }
+  // signup handling moved to UserFormComponent
 
   submitLogin() {
     if (this.loginForm.valid) {

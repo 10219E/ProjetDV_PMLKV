@@ -1,0 +1,12 @@
+.animate-fade-in-up {
+  animation: fadeInUp 180ms ease-out;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* minimal local styles; main design uses Tailwind */
+
+

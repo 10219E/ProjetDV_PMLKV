@@ -18,8 +18,17 @@ export class UserService {
   getUserById(userId: string): Observable<UserProfileResponse> {
     if (!userId) throw new Error('userId is required');
     this.setAuthHeader();
-    return this.userControllerService.getUserByMatricule(userId).pipe(
+    return this.userControllerService.getUserByIdentifier(userId).pipe(
       // Map the raw JSON to a strongly typed UserProfileResponse
+      map((raw: any) => this.mapUserProfile(raw))
+    );
+  }
+
+  // Fetch user by email from /api/users/email/{email}
+  getUserByEmail(email: string): Observable<UserProfileResponse> {
+    if (!email) throw new Error('email is required');
+    this.setAuthHeader();
+    return this.userControllerService.getUserByIdentifier(email).pipe(
       map((raw: any) => this.mapUserProfile(raw))
     );
   }

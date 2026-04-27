@@ -10,19 +10,21 @@
 		  <div class="grid grid-cols-7 gap-1 w-full">
 		    <div *ngFor="let day of weekDays" class="text-center font-semibold text-gray-500">{{ day }}</div>
 		    <ng-container *ngFor="let d of calendarDays">
-		      <button
-		        [disabled]="d.isPast"
-		        (click)="selectDate(d.date)"
-		        [ngClass]="{
-		          'bg-blue-600 text-white font-bold': isSelected(d.date),
-		          'text-gray-400 pointer-events-none': d.isPast,
-		          'rounded-full': true,
-		          'w-8 h-8 flex items-center justify-center mx-auto': true
-		        }"
-		        class="transition-colors duration-150"
-		      >
-		        {{ d.date.getDate() }}
-		      </button>
+					<button
+					  [disabled]="d.isPast || d.isFullyBooked"
+					  (click)="selectDate(d.date)"
+					  [ngClass]="{
+						'bg-blue-600 text-white font-bold': isSelected(d.date),
+						'text-gray-400 pointer-events-none': d.isPast,
+						'text-red-600 bg-red-50': d.isFullyBooked && !isSelected(d.date),
+						'rounded-full': true,
+						'w-8 h-8 flex items-center justify-center mx-auto': true
+					  }"
+					  class="transition-colors duration-150"
+					  [attr.title]="d.isFullyBooked ? 'Complet' : null"
+					>
+					  {{ d.date.getDate() }}
+					</button>
 		    </ng-container>
 		  </div>
 		</div>

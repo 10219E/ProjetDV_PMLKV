@@ -1,7 +1,7 @@
 <div class="max-w-xl mx-auto">
   <!-- calendar component overlay shown before the form if enabled -->
   @if (showCalendarOverlay) {
-    <app-match-cal [selected]="tempSelectedDate" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
+    <app-match-cal [selected]="tempSelectedDate" [fullyBooked]="fullyBookedDates" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
   }
   <form [formGroup]="form" (ngSubmit)="submit()" class="bg-white p-6 rounded shadow">
     <h2 class="text-xl font-bold mb-4">Créer un Match</h2>
@@ -34,35 +34,36 @@
       }
     </div>
 
-    <!-- Date / Start / End moved below field (kept at top area) -->
-    <div class="grid grid-cols-3 gap-3 mb-3">
-      <div>
-        <label class="block text-sm font-medium">Date</label>
-        <!-- readonly text input shows selected date; clicking reopens calendar and clears Start/End -->
-        <input type="text" formControlName="matchDate" [readonly]="dateReadOnly" (click)="onDateInputClick()" [class.bg-gray-50]="dateReadOnly" [class.border-red-500]="form.get('matchDate')?.invalid && form.get('matchDate')?.touched" class="w-full border rounded p-2" />
-        @if (form.get('matchDate')?.invalid && form.get('matchDate')?.touched) {
-          <p class="text-red-500 text-xs mt-1">La date est obligatoire</p>
-        }
-      </div>
-                    <div>
-                      <label class="block text-sm font-medium">Heure du début</label>
-                      <select formControlName="startTime" class="w-full border rounded p-2" [class.border-red-500]="form.get('startTime')?.invalid && form.get('startTime')?.touched">
-                        <option value="">-- Sélectionner l'heure du début --</option>
-                        @for (ss of sessionsForSite; track ss.match_set_id ?? ss.sessionId ?? $index) {
-                          <option [value]="ss._start">{{ ss.label }}</option>
-                        }
-                      </select>
-                      @if (form.get('startTime')?.invalid && form.get('startTime')?.touched) {
-                        <p class="text-red-500 text-xs mt-1">L'heure de début est obligatoire</p>
-                      }
-                    </div>
-                                                                                  <div>
-                                                                                  <label class="block text-sm font-medium">Fin</label>
-                                                                                  <input type="text" class="w-full border rounded p-2 bg-gray-50" [value]="form.get('endTime')?.value || '--:--'" />
-                                                                                  </div>
+    <!-- Date placed below Site and above Field as requested -->
+    <div class="mb-3">
+      <label class="block text-sm font-medium">Date</label>
+      <!-- readonly text input shows selected date; clicking reopens calendar and clears Start/End -->
+      <input type="text" formControlName="matchDate" [readonly]="dateReadOnly" (click)="onDateInputClick()" [class.bg-gray-50]="dateReadOnly" [class.border-red-500]="form.get('matchDate')?.invalid && form.get('matchDate')?.touched" class="w-full border rounded p-2" />
+      @if (form.get('matchDate')?.invalid && form.get('matchDate')?.touched) {
+        <p class="text-red-500 text-xs mt-1">La date est obligatoire</p>
+      }
     </div>
 
-    <!-- Pub Status, Priv Status and Pricing are hidden per request -->
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="block text-sm font-medium">Heure du début</label>
+        <select formControlName="startTime" class="w-full border rounded p-2" [class.border-red-500]="form.get('startTime')?.invalid && form.get('startTime')?.touched">
+          <option value="">-- Sélectionner l'heure du début --</option>
+          @for (ss of sessionsForSite; track ss.match_set_id ?? ss.sessionId ?? $index) {
+            <option [value]="ss._start">{{ ss.label }}</option>
+          }
+        </select>
+        @if (form.get('startTime')?.invalid && form.get('startTime')?.touched) {
+          <p class="text-red-500 text-xs mt-1">L'heure de début est obligatoire</p>
+        }
+      </div>
+      <div>
+        <label class="block text-sm font-medium">Fin</label>
+        <input type="text" class="w-full border rounded p-2 bg-gray-50" [value]="form.get('endTime')?.value || '--:--'" />
+      </div>
+    </div>
+
+
 
     <div class="mb-3">
       <label class="block text-sm font-medium">Organisateur</label>
@@ -80,9 +81,69 @@
         <label class="block text-sm font-medium mb-2">Invités (veuillez inviter 3 joueurs)</label>
         @for (i of [0,1,2]; track i) {
           <div class="mb-2">
-            <input [formControlName]="i" placeholder="Numéro de matricule de l'invité" class="w-full border rounded p-2" [class.border-red-500]="getInviteControl(i)?.invalid && getInviteControl(i)?.touched" />
-            @if (getInviteControl(i)?.invalid && getInviteControl(i)?.touched) {
-              <p class="text-red-500 text-xs mt-1">Le numéro de matricule est obligatoire</p>
+            <div class="flex items-center gap-2">
+              <!-- Disable invite entry until a complexe sportif (site) is selected, unless a site was prefilled -->
+              <input [formControlName]="i" placeholder="Email de l'invité" class="flex-1 border rounded p-2" [class.border-red-500]="getInviteControl(i)?.invalid && getInviteControl(i)?.touched" [disabled]="!form.get('siteId')?.value" />
+
+               <!-- Confirm / validate button -->
+               <button type="button" (click)="validateInvite(i)" class="flex-none inline-flex items-center justify-center h-8 w-8 rounded border bg-white hover:bg-gray-50" [disabled]="!form.get('siteId')?.value || getInviteControl(i)?.invalid || inviteStates[i]?.status === 'checking'" aria-label="Vérifier l'email">
+                 @if (inviteStates[i]?.status === 'checking') {
+                   <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                 }
+                 @if (inviteStates[i]?.status === 'found') {
+                   <!-- keep existing green check icon when user found -->
+                   <svg class="h-4 w-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                 }
+                 @if (!inviteStates[i] || inviteStates[i]?.status === 'idle' || inviteStates[i]?.status === 'not_found' || inviteStates[i]?.status === 'error') {
+                   <!-- magnifier / search icon for validating an email -->
+                   <svg class="h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                 }
+               </button>
+
+              <!-- Clear button -->
+              @if (inviteStates[i]?.status === 'found' || getInviteControl(i)?.value) {
+                <button type="button" (click)="clearInvite(i)" class="flex-none inline-flex items-center justify-center h-8 w-8 rounded bg-gray-100 hover:bg-gray-200">
+                  <svg class="h-4 w-4 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              }
+
+              <!-- Invite (not found) button -->
+               @if (inviteStates[i]?.status === 'not_found') {
+                 <button type="button" (click)="inviteUser(i)" class="flex-none bg-orange-500 hover:bg-orange-600 text-white text-xs px-3 py-1 rounded" [disabled]="!form.get('siteId')?.value">INVITER ?</button>
+               }
+            </div>
+
+            @if (getInviteControl(i)?.touched) {
+              @if (getInviteControl(i)?.errors?.required) {
+                <p class="text-red-500 text-xs mt-1">L'email est obligatoire</p>
+              }
+              @if (getInviteControl(i)?.errors?.email || getInviteControl(i)?.errors?.pattern) {
+                <p class="text-red-500 text-xs mt-1">Format d'email invalide. Utilisez un format comme : email&#64;domaine.com</p>
+              }
+              @if (getInviteControl(i)?.errors?.timeout) {
+                <p class="text-yellow-600 text-xs mt-1">Recherche expirée, veuillez réessayer</p>
+              }
+              @if (getInviteControl(i)?.errors?.duplicate) {
+                <p class="text-red-500 text-xs mt-1">Les adresses doivent être différentes les unes des autres</p>
+              }
+              @if (getInviteControl(i)?.errors?.selfInvite) {
+                <p class="text-red-500 text-xs mt-1">Vous ne pouvez pas vous inviter vous-même</p>
+              }
+              @if (getInviteControl(i)?.errors?.adminNotAllowed) {
+                <p class="text-red-500 text-xs mt-1">Impossible d'inviter un administrateur</p>
+              }
+            }
+
+            @if (inviteStates[i]?.status === 'found') {
+              <p class="text-green-600 text-xs mt-1">Utilisateur trouvé: {{ inviteStates[i].user?.firstName || '' }} {{ inviteStates[i].user?.lastName || '' }} (matricule: {{ inviteStates[i].user?.matricule }})</p>
+            }
+
+            @if (inviteStates[i]?.status === 'not_found') {
+              <p class="text-yellow-600 text-xs mt-1">Aucun utilisateur trouvé pour cet email.</p>
+            }
+
+            @if (inviteStates[i]?.status === 'error') {
+              <p class="text-red-600 text-xs mt-1">Erreur lors de la vérification.</p>
             }
           </div>
         }
@@ -97,7 +158,13 @@
     }
 
     <div class="flex justify-end">
-      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded" [disabled]="loading">{{ loading ? 'Création...' : 'Créer le Match' }}</button>
+      <!-- disable submit when loading or when form is invalid to prevent creating with incomplete/invalid data -->
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed" [disabled]="loading || form.invalid">{{ loading ? 'Création...' : 'Créer le Match' }}</button>
     </div>
   </form>
 </div>
+
+@if (showUserForm) {
+  <app-user-form [sites]="sites" [prefillEmail]="userFormPrefillEmail" [prefillSiteId]="form.get('siteId')?.value" [prefillSiteName]="getSelectedSiteName()" [inviteMode]="true" (close)="onUserFormClose()" (signupCompleted)="onSignupCompleted($event)"></app-user-form>
+}
+

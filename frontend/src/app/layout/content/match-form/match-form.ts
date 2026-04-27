@@ -1,18 +1,23 @@
 import { Component, Input, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators, FormArray } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { MatchCreationControllerService } from '../../../api/api/matchCreationController.service';
 import { FieldControllerService } from '../../../api/api/fieldController.service';
 import { SiteControllerService } from '../../../api/api/siteController.service';
 import { AuthService } from '../../../services/auth.service';
 import { UserService } from '../../../services/user.service';
+import { SessionService } from '../../../services/session.service';
+import { AvailabilityService } from '../../../services/availability.service';
 import { Router } from '@angular/router';
 import { MatchCal } from '../match-cal/match-cal';
+import { UserFormComponent } from '../user-form/user-form';
 
 @Component({
   selector: 'app-match-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatchCal],
+  imports: [CommonModule, ReactiveFormsModule, MatchCal, UserFormComponent],
   templateUrl: './match-form.html',
   styleUrls: ['./match-form.css']
 })
@@ -36,38 +41,62 @@ export class MatchForm implements OnInit {
    siteId: new FormControl<number | null>({value: null, disabled: false}, [Validators.required]),
    fieldId: new FormControl<number | null>(null, [Validators.required]),
    type: new FormControl<string | null>(null),
-   matchDate: new FormControl<string | null>(null, [Validators.required]),
-   startTime: new FormControl<string | null>(null, [Validators.required]),
+    matchDate: new FormControl<string | null>(null, [Validators.required]),
+    // matchDate must be chosen after a field is selected; startTime is disabled until a date is set
+    startTime: new FormControl<string | null>({value: null, disabled: true}, [Validators.required]),
    endTime: new FormControl<string | null>({value: null, disabled: true}, [Validators.required]),
    organiserId: new FormControl<string | null>(null, [Validators.required]),
    invites: new FormArray([
-     new FormControl<string | null>(null),
-     new FormControl<string | null>(null),
-     new FormControl<string | null>(null)
+     // use the same strong email validation as `user-form` (email + pattern for domain suffix)
+     new FormControl<string | null>(null, [Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)]),
+     new FormControl<string | null>(null, [Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)]),
+     new FormControl<string | null>(null, [Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)])
    ])
   });
 
-  // calendar overlay state
-  showCalendarOverlay = true;
+  // calendar overlay state (do not prompt overlay on form load)
+  showCalendarOverlay = false;
   tempSelectedDate: Date | null = null;
   dateReadOnly = false;
 
   // sessions for the currently selected site (normalized for UI: _start/_end labels)
   sessionsForSite: any[] = [];
   private updatingFromSession = false;
+  // Fully booked dates for the calendar (Set of YYYY-MM-DD)
+  fullyBookedDates: Set<string> = new Set();
 
-  constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private router: Router, private cd: ChangeDetectorRef) {}
+  // per-invite validation state (idle, checking, found, not_found, error)
+  inviteStates: Array<{ status: 'idle' | 'checking' | 'found' | 'not_found' | 'error', user?: any }> = [
+    { status: 'idle' },
+    { status: 'idle' },
+    { status: 'idle' }
+  ];
+
+  // current user info (used to prevent inviting self or admins)
+  currentUserEmail?: string | null;
+  currentUserMatricule?: string | null;
+  currentUserRoleId?: number | null;
+  // timers for invite lookups to avoid indefinite spinner
+  private inviteTimeouts: Array<any> = [null, null, null];
+
+  // user-form overlay state
+  showUserForm = false;
+  userFormPrefillEmail?: string | null = null;
+  userFormInviteIndex: number | null = null;
+
+  constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef) {}
 
   ngOnInit(): void {
-    // determine whether to show calendar overlay (hide if matchDate already set)
+    // ensure calendar overlay is not prompted on initial form load
     const existingDate = this.form.get('matchDate')?.value;
-    if (existingDate) {
-      this.showCalendarOverlay = false;
-      this.dateReadOnly = true; // keep the date visually non-editable but allow click to open calendar
-      // leave control enabled for validation
-    } else {
-      this.showCalendarOverlay = true;
-      this.dateReadOnly = false;
+    this.showCalendarOverlay = false;
+    this.dateReadOnly = !!existingDate;
+
+    // Disable date selection until a field is selected
+    if (!this.form.get('fieldId')?.value) {
+      this.form.get('matchDate')?.disable();
+      // startTime already initialized as disabled; ensure endTime is disabled as well
+      this.form.get('endTime')?.disable();
     }
 
     // prefill organiser if provided and fetch organiser name (first + last only)
@@ -101,42 +130,81 @@ export class MatchForm implements OnInit {
     }
 
     // Add validators to invite fields for private matches
+    // always ensure email syntax validator is present; for private matches also require the field
+    const invitesArray = this.form.get('invites') as FormArray;
+    const emailPattern = Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/);
     if (this.isPrivate()) {
-      const invitesArray = this.form.get('invites') as FormArray;
       invitesArray.controls.forEach(control => {
-        control.setValidators([Validators.required]);
+        control.setValidators([Validators.required, Validators.email, emailPattern]);
+        control.updateValueAndValidity();
+      });
+    } else {
+      // ensure email + pattern validator remains applied (non-required)
+      invitesArray.controls.forEach(control => {
+        control.setValidators([Validators.email, emailPattern]);
         control.updateValueAndValidity();
       });
     }
 
+    // Reset invite validation UI/state when the user edits the invite input.
+    // If the user changes the email text, clear any previous 'found'/'not_found' message
+    // and reset the button/status to idle so they can re-validate the new value.
+    invitesArray.controls.forEach((control, idx) => {
+      control.valueChanges.subscribe(() => {
+        // only change state if it's not already 'checking' to avoid interrupting an in-flight check
+        if (this.inviteStates[idx]?.status !== 'checking') {
+          this.inviteStates[idx] = { status: 'idle' };
+        }
+        // if user cleared the input, ensure the control is untouched so UI validation messages hide
+        if (!control.value) {
+          control.markAsUntouched();
+        }
+        // re-run cross-field validation: uniqueness and self-invite checks
+        this.runInviteCrossValidation();
+        this.cd.detectChanges();
+      });
+    });
+
     // keep endTime disabled (greyed) and set placeholder via template; we'll still set its value programmatically
     this.form.get('endTime')?.disable();
 
-    // react to site selection changes -> filter displayed fields
-          this.form.get('siteId')?.valueChanges.subscribe((siteId) => {
+    // react to site selection changes -> fetch fields for the selected site
+    this.form.get('siteId')?.valueChanges.subscribe((siteId) => {
       const id = siteId ? Number(siteId) : null;
       if (!id) {
         this.fields = [];
+        this.sessionsForSite = [];
+        // clear date and times when site is deselected
+        this.form.get('matchDate')?.setValue(null);
+        this.form.get('startTime')?.setValue(null);
+        this.form.get('endTime')?.setValue(null);
+        this.form.get('fieldId')?.setValue(null);
+        this.tempSelectedDate = null;
+        this.dateReadOnly = false;
         return;
       }
-        // ensure Authorization header is set on the field service before calling
-        this.setAuthHeaderForService(this.fieldService);
-        // fetch fields for the selected site using the per-site endpoint
-        this.fieldService.getFieldsBySite(id).subscribe({
-          next: (data: any[]) => {
-            this.fields = data || [];
-            // load sessions embedded in the selected site (controller returns sessions per-site)
-            const site = (this.sites || []).find((x: any) => Number(x.siteId) === Number(id));
-            this.sessionsForSite = (site && site.sessions) ? (site.sessions as any[]).map((ss: any) => this.normalizeSessionForUi(ss)) : [];
-            // Clear sessions if no date is selected
-            this.updateSessionsBasedOnDate();
-            this.cd.detectChanges();
-          },
-          error: (err) => {
-            console.error('Failed to load fields for site', id, err);
-            this.fields = [];
-          }
-        });
+      // When changing the selected site (complexe sportif), clear date and start time
+      this.form.get('matchDate')?.setValue(null);
+      this.form.get('startTime')?.setValue(null);
+      this.form.get('endTime')?.setValue(null);
+      // clear selected field and sessions so user picks a field for the new site
+      this.form.get('fieldId')?.setValue(null);
+      this.sessionsForSite = [];
+      this.tempSelectedDate = null;
+      this.dateReadOnly = false;
+      // fetch fields only; sessions will be loaded when a field is selected
+      this.sessionService.fetchFieldsBySite(id).subscribe({
+        next: (data: any[]) => {
+          this.fields = data || [];
+          this.cd.detectChanges();
+          // recompute fully booked dates for newly selected site (no specific field)
+          this.updateFullyBookedDates(null);
+        },
+        error: (err) => {
+          console.error('Failed to load fields for site', id, err);
+          this.fields = [];
+        }
+      });
     });
 
     // when user selects a start time (from dropdown), populate endTime based on the session with matching _start
@@ -144,17 +212,22 @@ export class MatchForm implements OnInit {
       if (this.updatingFromSession) return;
       if (!val) {
         this.form.get('endTime')?.setValue(null);
+        // keep endTime disabled until a valid startTime is chosen
+        this.form.get('endTime')?.disable();
         return;
       }
       const session = (this.sessionsForSite || []).find(s => s._start === val);
       if (!session) {
         this.form.get('endTime')?.setValue(null);
+        this.form.get('endTime')?.disable();
         return;
       }
       this.updatingFromSession = true;
       if (session.fieldId) this.form.get('fieldId')?.setValue(session.fieldId);
       if (session.siteId) this.form.get('siteId')?.setValue(session.siteId);
       if (session._end) this.form.get('endTime')?.setValue(session._end);
+      // enable endTime now that a startTime (and matching session) is selected
+      this.form.get('endTime')?.enable();
       if (session.startedAt) {
         const sd = this.parseDateTime(session.startedAt);
         if (sd) this.form.get('matchDate')?.setValue(this.formatDateForInput(sd));
@@ -162,24 +235,112 @@ export class MatchForm implements OnInit {
       this.updatingFromSession = false;
     });
 
-    // React to date changes - clear sessions if date is not selected
+    // Load sessions when a field is selected (instead of when a site is selected)
+    this.form.get('fieldId')?.valueChanges.subscribe((fieldId) => {
+      // If we're updating the form from a session selection, avoid clearing state
+      if (this.updatingFromSession) return;
+      const fid = fieldId ? Number(fieldId) : null;
+      // When the user explicitly changes the field, clear only start/end times
+      // (preserve the selected date per requested behaviour)
+      this.form.get('startTime')?.setValue(null);
+      this.form.get('endTime')?.setValue(null);
+      // When a field is selected, enable the date picker. When no field is selected, disable date and times.
+      if (!fid) {
+        // disable date selection until a field is chosen
+        this.form.get('matchDate')?.setValue(null);
+        this.form.get('matchDate')?.disable();
+        // disable time selection until a date is chosen
+        this.form.get('startTime')?.disable();
+        this.form.get('endTime')?.disable();
+      } else {
+        this.form.get('matchDate')?.enable();
+        this.error = null;
+        // startTime remains disabled until a date is chosen
+        this.form.get('startTime')?.disable();
+        this.form.get('endTime')?.disable();
+      }
+
+      if (!fid) {
+        this.sessionsForSite = [];
+        // recompute fully booked dates for site-level (no specific field)
+        this.updateFullyBookedDates(null);
+        return;
+      }
+      // try to find the field in the currently loaded fields to get its siteId
+      const fld = (this.fields || []).find((f: any) => Number(f.fieldId) === Number(fid));
+      const siteId = fld?.siteId ? Number(fld.siteId) : Number(this.form.get('siteId')?.value) || null;
+      if (!siteId) {
+        this.sessionsForSite = [];
+        return;
+      }
+      this.sessionService.loadSessionsForSite(siteId, this.form.get('matchDate')?.value).subscribe((sessions) => {
+        // filter sessions to the selected field when possible
+        let filtered = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
+        const matchDate = this.form.get('matchDate')?.value;
+        if (matchDate) {
+          this.availabilityService.filterSessionsByAvailability(siteId, filtered, matchDate, fid).subscribe({
+            next: (res) => {
+              this.sessionsForSite = res;
+              this.cd.detectChanges();
+            },
+            error: () => {
+              this.sessionsForSite = filtered;
+              this.cd.detectChanges();
+            }
+          });
+        } else {
+          this.sessionsForSite = filtered;
+          this.cd.detectChanges();
+        }
+        // recompute fully booked dates for the selected field
+        this.updateFullyBookedDates(fid);
+      });
+    });
+
+    // React to date changes - do NOT clear the selected field when the user changes the date.
+    // Instead enable startTime only after a date is set. If the change originates from a session
+    // selection, we still update sessions based on the date.
     this.form.get('matchDate')?.valueChanges.subscribe((date) => {
+      // If the date change originates from a session selection, do not clear the field
+      if (this.updatingFromSession) {
+        // ensure startTime is enabled when session set a date
+        if (date) this.form.get('startTime')?.enable();
+        this.updateSessionsBasedOnDate();
+        return;
+      }
+      // Do not clear the fieldId when the user changes the date (requested behaviour)
+      // Clear only start/end times and enable startTime when a valid date is present
+      this.form.get('startTime')?.setValue(null);
+      this.form.get('endTime')?.setValue(null);
+      if (date) {
+        this.form.get('startTime')?.enable();
+      } else {
+        this.form.get('startTime')?.disable();
+        this.form.get('endTime')?.disable();
+      }
       this.updateSessionsBasedOnDate();
     });
 
     // Load user's accessible sites and then load fields filtered by those sites.
         this.userService.getCurrentUser().subscribe({
           next: (profile: any) => {
+
             const roleId = profile?.roleId ?? -1;
             // role ids that grant access to all sites: ALL_SITE_ACCESS(2), SITE_ADMIN(7), ADMIN(9)
             const isAllSites = [2, 7, 9].includes(Number(roleId)) || (profile?.sites && profile.sites.some((s: any) => s.isVip));
             if (isAllSites) {
               // fetch all sites
               // ensure Authorization header is set on the site controller
-              this.setAuthHeaderForService(this.siteController);
+              this.sessionService.setAuthHeader(this.siteController);
               this.siteController.getAllSites(true).subscribe({
                 next: (sites: any[]) => {
                   this.sites = sites || [];
+                        // store current user info if present on profile
+                        if (profile) {
+                          this.currentUserEmail = profile.email ?? null;
+                          this.currentUserMatricule = profile.matricule ?? null;
+                          this.currentUserRoleId = profile.roleId ?? null;
+                        }
                   const allowed = (this.sites || []).map(s => s.siteId).filter((id: any) => id !== undefined && id !== null);
                   this.loadFieldsForAllowedSites(allowed);
 
@@ -201,7 +362,11 @@ export class MatchForm implements OnInit {
               });
             } else {
               // use sites from user profile
-              this.sites = profile?.sites || [];
+                  this.sites = profile?.sites || [];
+                  // store current user info from profile
+                  this.currentUserEmail = profile?.email ?? null;
+                  this.currentUserMatricule = profile?.matricule ?? null;
+                  this.currentUserRoleId = profile?.roleId ?? null;
               const userSites = (this.sites || []).map((s: any) => s.siteId).filter((id: any) => id !== undefined && id !== null);
               this.loadFieldsForAllowedSites(userSites);
 
@@ -226,17 +391,7 @@ export class MatchForm implements OnInit {
 
   }
 
-  // Helper to set Authorization header on generated API services that expose defaultHeaders
-  private setAuthHeaderForService(service: any): void {
-    try {
-      const token = this.authService.getToken();
-      if (token && service && service.defaultHeaders && service.defaultHeaders.set) {
-        service.defaultHeaders = service.defaultHeaders.set('Authorization', `Bearer ${token}`);
-      }
-    } catch (e) {
-      // ignore failures setting headers
-    }
-  }
+  // ...existing code...
 
   // Load fields and filter by allowed site ids. If allowedSiteIds is undefined, do not filter (load all fields)
   private loadFieldsForAllowedSites(allowedSiteIds?: number[] | undefined): void {
@@ -261,30 +416,13 @@ export class MatchForm implements OnInit {
     const siteId = site?.siteId;
     if (!siteId) return;
 
-    // ensure Authorization header is set on the field service before calling
-    this.setAuthHeaderForService(this.fieldService);
-
-    // fetch fields for the selected site using the per-site endpoint
-    this.fieldService.getFieldsBySite(siteId).subscribe({
+    this.sessionService.fetchFieldsBySite(siteId).subscribe({
       next: (data: any[]) => {
+        // only fetch fields for the preselected site; do not load sessions until a field is selected
         this.fields = data || [];
-        // For normal users, we need to get the site details with sessions from the API
-        // The site object from user profile might not contain sessions data
-        this.setAuthHeaderForService(this.siteController);
-        this.siteController.getSiteById(siteId).subscribe({
-          next: (siteWithSessions: any) => {
-            // load sessions embedded in the site (controller returns sessions per-site)
-            this.sessionsForSite = (siteWithSessions && siteWithSessions.sessions) ?
-                (siteWithSessions.sessions as any[]).map((ss: any) => this.normalizeSessionForUi(ss)) : [];
-            // Clear sessions if no date is selected
-            this.updateSessionsBasedOnDate();
-            this.cd.detectChanges();
-          },
-          error: (err) => {
-            console.error('Failed to load site details for preselected site', siteId, err);
-            this.sessionsForSite = [];
-          }
-        });
+        this.cd.detectChanges();
+        // compute fully booked dates for preselected site (no field selected yet)
+        this.updateFullyBookedDates(null);
       },
       error: (err) => {
         console.error('Failed to load fields for preselected site', siteId, err);
@@ -295,25 +433,94 @@ export class MatchForm implements OnInit {
 
   // Update sessionsForSite based on whether a date is selected
   private updateSessionsBasedOnDate(): void {
-    const hasDate = !!this.form.get('matchDate')?.value;
-    if (!hasDate && this.sessionsForSite.length > 0) {
-      // Store the original sessions temporarily
-      if (!this._originalSessions) {
-        this._originalSessions = [...this.sessionsForSite];
-      }
+    const matchDate = this.form.get('matchDate')?.value;
+    const fid = Number(this.form.get('fieldId')?.value) || null;
+    // If no field selected, clear sessions (we load sessions when a field is selected)
+    if (!fid) {
       this.sessionsForSite = [];
-      this.form.get('startTime')?.setValue(null);
-      this.form.get('endTime')?.setValue(null);
-    } else if (hasDate && this._originalSessions && this._originalSessions.length > 0) {
-      // Restore sessions when date is selected
-      this.sessionsForSite = [...this._originalSessions];
-      this._originalSessions = null;
+      if (!matchDate) {
+        this.form.get('startTime')?.setValue(null);
+        this.form.get('endTime')?.setValue(null);
+      }
+      this.cd.detectChanges();
+      return;
+    }
+    // find site's id from loaded fields if possible
+    const fld = (this.fields || []).find((f: any) => Number(f.fieldId) === Number(fid));
+    const siteId = fld?.siteId ? Number(fld.siteId) : Number(this.form.get('siteId')?.value) || null;
+    if (!siteId) {
+      this.sessionsForSite = [];
+      this.cd.detectChanges();
+      return;
+    }
+    this.sessionService.onDateChange(siteId, matchDate).subscribe((sessions) => {
+      let filtered = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
+      if (matchDate) {
+        this.availabilityService.filterSessionsByAvailability(siteId, filtered, matchDate, fid).subscribe({
+          next: (res) => {
+            this.sessionsForSite = res;
+            if (!matchDate) {
+              this.form.get('startTime')?.setValue(null);
+              this.form.get('endTime')?.setValue(null);
+            }
+            this.cd.detectChanges();
+          },
+          error: () => {
+            this.sessionsForSite = filtered;
+            if (!matchDate) {
+              this.form.get('startTime')?.setValue(null);
+              this.form.get('endTime')?.setValue(null);
+            }
+            this.cd.detectChanges();
+          }
+        });
+      } else {
+        this.sessionsForSite = filtered;
+        if (!matchDate) {
+          this.form.get('startTime')?.setValue(null);
+          this.form.get('endTime')?.setValue(null);
+        }
+        this.cd.detectChanges();
+      }
+    });
+  }
+
+  /**
+   * Compute fully booked dates for the calendar. For the next N days, load sessions for the site
+   * and use AvailabilityService to determine if any session slots remain for the selected field.
+   * This is async and updates `fullyBookedDates` when complete.
+   */
+  private async updateFullyBookedDates(fieldId: number | null): Promise<void> {
+    this.fullyBookedDates = new Set();
+    const siteId = Number(this.form.get('siteId')?.value) || null;
+    if (!siteId) {
+      this.cd.detectChanges();
+      return;
+    }
+
+    const days = 14; // check next 14 days
+    const today = new Date();
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+      const iso = this.formatDateForInput(d);
+      try {
+        // load normalized sessions for this site/date
+        const sessions: any[] = await firstValueFrom(this.sessionService.loadSessionsForSite(siteId, iso));
+        let sessionsForField = sessions || [];
+        if (fieldId) sessionsForField = (sessionsForField || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fieldId));
+        const available: any[] = await firstValueFrom(this.availabilityService.filterSessionsByAvailability(siteId, sessionsForField, iso, fieldId ?? null));
+        if (!available || available.length === 0) {
+          this.fullyBookedDates.add(iso);
+        }
+      } catch (e) {
+        // ignore single-day failures; do not block overall computation
+        console.warn('updateFullyBookedDates error for', iso, e);
+      }
     }
     this.cd.detectChanges();
   }
 
-  // Temporary storage for original sessions when date is not selected
-  private _originalSessions: any[] | null = null;
+  // ...existing code...
 
   onDateSelected(date: Date | null): void {
     this.tempSelectedDate = date;
@@ -345,44 +552,11 @@ export class MatchForm implements OnInit {
     return null;
   }
 
-  // format a Date into HH:mm string
-  private formatTimeHHMM(d: Date): string {
-    const hh = d.getHours().toString().padStart(2, '0');
-    const mm = d.getMinutes().toString().padStart(2, '0');
-    return `${hh}:${mm}`;
-  }
+  // ...existing code...
 
-  // normalize a raw session into UI-friendly fields: _start, _end and label
-  private normalizeSessionForUi(s: any): any {
-    const out: any = { ...s };
+  // ...existing code...
 
-    // Handle both formats: startedAt/endedAt (datetime) and start_time/end_time (time strings)
-    let startTimeStr = s.start_time || null;
-    let endTimeStr = s.end_time || null;
-
-    // If we have datetime fields, convert them to time strings
-    if (s.startedAt && !startTimeStr) {
-      const startDate = this.parseDateTime(s.startedAt);
-      startTimeStr = startDate ? this.formatTimeHHMM(startDate) : null;
-    }
-    if (s.endedAt && !endTimeStr) {
-      const endDate = this.parseDateTime(s.endedAt);
-      endTimeStr = endDate ? this.formatTimeHHMM(endDate) : null;
-    }
-
-    // If we have time strings but they're in HH:MM:SS format, convert to HH:MM
-    if (startTimeStr && startTimeStr.includes(':')) {
-      startTimeStr = startTimeStr.split(':').slice(0, 2).join(':');
-    }
-    if (endTimeStr && endTimeStr.includes(':')) {
-      endTimeStr = endTimeStr.split(':').slice(0, 2).join(':');
-    }
-
-    out._start = startTimeStr;
-    out._end = endTimeStr;
-    out.label = out._start ? `${out._start}` : `Slot ${out.match_set_id ?? out.sessionId ?? ''}`;
-    return out;
-  }
+  // ...existing code...
 
   confirmDate(): void {
     if (!this.tempSelectedDate) return;
@@ -396,6 +570,12 @@ export class MatchForm implements OnInit {
 
   onDateInputClick(): void {
     // open calendar overlay for selecting a new date
+    // do not allow opening the calendar until a field is selected
+    const fid = this.form.get('fieldId')?.value ? Number(this.form.get('fieldId')?.value) : null;
+    if (!fid) {
+      this.error = 'Please select a field before choosing a date.';
+      return;
+    }
     // set tempSelectedDate from current form value if present
     const v = this.form.get('matchDate')?.value;
     if (v) {
@@ -425,9 +605,246 @@ export class MatchForm implements OnInit {
     return (this.form.get('invites') as FormArray).controls as any[];
   }
 
+  // Return the display name of the currently selected site (used to prefill child forms)
+  getSelectedSiteName(): string | null {
+    const siteId = this.form.get('siteId')?.value;
+    // handle number | null | string cases safely to satisfy strict type checks
+    if (siteId === null || siteId === undefined) return null;
+    // treat an empty-string siteId as unset; use String(...) to satisfy strict typing
+    if (String(siteId).trim() === '') return null;
+    const idNum = Number(siteId);
+    const s = (this.sites || []).find((x: any) => Number(x.siteId) === idNum);
+    if (!s) return null;
+    return s.name || s.siteName || null;
+  }
+
   // Helper method to get individual invite control for validation
   getInviteControl(index: number): any {
     return (this.form.get('invites') as FormArray).at(index);
+  }
+
+  // Cross-field validation for invites: ensure all entered invites are unique and
+  // none equals the current user's email (self-invite). This sets specific
+  // errors on individual controls so the template can display targeted messages.
+  private runInviteCrossValidation(): void {
+    const arr = this.form.get('invites') as FormArray;
+    if (!arr || !arr.controls) return;
+    const seen = new Map<string, number[]>();
+    // collect normalized emails
+    arr.controls.forEach((c: any, idx: number) => {
+      const v = (c.value || '').toString().trim().toLowerCase();
+      if (!v) return;
+      if (!seen.has(v)) seen.set(v, []);
+      seen.get(v)!.push(idx);
+    });
+    // clear previous duplicate/self errors, but preserve other errors (like pattern)
+    arr.controls.forEach((c: any) => {
+      if (!c) return;
+      const errors = c.errors || {};
+      // remove our custom keys
+      delete errors['duplicate'];
+      delete errors['selfInvite'];
+      delete errors['adminNotAllowed'];
+      delete errors['timeout'];
+      // if no other errors remain, clear; otherwise set back
+      if (Object.keys(errors).length === 0) {
+        c.setErrors(null);
+      } else {
+        c.setErrors(errors);
+      }
+    });
+    // mark duplicates
+    seen.forEach((indices, email) => {
+      if (indices.length > 1) {
+        indices.forEach(i => {
+          const c = arr.at(i);
+          const err = c.errors || {};
+          err['duplicate'] = true;
+          c.setErrors(err);
+        });
+      }
+    });
+    // mark self-invite if matches current user's email
+    if (this.currentUserEmail) {
+      const norm = this.currentUserEmail.toString().trim().toLowerCase();
+      const matches = seen.get(norm);
+      if (matches && matches.length > 0) {
+        matches.forEach(i => {
+          const c = arr.at(i);
+          const err = c.errors || {};
+          err['selfInvite'] = true;
+          c.setErrors(err);
+        });
+      }
+    }
+  }
+
+  // Validate invite email at given index: call backend to see if user exists
+  validateInvite(index: number): void {
+    const control = this.getInviteControl(index);
+    if (!control) return;
+    const email = control.value ? String(control.value).trim() : '';
+    // mark touched so validation messages show
+    control.markAsTouched();
+    // do not proceed if the control is invalid (either empty when required or bad email syntax)
+    if (control.invalid) {
+      // ensure the template disables the button, but protect here as well
+      return;
+    }
+
+    // set checking state
+    this.inviteStates[index] = { status: 'checking' };
+    this.cd.detectChanges();
+
+    // call UserService to lookup by email
+    try {
+      // start watchdog timer BEFORE subscribing to avoid races with synchronous observables
+      if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); }
+      let sub: any = null;
+      this.inviteTimeouts[index] = setTimeout(() => {
+        if (this.inviteStates[index]?.status === 'checking') {
+          // mark as not_found so UI stops showing spinner
+          this.inviteStates[index] = { status: 'not_found' };
+          const c = this.getInviteControl(index);
+          if (c) {
+            const errs = c.errors || {};
+            errs['timeout'] = true;
+            c.setErrors(errs);
+          }
+          // unsubscribe if still subscribed
+          try { sub?.unsubscribe?.(); } catch {}
+          this.cd.detectChanges();
+        }
+      }, 3000);
+
+      sub = this.userService.getUserByEmail(email).pipe(finalize(() => {
+        // finalize: ensure timeout is cleared and spinner is not left running
+        if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+        // if still checking (no next/error received), mark as not_found to stop spinner
+        if (this.inviteStates[index]?.status === 'checking') {
+          this.inviteStates[index] = { status: 'not_found' };
+          const c = this.getInviteControl(index);
+          if (c) {
+            const errs = c.errors || {};
+            errs['timeout'] = true;
+            c.setErrors(errs);
+          }
+          this.cd.detectChanges();
+        }
+      })).subscribe({
+        next: (user) => {
+          // user found -> if admin, disallow invite; otherwise accept
+          const roleId = user?.roleId ?? null;
+          if (roleId === 7 || roleId === 9) {
+            // cannot invite admins
+            const control = this.getInviteControl(index);
+            if (control) {
+              const err = control.errors || {};
+              err['adminNotAllowed'] = true;
+              control.setErrors(err);
+            }
+            this.inviteStates[index] = { status: 'error', user };
+            // clear any pending timeout
+            if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+            this.cd.detectChanges();
+            return;
+          }
+          // otherwise user found -> keep email in control but store user (matricule) for later use
+          // clear any adminNotAllowed error
+          const control = this.getInviteControl(index);
+          if (control) {
+            const errs = control.errors || {};
+            delete errs['adminNotAllowed'];
+            if (Object.keys(errs).length === 0) control.setErrors(null); else control.setErrors(errs);
+          }
+          this.inviteStates[index] = { status: 'found', user };
+          // re-run cross-field validation in case this email creates a duplicate/self-invite
+          this.runInviteCrossValidation();
+          // clear any pending timeout
+          if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+          this.cd.detectChanges();
+        },
+        error: (err) => {
+          // if backend returns 404 or similar, mark as not_found
+          console.warn('Invite validation error for', email, err);
+          this.inviteStates[index] = { status: 'not_found' };
+          // clear any pending timeout
+          if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+          this.cd.detectChanges();
+        }
+      });
+      // start a watchdog timer to avoid infinite spinner; if it fires, mark as not_found and set timeout error
+      if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); }
+      this.inviteTimeouts[index] = setTimeout(() => {
+        if (this.inviteStates[index]?.status === 'checking') {
+          // mark as not_found so UI stops showing spinner
+          this.inviteStates[index] = { status: 'not_found' };
+          const c = this.getInviteControl(index);
+          if (c) {
+            const errs = c.errors || {};
+            errs['timeout'] = true;
+            c.setErrors(errs);
+          }
+          // unsubscribe if still subscribed
+          try { sub?.unsubscribe?.(); } catch {}
+          this.cd.detectChanges();
+        }
+      }, 3000);
+    } catch (e) {
+      console.error('validateInvite caught', e);
+      this.inviteStates[index] = { status: 'error' };
+      this.cd.detectChanges();
+    }
+  }
+
+  // Clear invite input and its state
+  clearInvite(index: number): void {
+    const control = this.getInviteControl(index);
+    if (!control) return;
+    control.setValue(null);
+    this.inviteStates[index] = { status: 'idle' };
+    control.markAsUntouched();
+    this.cd.detectChanges();
+  }
+
+  // Called when user clicks the "Inviter ?" button for a not-found email.
+  // For now we just log; later this will open the signup/user-form prefilled with the email.
+  inviteUser(index: number): void {
+    const control = this.getInviteControl(index);
+    if (!control) return;
+    const email = control.value ? String(control.value).trim() : '';
+    // open embedded UserFormComponent overlay with prefilled email and mark invite-mode
+    this.userFormPrefillEmail = email || undefined;
+    this.userFormInviteIndex = index;
+    this.showUserForm = true;
+    this.cd.detectChanges();
+  }
+
+  onUserFormClose(): void {
+    this.showUserForm = false;
+    this.userFormPrefillEmail = null;
+    this.userFormInviteIndex = null;
+    this.cd.detectChanges();
+  }
+
+  // Called when UserFormComponent emits signupCompleted with the created user
+  onSignupCompleted(createdUser: any): void {
+    const idx = this.userFormInviteIndex;
+    if (idx === null || idx === undefined) {
+      this.onUserFormClose();
+      return;
+    }
+    // set the invite input to the created user's email and mark as found
+    const control = this.getInviteControl(idx);
+    if (control) {
+      control.setValue(createdUser?.email || control.value);
+      control.markAsTouched();
+    }
+    this.inviteStates[idx] = { status: 'found', user: createdUser };
+    // re-run cross-field validation
+    this.runInviteCrossValidation();
+    this.onUserFormClose();
+    this.cd.detectChanges();
   }
 
   submit(): void {
