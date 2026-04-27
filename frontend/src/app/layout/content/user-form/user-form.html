@@ -1,5 +1,6 @@
 @if (showForm) {
-<div class="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+<!-- raise z-index above header/nav mobile overlay to avoid being covered on small screens -->
+<div class="fixed inset-0 z-[999999] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
   <div class="relative bg-white w-full max-w-lg mx-4 p-8 rounded-2xl shadow-2xl animate-fade-in-up max-h-[105vh] overflow-y-auto">
 	<button (click)="doClose()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-800 transition-colors">
 	  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -162,7 +163,8 @@
 
 <!-- Signup success popup (inside component) -->
 @if (signupSuccess) {
-<div class="fixed inset-0 z-[110] flex items-center justify-center">
+<!-- success popup should also be above other fixed elements -->
+<div class="fixed inset-0 z-[999998] flex items-center justify-center">
   <div class="absolute inset-0 bg-black bg-opacity-40"></div>
   <div class="relative bg-white rounded-xl p-6 shadow-xl w-full max-w-sm text-center">
 	<button (click)="closeSignupSuccess()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition-colors">
