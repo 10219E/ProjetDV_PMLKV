@@ -1,7 +1,7 @@
 <div class="max-w-xl mx-auto">
   <!-- calendar component overlay shown before the form if enabled -->
     @if (showCalendarOverlay) {
-    <app-match-cal [selected]="tempSelectedDate" [fullyBooked]="fullyBookedDates" [role]="currentUserRoleId ?? 'subscribed'" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
+    <app-match-cal [selected]="tempSelectedDate" [fullyBooked]="fullyBookedDates" [role]="currentUserRoleId ?? 'subscribed'" [siteId]="form.get('siteId')?.value" [fieldId]="form.get('fieldId')?.value" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
   }
   <form [formGroup]="form" (ngSubmit)="submit()" class="bg-white p-6 rounded shadow">
     <h2 class="text-xl font-bold mb-4">Créer un Match</h2>

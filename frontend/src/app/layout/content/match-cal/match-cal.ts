@@ -1,5 +1,8 @@
-import { Component, Output, EventEmitter, Input } from '@angular/core';
+import { Component, Output, EventEmitter, Input, OnChanges, SimpleChanges, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ClosuresService } from '../../../services/closures.service';
+import { Subscription } from 'rxjs';
+import { ChangeDetectorRef } from '@angular/core';
 
 @Component({
   selector: 'app-match-cal',
@@ -8,7 +11,7 @@ import { CommonModule } from '@angular/common';
   templateUrl: './match-cal.html',
   styleUrls: ['./match-cal.css']
 })
-export class MatchCal {
+export class MatchCal implements OnChanges, OnDestroy {
   @Input() selected: Date | null = null;
   @Output() dateChange = new EventEmitter<Date | null>();
   @Output() confirm = new EventEmitter<Date>();
@@ -22,6 +25,8 @@ export class MatchCal {
   // 9 = as_admin (super administrator) -> admin: 3 months (~90 days)
   // You can also pass strings: 'invite','subscribed','all_site','site_admin','as_admin'.
   @Input() role: number | string = 'subscribed';
+  @Input() siteId?: number | null;
+  @Input() fieldId?: number | null;
   // Optional override to set the number of days allowed for reservation (including today when reservationWindowIncludesToday = true).
   // If provided, this value takes precedence over `role` mapping.
   @Input() reservationWindowDays?: number;
@@ -112,6 +117,10 @@ export class MatchCal {
     this.dateChange.emit(date);
   }
 
+  private _blockedSub?: Subscription;
+  // remote blocked dates from closures/maintenance API (keeps site closures separate from parent-provided fullyBooked)
+  private _remoteBlockedSet?: Set<string>;
+
   /** Combined check used by UI: not past and not fully booked */
   isSelectable(date: Date) {
     return !this.isPast(date) && !this.isFullyBooked(date) && !this.isBeyondReservationWindow(date);
@@ -165,8 +174,11 @@ export class MatchCal {
   }
 
   isFullyBooked(date: Date) {
-    if (!this._fullyBookedFn && !this._fullyBookedSet) return false;
     const iso = this._toIsoYMD(date);
+    // check remote closures/maintenance first
+    if (this._remoteBlockedSet && this._remoteBlockedSet.has(iso)) return true;
+    // then parent-provided fullyBooked predicate/set
+    if (!this._fullyBookedFn && !this._fullyBookedSet) return false;
     if (this._fullyBookedFn) return this._fullyBookedFn(iso);
     return !!this._fullyBookedSet?.has(iso);
   }
@@ -238,4 +250,33 @@ export class MatchCal {
   onConfirm() {
     if (this.selected) this.confirm.emit(this.selected);
   }
+
+  constructor(private closuresService: ClosuresService, private cd: ChangeDetectorRef) {}
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Only update blocked dates when siteId or fieldId changes
+    if (changes['siteId'] || changes['fieldId']) {
+      this.updateBlockedDates();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this._blockedSub?.unsubscribe();
+  }
+
+  private updateBlockedDates() {
+    // If neither site nor field provided, clear fullyBooked input
+    if (!this.siteId && !this.fieldId) {
+      this.fullyBooked = undefined;
+      return;
+    }
+    this._blockedSub?.unsubscribe();
+    this._blockedSub = this.closuresService.getBlockedDates(this.siteId ?? null, this.fieldId ?? null).subscribe(s => {
+      // store remote blocked dates separately so they are always considered in isFullyBooked
+      this._remoteBlockedSet = s;
+      // trigger change detection to update template classes/disabled state
+      try { this.cd.detectChanges(); } catch (e) {}
+    });
+  }
+
 }
