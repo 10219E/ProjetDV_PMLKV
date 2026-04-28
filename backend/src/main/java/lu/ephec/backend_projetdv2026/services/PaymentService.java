@@ -40,32 +40,58 @@ public class PaymentService {
         ValidationBoiler.verifyNotNull(payment, "Payment");
         ValidationBoiler.verifyNotNull(payment.getAmount(), "Payment amount");
         ValidationBoiler.verifyNotEmpty(payment.getStatus(), "Payment status");
-        ValidationBoiler.verifyNotEmpty(payment.getPaymentMethod(), "Payment method");
-        
+
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(payment.getUser().getMatricule()), "User", payment.getUser().getMatricule());
         ValidationBoiler.verifyExists(jpaMatchRepo.existsById(payment.getMatch().getMatchId()), "Match", payment.getMatch().getMatchId());
 
-        // Validate status
-        if (!payment.getStatus().matches("^(clear|pending|failed|refunded)$")) { //cancelled not applicable here
+        // Validate status (creation: cancelled not applicable here)
+        if (!payment.getStatus().matches("^(clear|pending|failed|refunded)$")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid payment status. Must be clear, pending, failed or refunded. Received: " + payment.getStatus());
         }
-        
-        if (payment.getStatus().equals("refunded"))
-        {
-            //apply negative amount for refunds as easier to track for accounting
+
+        // If refunded, apply negative amount
+        if (payment.getStatus().equals("refunded")) {
             payment.setAmount(-Math.abs(payment.getAmount()));
         }
 
-        // Validate payment method
-        if (!payment.getPaymentMethod().matches("^(COUNTER|CARD)$")) {
+        String method = payment.getPaymentMethod(); // may be null
+        LocalDateTime pDate = payment.getPaymentDate();
+        String status = payment.getStatus();
+
+        // Validate payment method when present
+        if (method != null && !method.matches("^(COUNTER|CARD)$")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid payment method. Must be COUNTER or CARD. Received: " + payment.getPaymentMethod());
+                    "Invalid payment method. Must be COUNTER or CARD when provided. Received: " + method);
         }
 
-        // Set payment date if not provided
-        if (payment.getPaymentDate() == null) {
-            payment.setPaymentDate(LocalDateTime.now());
+        // Business rules:
+        // - If status is 'clear' or 'refunded' then payment_date AND payment_method must be present.
+        // - If payment_date is provided, payment_method must also be present.
+        // - payment_method may be NULL only when status is NOT 'clear'/'refunded' AND payment_date IS NULL.
+
+        if (status.equals("clear") || status.equals("refunded")) {
+            // ensure payment date exists (set to now if missing) and method provided
+            if (pDate == null) {
+                payment.setPaymentDate(LocalDateTime.now());
+                pDate = payment.getPaymentDate();
+            }
+            if (method == null || method.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Payment method is required when status is 'clear' or 'refunded'.");
+            }
+        } else {
+            // status not clear/refunded
+            if (pDate != null && method == null) {
+                // date provided but method missing -> invalid
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Payment method must be provided when payment date is present.");
+            }
+            if (method == null && pDate != null) { // defensive, covered above
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Payment method cannot be null when payment date is set.");
+            }
+            // if both are null that's allowed (no payment yet)
         }
 
         return jpaMatchPaymentsRepo.save(payment);
@@ -179,7 +205,54 @@ public class PaymentService {
                 payment.setStatus(updatedPayment.getStatus());
             }
 
-            // UPDATE PAYMENT METHOD or DATE is not permitted, must cancel and recreate
+            // UPDATE PAYMENT METHOD or DATE: permitted
+            String newMethod = updatedPayment.getPaymentMethod(); // may be null (means no change)
+            LocalDateTime newDate = updatedPayment.getPaymentDate(); // may be null (no change)
+
+            // Validate new payment method when provided
+            if (newMethod != null && !newMethod.matches("^(COUNTER|CARD)$")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid payment method. Must be COUNTER or CARD when provided. Received: " + newMethod);
+            }
+
+            // Determine resulting status after update (could be unchanged)
+            String resultingStatus = updatedPayment.getStatus() != null ? updatedPayment.getStatus() : payment.getStatus();
+
+            // If a payment date is provided without a method (either new or existing), reject
+            if (newDate != null) {
+                String methodToUse = newMethod != null ? newMethod : payment.getPaymentMethod();
+                if (methodToUse == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Payment method must be provided when payment date is present.");
+                }
+            }
+
+            // If resulting status requires a date/method (clear or refunded), ensure they exist/apply defaults
+            if ("clear".equals(resultingStatus) || "refunded".equals(resultingStatus)) {
+                // Ensure method exists either from update or current
+                String methodToUse = newMethod != null ? newMethod : payment.getPaymentMethod();
+                if (methodToUse == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Payment method is required when status is 'clear' or 'refunded'.");
+                }
+
+                // Ensure date exists: prefer newDate, else existing, else set now
+                if (newDate != null) {
+                    payment.setPaymentDate(newDate);
+                } else if (payment.getPaymentDate() == null) {
+                    payment.setPaymentDate(LocalDateTime.now());
+                }
+            } else {
+                // For non-clear/refunded statuses, if newDate provided, set it (method presence already validated above)
+                if (newDate != null) {
+                    payment.setPaymentDate(newDate);
+                }
+            }
+
+            // Finally apply payment method update if provided
+            if (newMethod != null) {
+                payment.setPaymentMethod(newMethod);
+            }
 
             return jpaMatchPaymentsRepo.save(payment);
         });

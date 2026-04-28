@@ -8,6 +8,7 @@ api/fieldController.service.ts
 api/infoController.service.ts
 api/matchController.service.ts
 api/matchCreationController.service.ts
+api/matchPaymentController.service.ts
 api/siteController.service.ts
 api/testLoginController.service.ts
 api/userController.service.ts
@@ -25,6 +26,8 @@ model/localTime.ts
 model/match.ts
 model/matchCreationDto.ts
 model/matchDto.ts
+model/matchPaymentDto.ts
+model/matchPayments.ts
 model/models.ts
 model/site.ts
 model/siteClosureDays.ts

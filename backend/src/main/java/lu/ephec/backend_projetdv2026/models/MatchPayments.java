@@ -36,6 +36,7 @@ public class MatchPayments {
     @Column(name = "status", length = 15, nullable = false)
     private String status; // 'clear', 'pending', 'cancelled', 'failed', 'refunded'
 
-    @Column(name = "payment_method", length = 10, nullable = false)
-    private String paymentMethod; // 'COUNTER', 'CARD'
+    // Allow null here: business rules permit no payment method for non-cleared/non-refunded entries
+    @Column(name = "payment_method", length = 10, nullable = true)
+    private String paymentMethod; // 'COUNTER', 'CARD' OR NULL
 }

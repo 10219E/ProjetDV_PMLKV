@@ -14,6 +14,7 @@ import { Router } from '@angular/router';
 import { MatchCal } from '../match-cal/match-cal';
 import { UserFormComponent } from '../user-form/user-form';
 import { PayFormComponent } from '../pay-form/pay-form';
+import { PayService } from '../../../services/pay.service';
 
 @Component({
   selector: 'app-match-form',
@@ -97,7 +98,7 @@ export class MatchForm implements OnInit {
   // DTO stored while waiting for payment
   private pendingDto: any | null = null;
 
-  constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef) {}
+  constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService) {}
   // keep a direct reference to PayFormComponent to satisfy analyzers that the imported component is used
   // (template uses <app-pay-form> conditionally with @if which some static analyzers may not detect)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1042,17 +1043,49 @@ export class MatchForm implements OnInit {
       next: (resp: any) => {
         this.loading = false;
         const id = resp && resp['matchId'];
-        // Build French confirmation message using values directly from the form (no extra formatting)
-        const rawDate = this.form.get('matchDate')?.value || '';
-        const rawStart = this.form.get('startTime')?.value || '';
-        const rawEnd = this.form.get('endTime')?.value || '';
-        const dateFr = this.formatDateForDisplay(rawDate);
-        // store the text for the popup only (avoid populating inline successMessage which is rendered under the form)
-        this.popupMessage = `Votre match du ${dateFr} de ${rawStart} à ${rawEnd} est réservé. Veuillez contacter vos invités pour compléter le paiement ; ils ont également été informés par e-mail.`;
-        this.pendingDto = null;
-        // show a simple confirmation popup and wait for the user to click OK
-        this.showSuccessDialog = true;
-        this.cd.detectChanges();
+        // Determine organiser and invites from pendingDto
+        const organiserMat = this.pendingDto?.organiserId || this.organiserId || null;
+        const invites = this.pendingDto?.invites || [];
+        const pricing = (this.payAmount && this.payAmount > 0) ? this.payAmount * 4 : 60; // default 60
+
+        // Create payments via PayService: organiser cleared (CARD) and invites pending
+        if (id && organiserMat) {
+          this.payService.createPaymentsForMatch(Number(id), organiserMat, invites, pricing).subscribe({
+            next: (results) => {
+              // Build French confirmation message using values directly from the form
+              const rawDate = this.form.get('matchDate')?.value || '';
+              const rawStart = this.form.get('startTime')?.value || '';
+              const rawEnd = this.form.get('endTime')?.value || '';
+              const dateFr = this.formatDateForDisplay(rawDate);
+              this.popupMessage = `Votre match du ${dateFr} de ${rawStart} à ${rawEnd} est réservé. Le paiement du créateur a été enregistré (CARD). Les ${invites.length} invités ont une demande de paiement en attente.`;
+              this.pendingDto = null;
+              this.showSuccessDialog = true;
+              this.cd.detectChanges();
+            },
+            error: (err) => {
+              console.error('Payments creation failed', err);
+              // Still show confirmation of match creation but warn about payments
+              const rawDate = this.form.get('matchDate')?.value || '';
+              const rawStart = this.form.get('startTime')?.value || '';
+              const rawEnd = this.form.get('endTime')?.value || '';
+              const dateFr = this.formatDateForDisplay(rawDate);
+              this.popupMessage = `Votre match du ${dateFr} de ${rawStart} à ${rawEnd} est réservé. Attention: la création des paiements a échoué; contactez l'administrateur.`;
+              this.pendingDto = null;
+              this.showSuccessDialog = true;
+              this.cd.detectChanges();
+            }
+          });
+        } else {
+          // Fallback: match created but no organiser found; just show generic confirmation
+          const rawDate = this.form.get('matchDate')?.value || '';
+          const rawStart = this.form.get('startTime')?.value || '';
+          const rawEnd = this.form.get('endTime')?.value || '';
+          const dateFr = this.formatDateForDisplay(rawDate);
+          this.popupMessage = `Votre match du ${dateFr} de ${rawStart} à ${rawEnd} a été créé.`;
+          this.pendingDto = null;
+          this.showSuccessDialog = true;
+          this.cd.detectChanges();
+        }
       },
       error: (err) => {
         console.error('Echec de la création du match', err);
