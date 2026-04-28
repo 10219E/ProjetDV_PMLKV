@@ -7,10 +7,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../../services/auth.service';
 import { InfoService } from '../../../../services/info.service';
 import { SiteInfo } from '../../../../api/model/siteInfo';
-import { UserRegistrationDto } from '../../../../api/model/userRegistrationDto';
 import { UserFormComponent } from '../../user-form/user-form';
 
-// Signup validators and logic moved into `UserFormComponent`
 
 @Component({
   selector: 'app-home',
@@ -31,7 +29,6 @@ export class HomeComponent implements OnInit {
   isSignupOpen = false;
   isLoginOpen = false;
   showPassword = false;
-  // signup form and validators moved to UserFormComponent
 
   loginForm = new FormGroup({
     email: new FormControl('', [Validators.required, Validators.email, Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/)]),
@@ -164,10 +161,6 @@ export class HomeComponent implements OnInit {
     this.showPassword = !this.showPassword;
     this.cdr.detectChanges();
   }
-
-  // signup-specific helpers moved to UserFormComponent
-
-  // signup handling moved to UserFormComponent
 
   submitLogin() {
     if (this.loginForm.valid) {
