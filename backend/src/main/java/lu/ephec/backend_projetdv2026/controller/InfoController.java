@@ -35,7 +35,7 @@ public class InfoController {
 		Integer sites = siteService.countSites();
 		Integer fields = fieldService.countFields();
 		// log both counts
-		logger.info("Sites count: {}, Fields count: {} to display on home page.", sites, fields);
+		logger.info("[INFO CONTROLLER] Sites count: {}, Fields count: {} to display on home page.", sites, fields);
 		return new InfoControllerDto(sites, fields);
 	}
 
@@ -43,7 +43,7 @@ public class InfoController {
 	@GetMapping(value = "/sitelist", produces = "application/json")
 	public InfoControllerDto getSites() {
 		List<Site> activeSites = siteService.fetchAllActive();
-		logger.info("Found {} active sites.", activeSites.size());
+		logger.info("[INFO CONTROLLER] Found {} active sites.", activeSites.size());
 		List<InfoControllerDto.SiteInfo> siteInfoList = activeSites.stream()
 				.map(site -> new InfoControllerDto.SiteInfo(site.getSiteId(), site.getName(), site.getAddress()))
 				.collect(Collectors.toList());
@@ -54,7 +54,7 @@ public class InfoController {
 	@GetMapping(value="/identify", produces = "application/json")
 	public InfoControllerDto getUserMatByEmail(@RequestParam("email") String email) {
 		String matricule = userService.fetchByMail(email).orElseThrow().getMatricule();
-		logger.info("Identified user with email {} as matricule {}", email, matricule);
+		logger.info("[INFO CONTROLLER] Identified user with email {} as matricule {}", email, matricule);
 		return new InfoControllerDto(matricule);
 	}
 

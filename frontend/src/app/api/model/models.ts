@@ -7,6 +7,8 @@ export * from './localTime';
 export * from './match';
 export * from './matchCreationDto';
 export * from './matchDto';
+export * from './matchPaymentDto';
+export * from './matchPayments';
 export * from './site';
 export * from './siteClosureDays';
 export * from './siteDto';

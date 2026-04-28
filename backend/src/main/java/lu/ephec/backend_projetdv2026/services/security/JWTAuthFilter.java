@@ -35,29 +35,26 @@ public class JWTAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        logger.info("[JWTAuthFilter] Processing: {} {}", request.getMethod(), request.getRequestURI());
+        logger.info("[JWT AUTH] Processing: {} {}", request.getMethod(), request.getRequestURI());
         final String authHeader = request.getHeader("Authorization");
-        logger.info("[JWTAuthFilter] Authorization header: {}", authHeader != null ? authHeader : "null");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            logger.warn("[JWTAuthFilter] No Bearer token found, skipping authentication");
+            logger.warn("[JWT AUTH] No Bearer token found, skipping authentication");
             filterChain.doFilter(request, response);
             return;
         }
 
         final String token = authHeader.substring(7).trim();
-        logger.info("[JWTAuthFilter] Extracted token: {}", token);
 
         try {
             final String login = jwtService.extractLogin(token);
-            logger.info("[JWTAuthFilter] Extracted login from token: {}", login);
 
             if (login != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userConfigService.loadUserByUsername(login);
-                logger.info("[JWTAuthFilter] Loaded user details for: {}", userDetails != null ? userDetails.getUsername() : "null");
+                logger.info("[JWT AUTH] Loaded user details for: {}", userDetails != null ? userDetails.getUsername() : "null");
 
                 if (jwtService.isTokenValid(token, userDetails)) {
-                    logger.info("[JWTAuthFilter] Token is valid for user: {}", login);
+                    logger.info("[JWT AUTH] Token is valid for user: {}", login);
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
@@ -67,11 +64,11 @@ public class JWTAuthFilter extends OncePerRequestFilter {
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 } else {
-                    logger.warn("[JWTAuthFilter] Token is NOT valid for user: {}", login);
+                    logger.warn("[JWT AUTH] Token is NOT valid for user: {}", login);
                 }
             }
         } catch (JwtException | IllegalArgumentException e) {
-            logger.error("[JWTAuthFilter] Exception during token validation: {}", e.getMessage(), e);
+            logger.error("[JWT AUTH] Exception during token validation: {}", e.getMessage(), e);
             SecurityContextHolder.clearContext();
         }
 

@@ -24,7 +24,7 @@ public class SiteController {
 
     @GetMapping(produces = "application/json")
     public ResponseEntity<List<SiteDto>> getAllSites(@RequestParam(required = false, defaultValue = "true") boolean activeOnly) {
-        logger.debug("getAllSites called with activeOnly={}", activeOnly);
+        logger.debug("[SITE CONTROLLER] Getting all sites called with activeOnly={}", activeOnly);
         List<Site> sites = activeOnly ? siteService.fetchAllActive() : siteService.fetchAll();
         List<SiteDto> responses = sites.stream()
                 .map(site -> {
@@ -34,7 +34,7 @@ public class SiteController {
                         sessions = siteService.fetchSessionTimesForSite(site.getSiteId());
                     } catch (Exception ex) {
                         // if sessions not found or parsing fails, keep null
-                        logger.warn("Failed to fetch sessions for site {} — leaving sessions=null", site.getSiteId(), ex);
+                        logger.warn("[SITE CONTROLLER] Failed to fetch sessions for site {} — leaving sessions=null", site.getSiteId(), ex);
                     }
                     return SiteDto.from(site, sessions);
                 })
@@ -44,14 +44,14 @@ public class SiteController {
 
     @GetMapping(value="/{id}", produces = "application/json")
     public ResponseEntity<SiteDto> getSiteById(@PathVariable Integer id) {
-        logger.debug("getSiteById called with id={}", id);
+        logger.debug("[SITE CONTROLLER] Getting site called with id={}", id);
         Site site = siteService.fetchById(id).orElseThrow();
         List<?> sessions = null;
         try {
             sessions = siteService.fetchSessionTimesForSite(site.getSiteId());
         } catch (Exception ex) {
             // leave sessions null if not found / parsing error
-            logger.warn("Failed to fetch sessions for site {} (id={}) — leaving sessions=null", site.getSiteId(), id, ex);
+            logger.warn("[SITE CONTROLLER] Failed to fetch sessions for site {} (id={}) — leaving sessions=null", site.getSiteId(), id, ex);
         }
         return ResponseEntity.ok(SiteDto.from(site, sessions));
     }
