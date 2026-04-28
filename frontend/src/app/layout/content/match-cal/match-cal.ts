@@ -25,9 +25,9 @@ export class MatchCal {
   // Optional override to set the number of days allowed for reservation (including today when reservationWindowIncludesToday = true).
   // If provided, this value takes precedence over `role` mapping.
   @Input() reservationWindowDays?: number;
-  // If true, the reservation window count includes the first selectable day (tomorrow).
-  // Note: Today is not selectable; counting always starts from the next day.
-  // Default: true to preserve previous length semantics (but shifted to start tomorrow).
+  // If true, the reservation window count includes the first selectable day (day after tomorrow).
+  // Note: Today and tomorrow are not selectable; counting starts from the day after tomorrow.
+  // Default: true to preserve previous length semantics (but shifted to start the day after tomorrow).
   @Input() reservationWindowIncludesToday = true;
   /**
    * Optional: list or predicate of fully booked dates. Accepts either:
@@ -130,9 +130,10 @@ export class MatchCal {
     const days = this._getMaxReservationDays();
     if (!days || days <= 0) return null;
     const today = new Date();
-    // Start counting from tomorrow because today is not selectable.
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-    // If includesToday is true, counting includes the first selectable day (tomorrow).
+    // Start counting from the day after tomorrow because today and tomorrow are not selectable.
+    // This implements the "additional grey day" requirement: tomorrow is also disabled.
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+    // If includesToday is true, counting includes the first selectable day (day after tomorrow).
     const offset = this.reservationWindowIncludesToday ? days - 1 : days;
     return new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset);
   }
@@ -216,8 +217,10 @@ export class MatchCal {
   isPast(date: Date) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    // Treat today as past/unselectable as requested (no selection of today's date)
-    return date <= today;
+    // Treat today and tomorrow as past/unselectable so users cannot select today or tomorrow.
+    const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    cutoff.setHours(0, 0, 0, 0);
+    return date <= cutoff;
   }
 
   prevMonth() {

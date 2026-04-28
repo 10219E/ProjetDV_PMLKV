@@ -21,6 +21,11 @@ public interface JPAUserPenaltiesRepo extends JpaRepository<UserPenalties, Integ
     @Query("SELECT p FROM UserPenalties p JOIN FETCH p.user WHERE p.user.matricule = :userId AND p.isActive = true")
     List<UserPenalties> findAllActiveWithUser(@Param("userId") String userId);
 
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END " +
+            "FROM UserPenalties p WHERE p.user.matricule = :userId AND p.isActive = true " +
+            "AND LOWER(p.reason) = LOWER(:reason) AND :now BETWEEN p.startDate AND p.endDate")
+    boolean existsActivePenaltyByReason(@Param("userId") String userId, @Param("reason") String reason, @Param("now") java.time.LocalDateTime now);
+
     @Query("SELECT p FROM UserPenalties p JOIN FETCH p.user WHERE LOWER(p.reason) = LOWER(:reason)")
     List<UserPenalties> findAllWithUserByReason(@Param("reason") String reason);
 

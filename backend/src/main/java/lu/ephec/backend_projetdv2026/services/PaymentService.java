@@ -334,13 +334,19 @@ public class PaymentService {
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
 
         // Check if account exists
-        Optional<UserAccounts> account = jpaUserAccountsRepo.findByUser_Matricule(userId);
-        if (account.isEmpty()) {
+        Optional<UserAccounts> accountOpt = jpaUserAccountsRepo.findByUser_Matricule(userId);
+        if (accountOpt.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "No account found for user: " + userId);
         }
 
-        jpaUserAccountsRepo.updateBalanceByUser(userId, amount);
+        // Append the passed amount to the existing balance
+        UserAccounts account = accountOpt.get();
+        Double currentBalance = account.getBalance() != null ? account.getBalance() : 0.0;
+        account.setBalance(currentBalance + amount);
+        account.setLastUpdate(LocalDateTime.now());
+
+        jpaUserAccountsRepo.save(account);
     }
 
     // UPDATE ACCOUNT STATUS
@@ -354,17 +360,22 @@ public class PaymentService {
                     "Invalid status. Must be clear or debt. Received: " + status);
         }
 
-        Optional<UserAccounts> account = jpaUserAccountsRepo.findByUser_Matricule(userId);
-        if (account.isEmpty()) {
+        Optional<UserAccounts> accountOpt = jpaUserAccountsRepo.findByUser_Matricule(userId);
+        if (accountOpt.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "No account found for user: " + userId);
         }
 
-        // Update balance by adding the amount (reduces debt)
-        jpaUserAccountsRepo.updateBalanceByUser(userId, amount);
+        // Append amount to existing balance when provided, then set status
+        UserAccounts account = accountOpt.get();
+        if (amount != null) {
+            Double currentBalance = account.getBalance() != null ? account.getBalance() : 0.0;
+            account.setBalance(currentBalance + amount);
+        }
+        account.setStatus(status);
+        account.setLastUpdate(LocalDateTime.now());
 
-        //Update Status
-        jpaUserAccountsRepo.updateStatusByUser(userId, status);
+        jpaUserAccountsRepo.save(account);
     }
 
     // FETCH ALL ACCOUNTS
