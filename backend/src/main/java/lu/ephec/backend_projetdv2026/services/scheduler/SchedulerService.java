@@ -343,6 +343,43 @@ public class SchedulerService {
 		}
 	}
 
+	/**
+	 * Runs every 5 minutes and expires penalties whose end date has passed.
+	 * Sets isActive = false for expired penalties.
+	 */
+	@Scheduled(cron = "0 0/5 * * * *")
+	public void expireFinishedPenalties() {
+		if (!schedulerLock.tryLock()) {
+			logger.warn("[SchedulerService] expireFinishedPenalties is already running, skipping this execution");
+			return;
+		}
+
+		try {
+			logger.info("[SchedulerService] Running expireFinishedPenalties");
+
+			LocalDateTime now = LocalDateTime.now();
+			List<UserPenalties> active = jpaUserPenaltiesRepo.findAllByIsActiveTrue();
+			int expired = 0;
+			for (UserPenalties p : active) {
+				try {
+					if (p == null || p.getEndDate() == null) continue;
+					if (now.isAfter(p.getEndDate())) {
+						p.setIsActive(false);
+						jpaUserPenaltiesRepo.save(p);
+						expired++;
+						logger.info("[SchedulerService] Expired penalty {} for user {}", p.getTr(), p.getUser() != null ? p.getUser().getMatricule() : "<null>");
+					}
+				} catch (Exception ex) {
+					logger.error("[SchedulerService] Failed processing penalty {} : {}", p != null ? p.getTr() : "<null>", ex.getMessage(), ex);
+				}
+			}
+
+			logger.info("[SchedulerService] Completed expireFinishedPenalties — {} penalties expired", expired);
+		} finally {
+			schedulerLock.unlock();
+		}
+	}
+
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	protected int processDebtorBatch(List<UserAccounts> batch) {
 		int penalized = 0;
