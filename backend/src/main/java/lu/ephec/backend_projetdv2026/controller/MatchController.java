@@ -29,11 +29,31 @@ public class MatchController {
         return ResponseEntity.ok(responses);
     }
 
+    //@PostMapping(produces = "application/json")
+    //public ResponseEntity<MatchDto> createMatch(@RequestBody Match match, @RequestParam(value = "invite", required = false) List<String> invites) {
+    //    Match created = matchService.newMatch(match, invites);
+    //    return ResponseEntity.ok(MatchDto.from(created));
+    //}
+
     @GetMapping(value = "/{id}", produces = "application/json")
     public ResponseEntity<MatchDto> getById(@PathVariable Integer id) {
         Match m = matchService.fetchById(id).orElseThrow();
         return ResponseEntity.ok(MatchDto.from(m));
     }
+
+    @PutMapping(value = "/{id}", produces = "application/json")
+    public ResponseEntity<MatchDto> updateMatch(@PathVariable Integer id, @RequestBody Match updateData) {
+        Optional<Match> updated = matchService.updateMatch(id, updateData);
+        return updated.map(m -> ResponseEntity.ok(MatchDto.from(m)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // DELETE only used by tests
+    //@DeleteMapping(value = "/{id}")
+    //public ResponseEntity<Void> deleteMatch(@PathVariable Integer id) {
+    //    matchService.deleteMatch(id);
+    //    return ResponseEntity.noContent().build();
+    //}
 
     @GetMapping(value = "/type/{type}", produces = "application/json")
     public ResponseEntity<List<MatchDto>> getByType(@PathVariable String type) {
@@ -77,24 +97,5 @@ public class MatchController {
         return ResponseEntity.ok(responses);
     }
 
-    @PostMapping(produces = "application/json")
-    public ResponseEntity<MatchDto> createMatch(@RequestBody Match match, @RequestParam(value = "invite", required = false) List<String> invites) {
-        Match created = matchService.newMatch(match, invites);
-        return ResponseEntity.ok(MatchDto.from(created));
-    }
-
-    @PutMapping(value = "/{id}", produces = "application/json")
-    public ResponseEntity<MatchDto> updateMatch(@PathVariable Integer id, @RequestBody Match updateData) {
-        Optional<Match> updated = matchService.updateMatch(id, updateData);
-        return updated.map(m -> ResponseEntity.ok(MatchDto.from(m)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    // DELETE only used by tests
-    @DeleteMapping(value = "/{id}")
-    public ResponseEntity<Void> deleteMatch(@PathVariable Integer id) {
-        matchService.deleteMatch(id);
-        return ResponseEntity.noContent().build();
-    }
 }
 

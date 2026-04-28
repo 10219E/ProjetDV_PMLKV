@@ -50,11 +50,11 @@ public class SchedulerService {
 		this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
 	}
 
-	/**
-	 * Runs every 5 minutes and marks matches as completed when their end datetime has elapsed
-	 * and their status indicates they were confirmed/closed.
-	 * Cron: second minute hour day month day-of-week (6 fields)
-	 */
+	///SCHEDULER RUNS EVERY 5 MIN + LOCK CHECK TO AVOID CONFLICTS WITH MULTIPLE INSTANCES
+
+
+	//MARKS MATCHES AS COMPLETED WHEN THEIR END DATETIME HAS ELAPSED AND THEIR STATUS INDICATES THEY WERE CONFIRMED/CLOSED
+	//PREVIOUS MATCH PLAYERS ARE DELETED FROM THE PREVIOUS MATCH
 	@Scheduled(cron = "0 0/5 * * * *")
 	public void markElapsedMatchesCompleted() {
 		if (!schedulerLock.tryLock()) {
@@ -86,66 +86,8 @@ public class SchedulerService {
 		}
 	}
 
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	protected int processMatchBatch(List<Match> batch, LocalDateTime now) {
-		int updated = 0;
-		for (Match m : batch) {
-			try {
-				if (m.getMatchDate() == null || m.getEndTime() == null) continue;
-
-				LocalDateTime matchEnd = LocalDateTime.of(m.getMatchDate(), m.getEndTime());
-				boolean elapsed = !matchEnd.isAfter(now);
-
-				if (!elapsed) continue;
-
-				boolean shouldComplete = false;
-				if ("private".equals(m.getType()) && "confirmed".equals(m.getPrivStatus())) {
-					shouldComplete = true;
-				}
-				if ("public".equals(m.getType()) && ("confirmed".equals(m.getPubStatus()) || "closed".equals(m.getPubStatus()))) {
-					shouldComplete = true;
-				}
-				if ((m.getPrivStatus() != null && m.getPrivStatus().equals("confirmed")) ||
-						(m.getPubStatus() != null && (m.getPubStatus().equals("confirmed") || m.getPubStatus().equals("closed")))) {
-					shouldComplete = true;
-				}
-
-				if (shouldComplete) {
-					if ("private".equals(m.getType())) {
-						m.setPrivStatus("completed");
-					} else if ("public".equals(m.getType())) {
-						m.setPubStatus("completed");
-					} else {
-						m.setPrivStatus("completed");
-						m.setPubStatus("completed");
-					}
-
-
-					jpaMatchRepo.save(m);
-					// When a match is completed, remove all associated MatchPlayers entries
-					try {
-						jpaMatchPlayersRepo.deleteByMatch_MatchId(m.getMatchId());
-						logger.debug("[SchedulerService] Deleted MatchPlayers for completed match {}", m.getMatchId());
-					} catch (Exception ex) {
-						logger.error("[SchedulerService] Failed to delete MatchPlayers for completed match {}: {}", m.getMatchId(), ex.getMessage(), ex);
-					}
-					updated++;
-					logger.debug("[SchedulerService] Marked match {} as completed", m.getMatchId());
-				}
-			} catch (Exception ex) {
-				logger.error("[SchedulerService] Error processing match id {}: {}", m.getMatchId(), ex.getMessage(), ex);
-			}
-		}
-		logger.info("[SchedulerService] Batch processed — {} matches updated", updated);
-		return updated;
-	}
-
-	/**
-	 * Runs every 5 minutes and processes private matches scheduled for the next day.
-	 * For private matches with priv_status = 'awaiting' scheduled for tomorrow, set them to 'cancelled'
-	 * and create a replacement public match with the same date/time. Players who were approved on the
-	 * private match are copied to the new public match as approved; other slots are created with null user and 'pending' status.
-	 */
+	//PRIVATE MATCH WITH PRIV STATUS 'AWAITING' AND MATCH DATE TOMORROW -> CANCELLED + NEW PUBLIC MATCH CREATED WITH SAME DATETIME, APPROVED PLAYERS COPIED AS APPROVED, OTHERS (NULL) AS PENDING.
+	//PREVIOUS MATCH PLAYERS ARE DELETED FROM THE PREVIOUS MATCH
 	@Scheduled(cron = "0 0/5 * * * *")
 	public void convertAwaitingPrivateMatchesScheduledForTomorrow() {
 		if (!schedulerLock.tryLock()) {
@@ -175,6 +117,69 @@ public class SchedulerService {
 			}
 
 			logger.info("[SchedulerService] Completed private to public conversion run — {} new public matches created", created);
+		} finally {
+			schedulerLock.unlock();
+		}
+	}
+
+
+
+	//APPLIES DEBT STATUS TO NEGATIVE BALANCE USERS AND CREATES A PENALTY IF THEY DON'T HAVE AN ACTIVE UNPAID_BALANCE PENALTY
+	@Scheduled(cron = "0 0/5 * * * *")
+	public void applyPenaltiesForDebtors() {
+		if (!schedulerLock.tryLock()) {
+			logger.warn("[SchedulerService] applyPenaltiesForDebtors is already running, skipping this execution");
+			return;
+		}
+
+		try {
+			logger.info("[SchedulerService] Running applyPenaltiesForDebtors");
+
+			List<UserAccounts> debtors = jpaUserAccountsRepo.findAllDebtorsWithDetails();
+			int penalized = 0;
+
+			// Process debtors in batches
+			int batchSize = 5;
+			for (int i = 0; i < debtors.size(); i += batchSize) {
+				List<UserAccounts> batch = debtors.subList(i, Math.min(i + batchSize, debtors.size()));
+				penalized += processDebtorBatch(batch);
+			}
+
+			logger.info("[SchedulerService] Completed applyPenaltiesForDebtors — {} users penalized", penalized);
+		} finally {
+			schedulerLock.unlock();
+		}
+	}
+
+	//CHECKS PENALTY EXPIRATION AND INACTIVATES THEM
+	@Scheduled(cron = "0 0/5 * * * *")
+	public void expireFinishedPenalties() {
+		if (!schedulerLock.tryLock()) {
+			logger.warn("[SchedulerService] expireFinishedPenalties is already running, skipping this execution");
+			return;
+		}
+
+		try {
+			logger.info("[SchedulerService] Running expireFinishedPenalties");
+
+			LocalDateTime now = LocalDateTime.now();
+			List<UserPenalties> active = jpaUserPenaltiesRepo.findAllByIsActiveTrue();
+			int expired = 0;
+			for (UserPenalties p : active) {
+				try {
+					if (p == null || p.getEndDate() == null) continue;
+					if (now.isAfter(p.getEndDate())) {
+						p.setIsActive(false);
+						jpaUserPenaltiesRepo.save(p);
+						expired++;
+						logger.info("[SchedulerService] Expired penalty {} for user {}", p.getTr(), p.getUser() != null ? p.getUser().getMatricule() : "<null>");
+					}
+				} catch (Exception ex) {
+					logger.error("[SchedulerService] Failed processing penalty {} : {}", p != null ? p.getTr() : "<null>", ex.getMessage(), ex);
+				}
+			}
+
+			logger.info("[SchedulerService] Completed expireFinishedPenalties — {} penalties expired", expired);
 		} finally {
 			schedulerLock.unlock();
 		}
@@ -300,84 +305,71 @@ public class SchedulerService {
 				}
 			}
 
-					// After transferring payments, delete all MatchPlayers entries for the old (cancelled) match
-					try {
-						jpaMatchPlayersRepo.deleteByMatch_MatchId(m.getMatchId());
-						logger.debug("[SchedulerService] Deleted MatchPlayers for cancelled match {}", m.getMatchId());
-					} catch (Exception ex) {
-						logger.error("[SchedulerService] Failed to delete MatchPlayers for cancelled match {}: {}", m.getMatchId(), ex.getMessage(), ex);
-					}
+			// After transferring payments, delete all MatchPlayers entries for the old (cancelled) match
+			try {
+				jpaMatchPlayersRepo.deleteByMatch_MatchId(m.getMatchId());
+				logger.debug("[SchedulerService] Deleted MatchPlayers for cancelled match {}", m.getMatchId());
+			} catch (Exception ex) {
+				logger.error("[SchedulerService] Failed to delete MatchPlayers for cancelled match {}: {}", m.getMatchId(), ex.getMessage(), ex);
+			}
 		}
 
 		logger.info("[SchedulerService] Converted private match {} to public match {}", m.getMatchId(), savedPub.getMatchId());
 		return 1;
 	}
 
-	/**
-	 * Runs every 5 minutes and applies penalties for users who have negative balances and 'debt' status.
-	 * Creates a penalty with reason 'unpaid_balance' and 5 year expiration.
-	 */
-	@Scheduled(cron = "0 0/5 * * * *")
-	public void applyPenaltiesForDebtors() {
-		if (!schedulerLock.tryLock()) {
-			logger.warn("[SchedulerService] applyPenaltiesForDebtors is already running, skipping this execution");
-			return;
-		}
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	protected int processMatchBatch(List<Match> batch, LocalDateTime now) {
+		int updated = 0;
+		for (Match m : batch) {
+			try {
+				if (m.getMatchDate() == null || m.getEndTime() == null) continue;
 
-		try {
-			logger.info("[SchedulerService] Running applyPenaltiesForDebtors");
+				LocalDateTime matchEnd = LocalDateTime.of(m.getMatchDate(), m.getEndTime());
+				boolean elapsed = !matchEnd.isAfter(now);
 
-			List<UserAccounts> debtors = jpaUserAccountsRepo.findAllDebtorsWithDetails();
-			int penalized = 0;
+				if (!elapsed) continue;
 
-			// Process debtors in batches
-			int batchSize = 5;
-			for (int i = 0; i < debtors.size(); i += batchSize) {
-				List<UserAccounts> batch = debtors.subList(i, Math.min(i + batchSize, debtors.size()));
-				penalized += processDebtorBatch(batch);
-			}
-
-			logger.info("[SchedulerService] Completed applyPenaltiesForDebtors — {} users penalized", penalized);
-		} finally {
-			schedulerLock.unlock();
-		}
-	}
-
-	/**
-	 * Runs every 5 minutes and expires penalties whose end date has passed.
-	 * Sets isActive = false for expired penalties.
-	 */
-	@Scheduled(cron = "0 0/5 * * * *")
-	public void expireFinishedPenalties() {
-		if (!schedulerLock.tryLock()) {
-			logger.warn("[SchedulerService] expireFinishedPenalties is already running, skipping this execution");
-			return;
-		}
-
-		try {
-			logger.info("[SchedulerService] Running expireFinishedPenalties");
-
-			LocalDateTime now = LocalDateTime.now();
-			List<UserPenalties> active = jpaUserPenaltiesRepo.findAllByIsActiveTrue();
-			int expired = 0;
-			for (UserPenalties p : active) {
-				try {
-					if (p == null || p.getEndDate() == null) continue;
-					if (now.isAfter(p.getEndDate())) {
-						p.setIsActive(false);
-						jpaUserPenaltiesRepo.save(p);
-						expired++;
-						logger.info("[SchedulerService] Expired penalty {} for user {}", p.getTr(), p.getUser() != null ? p.getUser().getMatricule() : "<null>");
-					}
-				} catch (Exception ex) {
-					logger.error("[SchedulerService] Failed processing penalty {} : {}", p != null ? p.getTr() : "<null>", ex.getMessage(), ex);
+				boolean shouldComplete = false;
+				if ("private".equals(m.getType()) && "confirmed".equals(m.getPrivStatus())) {
+					shouldComplete = true;
 				}
-			}
+				if ("public".equals(m.getType()) && ("confirmed".equals(m.getPubStatus()) || "closed".equals(m.getPubStatus()))) {
+					shouldComplete = true;
+				}
+				if ((m.getPrivStatus() != null && m.getPrivStatus().equals("confirmed")) ||
+						(m.getPubStatus() != null && (m.getPubStatus().equals("confirmed") || m.getPubStatus().equals("closed")))) {
+					shouldComplete = true;
+				}
 
-			logger.info("[SchedulerService] Completed expireFinishedPenalties — {} penalties expired", expired);
-		} finally {
-			schedulerLock.unlock();
+				if (shouldComplete) {
+					if ("private".equals(m.getType())) {
+						m.setPrivStatus("completed");
+					} else if ("public".equals(m.getType())) {
+						m.setPubStatus("completed");
+					} else {
+						m.setPrivStatus("completed");
+						m.setPubStatus("completed");
+					}
+
+
+					jpaMatchRepo.save(m);
+					// When a match is completed, remove all associated MatchPlayers entries
+					try {
+						jpaMatchPlayersRepo.deleteByMatch_MatchId(m.getMatchId());
+						logger.debug("[SchedulerService] Deleted MatchPlayers for completed match {}", m.getMatchId());
+					} catch (Exception ex) {
+						logger.error("[SchedulerService] Failed to delete MatchPlayers for completed match {}: {}", m.getMatchId(), ex.getMessage(), ex);
+					}
+					updated++;
+					logger.debug("[SchedulerService] Marked match {} as completed", m.getMatchId());
+				}
+			} catch (Exception ex) {
+				logger.error("[SchedulerService] Error processing match id {}: {}", m.getMatchId(), ex.getMessage(), ex);
+			}
 		}
+		logger.info("[SchedulerService] Batch processed — {} matches updated", updated);
+		return updated;
 	}
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
