@@ -73,7 +73,7 @@ public class PaymentService {
         if (status.equals("clear") || status.equals("refunded")) {
             // ensure payment date exists (set to now if missing) and method provided
             if (pDate == null) {
-                payment.setPaymentDate(LocalDateTime.now());
+                payment.setPaymentDate(LocalDateTime.now()); //we will set the date for ease as it should always be equal to payment date
                 pDate = payment.getPaymentDate();
             }
             if (method == null || method.isBlank()) {
