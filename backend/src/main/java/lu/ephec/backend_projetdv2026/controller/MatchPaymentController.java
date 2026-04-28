@@ -23,7 +23,7 @@ public class MatchPaymentController {
 
 	@PostMapping(produces = "application/json")
 	public ResponseEntity<MatchPayments> createPayment(@RequestBody MatchPaymentDto dto) {
-		logger.info("Create payment request received: matchId={} userId={} amount={} status={}",
+		logger.info("[MATCH PAYMENT CONTROLLER] Create payment request received: matchId={} userId={} amount={} status={}",
 				dto != null ? dto.getMatchId() : null,
 				dto != null ? dto.getUserMatricule() : null,
 				dto != null ? dto.getAmount() : null,
@@ -34,17 +34,17 @@ public class MatchPaymentController {
 			MatchPayments saved = paymentService.newPayment(toSave);
 			return ResponseEntity.status(HttpStatus.CREATED).body(saved);
 		} catch (ResponseStatusException ex) {
-			logger.warn("Error creating payment: {}", ex.getReason());
+			logger.warn("[MATCH PAYMENT CONTROLLER] Error creating payment: {}", ex.getReason());
 			throw ex;
 		} catch (Exception ex) {
-			logger.error("Unexpected error creating payment", ex);
+			logger.error("[MATCH PAYMENT CONTROLLER] Unexpected error creating payment", ex);
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
 		}
 	}
 
 	@PutMapping(value = "/{id}", produces = "application/json")
 	public ResponseEntity<MatchPayments> updatePayment(@PathVariable Integer id, @RequestBody MatchPaymentDto dto) {
-		logger.info("Update payment request received: id={}", id);
+		logger.info("[MATCH PAYMENT CONTROLLER] Update payment request received: id={}", id);
 		try {
 			MatchPayments updateEntity = dto.toEntity();
 			// ensure the id path param is used
@@ -53,10 +53,10 @@ public class MatchPaymentController {
 					.map(p -> ResponseEntity.ok(p))
 					.orElseGet(() -> ResponseEntity.notFound().build());
 		} catch (ResponseStatusException ex) {
-			logger.warn("Error updating payment: {}", ex.getReason());
+			logger.warn("[MATCH PAYMENT CONTROLLER] Error updating payment: {}", ex.getReason());
 			throw ex;
 		} catch (Exception ex) {
-			logger.error("Unexpected error updating payment", ex);
+			logger.error("[MATCH PAYMENT CONTROLLER] Unexpected error updating payment", ex);
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
 		}
 	}

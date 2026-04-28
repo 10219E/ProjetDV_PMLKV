@@ -37,7 +37,6 @@ public class JWTAuthFilter extends OncePerRequestFilter {
 
         logger.info("[JWTAuthFilter] Processing: {} {}", request.getMethod(), request.getRequestURI());
         final String authHeader = request.getHeader("Authorization");
-        logger.info("[JWTAuthFilter] Authorization header: {}", authHeader != null ? authHeader : "null");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             logger.warn("[JWTAuthFilter] No Bearer token found, skipping authentication");
@@ -46,11 +45,9 @@ public class JWTAuthFilter extends OncePerRequestFilter {
         }
 
         final String token = authHeader.substring(7).trim();
-        logger.info("[JWTAuthFilter] Extracted token: {}", token);
 
         try {
             final String login = jwtService.extractLogin(token);
-            logger.info("[JWTAuthFilter] Extracted login from token: {}", login);
 
             if (login != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userConfigService.loadUserByUsername(login);

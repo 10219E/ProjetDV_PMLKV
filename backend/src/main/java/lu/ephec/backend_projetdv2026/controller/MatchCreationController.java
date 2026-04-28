@@ -31,7 +31,7 @@ public class MatchCreationController {
 
     @PostMapping(produces = "application/json")
     public ResponseEntity<Map<String,Object>> create(@RequestBody MatchCreationDto dto, HttpServletRequest request) {
-        logger.info("Create match request received: fieldId={} type={} organiser={}",
+        logger.info("[MATCH CREATION CONTROLLER] Create match request received: fieldId={} type={} organiser={}",
                 dto != null ? dto.getFieldId() : null,
                 dto != null ? dto.getType() : null,
                 dto != null ? dto.getOrganiserId() : null);
@@ -40,7 +40,7 @@ public class MatchCreationController {
                 || dto.getMatchDate() == null || dto.getMatchDate().isBlank()
                 || dto.getStartTime() == null || dto.getStartTime().isBlank()
                 || dto.getEndTime() == null || dto.getEndTime().isBlank()) {
-            logger.warn("Create match failed: missing required fields");
+            logger.warn("[MATCH CREATION CONTROLLER] Create match failed: missing required fields");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing required fields");
         }
 
@@ -91,7 +91,7 @@ public class MatchCreationController {
             List<String> invites = dto.getInvites();
 
             // Log an attempt to create the match (helps diagnose when success log doesn't appear)
-            logger.info("Attempting to create match: field={} date={} start={} end={} organiser={}",
+            logger.info("[MATCH CREATION CONTROLLER] Attempting to create match: field={} date={} start={} end={} organiser={}",
                     dto.getFieldId(), dto.getMatchDate(), dto.getStartTime(), dto.getEndTime(), dto.getOrganiserId());
 
             Match saved = matchService.newMatch(m, invites);
@@ -99,12 +99,12 @@ public class MatchCreationController {
             String organiserMat = (saved.getOrganiser() != null && saved.getOrganiser().getMatricule() != null)
                     ? saved.getOrganiser().getMatricule()
                     : (dto.getOrganiserId() != null ? dto.getOrganiserId() : "_public_");
-            logger.info("Match created successfully: id={} date={} by organiser={} field={} type={}",
+            logger.info("[MATCH CREATION CONTROLLER] Match created successfully: id={} date={} by organiser={} field={} type={}",
                     saved.getMatchId(), saved.getMatchDate(), organiserMat,
                     saved.getField() != null ? saved.getField().getFieldId() : null, saved.getType());
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("matchId", saved.getMatchId()));
         } catch (Exception ex) {
-            logger.error("Error creating match", ex);
+            logger.error("[MATCH CREATION CONTROLLER] Error creating match", ex);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
     }

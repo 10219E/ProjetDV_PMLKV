@@ -39,18 +39,18 @@ public class UserRegistrationController {
 
 	@PostMapping(value = "/register", produces = "application/json")
 	public ResponseEntity<Map<String,String>> register(@RequestBody UserRegistrationDto dto) {
-		logger.info("Registration request received for email={}", dto != null ? dto.getEmail() : null);
+		logger.info("[USER REGISTRATION CONTROLLER] Registration request received for email={}", dto != null ? dto.getEmail() : null);
 		// basic validation
 					if (dto == null || dto.getFname() == null || dto.getFname().isBlank() || dto.getLname() == null || dto.getLname().isBlank()
 								|| dto.getEmail() == null || dto.getEmail().isBlank() || dto.getPassword() == null || dto.getPassword().isBlank()) {
-							logger.warn("Registration failed: missing required fields (email={})", dto != null ? dto.getEmail() : null);
+							logger.warn("[USER REGISTRATION CONTROLLER] Registration failed: missing required fields (email={})", dto != null ? dto.getEmail() : null);
 							throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing required fields");
 						}
 
 						// names should not contain symbols: allow letters (including accented), spaces, apostrophe and hyphen
 						Pattern namePattern = Pattern.compile("^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$");
 						if (!namePattern.matcher(dto.getFname()).matches() || !namePattern.matcher(dto.getLname()).matches()) {
-							logger.warn("Registration failed: invalid characters in names (email={})", dto.getEmail());
+							logger.warn("[USER REGISTRATION CONTROLLER] Registration failed: invalid characters in names (email={})", dto.getEmail());
 							throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First name and last name contain invalid characters");
 						}
 
@@ -81,18 +81,18 @@ public class UserRegistrationController {
 					try {
 						userSiteSubService.newUserSite(saved.getMatricule(), maybeSite.get().getSiteId(), true, false);
 					} catch (Exception e) {
-						logger.warn("Failed to link user {} to site id {}: {}", saved.getMatricule(), dto.getSiteId(), e.getMessage());
+						logger.warn("[USER REGISTRATION CONTROLLER] Failed to link user {} to site id {}: {}", saved.getMatricule(), dto.getSiteId(), e.getMessage());
 						// do not fail registration because linking failed; return created anyway
 					}
 				} else {
-					logger.warn("Site not found for id='{}' while registering user={}", dto.getSiteId(), dto.getEmail());
+					logger.warn("[USER REGISTRATION CONTROLLER] Site not found for id='{}' while registering user={}", dto.getSiteId(), dto.getEmail());
 					// we'll treat missing site as non-fatal: user is created but not linked
 				}
 			}
-			logger.info("User registered: email={} matricule={} site={}", dto.getEmail(), saved.getMatricule(), siteService.fetchById(dto.getSiteId()).map(s -> s.getName()).orElse("N/A"));
+			logger.info("[USER REGISTRATION CONTROLLER] User registered: email={} matricule={} site={}", dto.getEmail(), saved.getMatricule(), siteService.fetchById(dto.getSiteId()).map(s -> s.getName()).orElse("N/A"));
 			return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("matricule", saved.getMatricule()));
 		} catch (Exception ex) {
-			logger.error("Registration error for email={}", dto != null ? dto.getEmail() : null, ex);
+			logger.error("[USER REGISTRATION CONTROLLER] Registration error for email={}", dto != null ? dto.getEmail() : null, ex);
 			// let ValidationBoiler throw specific messages; wrap unexpected in 400
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
 		}
