@@ -25,15 +25,17 @@ export class SessionService {
   }
 
   // Fetch fields for a site (centralized header setting + error handling)
+  // NOTE: use the "active" endpoint so callers get only active fields by default
   public fetchFieldsBySite(siteId: number): Observable<any[]> {
     try {
       this.setAuthHeader(this.fieldService);
     } catch (e) {
       // ignore
     }
-    return this.fieldService.getFieldsBySite(siteId).pipe(
+    // Use getActiveFieldsBySite to avoid returning inactive fields to UI flows
+    return this.fieldService.getActiveFieldsBySite(siteId).pipe(
       catchError((err) => {
-        console.error('SessionService.fetchFieldsBySite error', err);
+        console.error('SessionService.fetchFieldsBySite (active) error', err);
         return of([]);
       })
     );

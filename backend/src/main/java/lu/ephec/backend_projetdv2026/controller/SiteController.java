@@ -2,6 +2,7 @@ package lu.ephec.backend_projetdv2026.controller;
 
 import lu.ephec.backend_projetdv2026.dto.SiteDto;
 import lu.ephec.backend_projetdv2026.models.Site;
+import lu.ephec.backend_projetdv2026.models.SiteClosureDays;
 import lu.ephec.backend_projetdv2026.services.SiteService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 @RestController
@@ -55,5 +58,22 @@ public class SiteController {
         }
         return ResponseEntity.ok(SiteDto.from(site, sessions));
     }
+
+    @GetMapping(value = "/{id}/closures", produces = "application/json")
+    public ResponseEntity<List<Map<String, Object>>> getClosuresForSite(@PathVariable Integer id) {
+        logger.debug("[SITE CONTROLLER] Getting closures for site with id={}", id);
+        List<SiteClosureDays> closures = siteService.fetchClosureForSite(id);
+        // Return a simplified representation to avoid serializing nested Site -> closureDays recursion
+        List<Map<String, Object>> simplified = (closures == null) ? List.of() : closures.stream().map(c -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("closureId", c.getClosureId());
+            m.put("siteId", c.getSiteId());
+            m.put("closureDate", c.getClosureDate());
+            m.put("reason", c.getReason());
+            return m;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(simplified);
+    }
+
 }
 

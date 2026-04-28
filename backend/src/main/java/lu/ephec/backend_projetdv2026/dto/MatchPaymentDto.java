@@ -10,10 +10,7 @@ import lu.ephec.backend_projetdv2026.models.User;
 
 import java.time.LocalDateTime;
 
-/**
- * DTO used by the payments controller. Keeps a simple, flat shape for frontend clients
- * while providing helpers to convert to/from the JPA entity.
- */
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -27,11 +24,7 @@ public class MatchPaymentDto {
     private String status;
     private String paymentMethod;
 
-    /**
-     * Build a shallow MatchPayments entity from this DTO. This method creates User and Match
-     * placeholders with only identifiers set. The service layer should validate and replace
-     * them by fully-loaded entities when required.
-     */
+
     public MatchPayments toEntity() {
         MatchPayments p = new MatchPayments();
         p.setTr(this.tr);

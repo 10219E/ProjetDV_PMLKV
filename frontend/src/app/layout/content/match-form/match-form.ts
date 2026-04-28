@@ -4,7 +4,6 @@ import { ReactiveFormsModule, FormGroup, FormControl, Validators, FormArray } fr
 import { firstValueFrom } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { MatchCreationControllerService } from '../../../api/api/matchCreationController.service';
-import { FieldControllerService } from '../../../api/api/fieldController.service';
 import { SiteControllerService } from '../../../api/api/siteController.service';
 import { AuthService } from '../../../services/auth.service';
 import { UserService } from '../../../services/user.service';
@@ -98,7 +97,7 @@ export class MatchForm implements OnInit {
   // DTO stored while waiting for payment
   private pendingDto: any | null = null;
 
-  constructor(private matchCreationService: MatchCreationControllerService, private fieldService: FieldControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService) {}
+  constructor(private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService) {}
   // keep a direct reference to PayFormComponent to satisfy analyzers that the imported component is used
   // (template uses <app-pay-form> conditionally with @if which some static analyzers may not detect)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

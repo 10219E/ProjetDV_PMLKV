@@ -17,6 +17,9 @@ public interface JPASiteRepo extends JpaRepository<Site, Integer> {
     List<Site> findAllByIsActiveTrue();
     List<Site> findAllByIsActiveFalse();
 
+    // Count active sites (only sites with isActive = true)
+    long countByIsActiveTrue();
+
 
 
 

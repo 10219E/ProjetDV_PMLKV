@@ -12,7 +12,7 @@ import { UserControllerService } from '../api/api/userController.service';
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly LOCAL_STORAGE_KEY = 'accessToken';
+  private readonly LOCAL_STORAGE_KEY = 'accessToken'; //Using storage key as teacher explained
   constructor(private userControllerService: UserControllerService, private authControllerService: AuthControllerService, private userRegistrationControllerService: UserRegistrationControllerService) { }
 
   login(loginDto: AuthLoginDto): Observable<AuthLoginResponse> {

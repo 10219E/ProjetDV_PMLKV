@@ -32,8 +32,9 @@ public class InfoController {
 	//SEND COUNTS TO FE
 	@GetMapping(value = "/fscount", produces = "application/json")
 	public InfoControllerDto getSitesAndFieldsCount() {
-		Integer sites = siteService.countSites();
-		Integer fields = fieldService.countFields();
+		// return counts for active entities (frontend expects active-only counts)
+		Integer sites = siteService.countActiveSites();
+		Integer fields = fieldService.countActiveFields();
 		// log both counts
 		logger.info("[INFO CONTROLLER] Sites count: {}, Fields count: {} to display on home page.", sites, fields);
 		return new InfoControllerDto(sites, fields);

@@ -17,4 +17,7 @@ public interface JPAFieldRepo extends JpaRepository<Field, Integer> {
     List<Field> findBySite_SiteIdAndIsActiveFalse(Integer siteId);
 
     List<Field> findBySite_SiteIdAndMaintenanceFromDateIsNotNullAndMaintenanceToDateIsNotNull(Integer siteId);
+
+    // Count active fields (only fields with isActive = true)
+    long countByIsActiveTrue();
 }

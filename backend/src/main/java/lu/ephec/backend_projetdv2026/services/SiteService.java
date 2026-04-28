@@ -99,6 +99,11 @@ public class SiteService {
         return Math.toIntExact(jpaSiteRepo.count());
     }
 
+    //FETCH ACTIVE SITES COUNT
+    public Integer countActiveSites() {
+        return Math.toIntExact(jpaSiteRepo.countByIsActiveTrue());
+    }
+
     //GET ALL ACTIVE Sites
     public List<Site> fetchAllActive() {
         return jpaSiteRepo.findAllByIsActiveTrue();
