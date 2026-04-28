@@ -97,6 +97,11 @@ public class FieldService {
         return Math.toIntExact(jpaFieldRepo.count());
     }
 
+    // RETURN NUMBER OF ACTIVE FIELDS
+    public Integer countActiveFields() {
+        return Math.toIntExact(jpaFieldRepo.countByIsActiveTrue());
+    }
+
     //GET ALL indoor Fields By Site
     public List<Field> fetchIndoorBySite(Integer siteId) {
         ValidationBoiler.verifyNotNull(siteId, "Site ID");

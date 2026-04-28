@@ -48,5 +48,13 @@ public class FieldController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
+
+    @GetMapping(value="/{id}/maintenance", produces = "application/json")
+    public ResponseEntity<FieldDto> getFieldMaintenanceById(@PathVariable Integer id) {
+        // Return maintenance date range for a specific field (from/to)
+        Field field = fieldService.fetchById(id).orElseThrow();
+        return ResponseEntity.ok(FieldDto.from(field));
+    }
+
 }
 

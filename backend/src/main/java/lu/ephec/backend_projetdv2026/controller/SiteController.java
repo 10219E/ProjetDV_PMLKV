@@ -2,6 +2,7 @@ package lu.ephec.backend_projetdv2026.controller;
 
 import lu.ephec.backend_projetdv2026.dto.SiteDto;
 import lu.ephec.backend_projetdv2026.models.Site;
+import lu.ephec.backend_projetdv2026.models.SiteClosureDays;
 import lu.ephec.backend_projetdv2026.services.SiteService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,5 +56,13 @@ public class SiteController {
         }
         return ResponseEntity.ok(SiteDto.from(site, sessions));
     }
+
+    @GetMapping(value = "/{id}/closures", produces = "application/json")
+    public ResponseEntity<List<SiteClosureDays>> getClosuresForSite(@PathVariable Integer id) {
+        logger.debug("[SITE CONTROLLER] Getting closures for site with id={}", id);
+        List<SiteClosureDays> closures = siteService.fetchClosureForSite(id);
+        return ResponseEntity.ok(closures);
+    }
+
 }
 
