@@ -7,6 +7,8 @@ import { MatchService } from '../../../../services/match.service';
 import { MatchDto } from '../../../../api/model/matchDto';
 import { InfoService } from '../../../../services/info.service';
 import { SiteInfo } from '../../../../api/model/siteInfo';
+import {FieldService} from '../../../../services/field.service';
+import {FieldDto} from "../../../../api/model/fieldDto";
 
 @Component({
   selector: 'app-join-public-match',
@@ -24,6 +26,7 @@ export class JoinPublicMatch implements OnInit {
 	private router: Router,
 	private matchService: MatchService,
 	private infoService: InfoService,
+  private fieldService: FieldService,
 	private cd: ChangeDetectorRef
   ) {}
 
@@ -33,58 +36,81 @@ export class JoinPublicMatch implements OnInit {
   }
 
   private loadMatches(): void {
-	this.loading = true;
-	this.error = null;
-	try {
-	  this.matchService.getMatchesByTypeAndStatus('public', 'open').subscribe({
-					next: (data: any) => {
-					  const all = Array.isArray(data) ? data : [];
-					  // keep only matches from tomorrow (exclude today and past matches)
-					  const tomorrow = this.getTomorrowIsoDate();
-					  const filtered: MatchDto[] = all.filter((m: MatchDto) => {
-						const dateOnly = (m?.matchDate ?? '').split('T')[0];
-						return dateOnly >= tomorrow;
-					  });
+    this.loading = true;
+    this.error = null;
+    try {
+      this.matchService.getMatchesByTypeAndStatus('public', 'open').subscribe({
+        next: (data: any) => {
+          const all = Array.isArray(data) ? data : [];
+          // keep only matches from tomorrow (exclude today and past matches)
+          const tomorrow = this.getTomorrowIsoDate();
+          const filtered: MatchDto[] = all.filter((m: MatchDto) => {
+            const dateOnly = (m?.matchDate ?? '').split('T')[0];
+            return dateOnly >= tomorrow;
+          });
 
-            // Fetch site infos from InfoService and build a map id->name, then attach siteName to matches
-            this.infoService.getSites().subscribe({
-            next: (sites: SiteInfo[]) => {
-              const map: Record<number, string> = {};
-                    (sites || []).forEach(s => {
+          // First, get all fields to build a fieldId to siteId map
+          this.fieldService.fetchAllFields().subscribe({
+            next: (fields: FieldDto[]) => {
+              const fieldToSiteMap: Record<number, number> = {};
+              (fields || []).forEach(f => {
+                if (f?.fieldId != null && f?.siteId != null) {
+                  fieldToSiteMap[f.fieldId] = f.siteId;
+                }
+              });
+
+              // Then get all sites to build a siteId to siteName map
+              this.infoService.getSites().subscribe({
+                next: (sites: SiteInfo[]) => {
+                  const siteMap: Record<number, string> = {};
+                  (sites || []).forEach(s => {
                     if (s?.siteId != null) {
                       const name = (s.name ?? '').toString().trim();
-                      map[s.siteId] = name.length > 0 ? name : '—';
+                      siteMap[s.siteId] = name.length > 0 ? name : '—';
                     }
-                    });
-              // attach siteName to each match and keep typing
-              this.matches = filtered.map(m => {
-              const siteName = m?.fieldId != null ? (map[m.fieldId!] ?? '—') : '—';
-              return ({ ...(m as any), siteName } as MatchDto & { siteName?: string });
+                  });
+
+                  // Now attach siteName to each match using the fieldToSiteMap
+                  this.matches = filtered.map(m => {
+                    const siteId = m?.fieldId != null ? fieldToSiteMap[m.fieldId] : null;
+                    const siteName = siteId != null ? (siteMap[siteId] ?? '—') : '—';
+                    return { ...m, siteName } as MatchDto & { siteName?: string };
+                  });
+
+                  this.loading = false;
+                  this.cd.detectChanges();
+                },
+                error: (err) => {
+                  console.error('Error fetching sites:', err);
+                  // If site fetch fails, still show matches with fallback
+                  this.matches = filtered.map(m => ({ ...m, siteName: '—' } as MatchDto & { siteName?: string }));
+                  this.loading = false;
+                  this.cd.detectChanges();
+                }
               });
-              this.loading = false;
-              this.cd.detectChanges();
             },
-            error: () => {
-              // if site fetch fails, still show filtered matches with fallback
-              this.matches = filtered.map(m => ({ ...(m as any), siteName: '—' } as MatchDto & { siteName?: string }));
+            error: (err) => {
+              console.error('Error fetching fields:', err);
+              // If field fetch fails, still show matches with fallback
+              this.matches = filtered.map(m => ({ ...m, siteName: '—' } as MatchDto & { siteName?: string }));
               this.loading = false;
               this.cd.detectChanges();
             }
-            });
-					},
-		error: (err: any) => {
-		  console.error('Failed to load public matches', err);
-		  this.error = err?.message || 'Erreur lors du chargement des matchs publics.';
-		  this.matches = [];
-		  this.loading = false;
-		  this.cd.detectChanges();
-		}
-	  });
-	} catch (e) {
-	  this.loading = false;
-	  this.error = 'Erreur interne.';
-	  this.cd.detectChanges();
-	}
+          });
+        },
+        error: (err: any) => {
+          console.error('Failed to load public matches', err);
+          this.error = err?.message || 'Erreur lors du chargement des matchs publics.';
+          this.matches = [];
+          this.loading = false;
+          this.cd.detectChanges();
+        }
+      });
+    } catch (e) {
+      this.loading = false;
+      this.error = 'Erreur interne.';
+      this.cd.detectChanges();
+    }
   }
 
   // Placeholder action when user clicks Join. Real implementation should call backend or navigate to match details.

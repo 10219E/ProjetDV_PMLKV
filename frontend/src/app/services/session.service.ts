@@ -4,6 +4,7 @@ import { catchError, map } from 'rxjs/operators';
 import { FieldControllerService } from '../api/api/fieldController.service';
 import { SiteControllerService } from '../api/api/siteController.service';
 import { AuthService } from './auth.service';
+import {FieldDto} from '../api';
 
 @Injectable({ providedIn: 'root' })
 export class SessionService {
@@ -22,23 +23,6 @@ export class SessionService {
     } catch (e) {
       // ignore
     }
-  }
-
-  // Fetch fields for a site (centralized header setting + error handling)
-  // NOTE: use the "active" endpoint so callers get only active fields by default
-  public fetchFieldsBySite(siteId: number): Observable<any[]> {
-    try {
-      this.setAuthHeader(this.fieldService);
-    } catch (e) {
-      // ignore
-    }
-    // Use getActiveFieldsBySite to avoid returning inactive fields to UI flows
-    return this.fieldService.getActiveFieldsBySite(siteId).pipe(
-      catchError((err) => {
-        console.error('SessionService.fetchFieldsBySite (active) error', err);
-        return of([]);
-      })
-    );
   }
 
   // Load sessions for a site, normalize them for UI and apply the "hide when no date" behavior.
