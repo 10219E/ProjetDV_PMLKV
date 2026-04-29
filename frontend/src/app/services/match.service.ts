@@ -18,6 +18,27 @@ export class MatchService {
 	return this.matchControllerService.getBySite(siteId);
   }
 
+  // Fetch matches by type: calls GET /api/matches/type/{type}
+  getMatchesByType(type: string): Observable<Array<MatchDto>> {
+	if (type === null || type === undefined) {
+	  throw new Error('type is required');
+	}
+	this.setAuthHeader();
+	return this.matchControllerService.getByType(type);
+  }
+
+  // Fetch matches by type and status: calls GET /api/matches/type/{type}/status/{status}
+  getMatchesByTypeAndStatus(type: string, status: string): Observable<Array<MatchDto>> {
+	if (type === null || type === undefined) {
+	  throw new Error('type is required');
+	}
+	if (status === null || status === undefined) {
+	  throw new Error('status is required');
+	}
+	this.setAuthHeader();
+	return this.matchControllerService.getByTypeAndStatus(type, status);
+  }
+
   // Ensure Authorization header is set on the generated client from AuthService token
   private setAuthHeader(): void {
 	const token = this.authService.getToken();

@@ -9,14 +9,16 @@
       <div class="relative nav-mobile-panel w-72 bg-white/95 backdrop-blur-sm p-6 border-l border-gray-200 transform transition-transform duration-200" [class.translate-x-0]="visible" [class.translate-x-full]="!visible">
         <button class="absolute top-3 right-3 text-gray-600" (click)="close()">✕</button>
         <nav class="flex flex-col gap-6 text-lg">
-          <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">👤 MON PROFIL</a>
-          <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">🏓 MES MATCHS</a>
-          <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'invites'] : ['/home']" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">✉️ MES INVITATIONS</a>
-          <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">➕ MATCH PUBLIC</a>
-          <a href="#" (click)="$event.preventDefault(); goCreatePmatch()" class="hover:text-blue-600 flex font-bold items-center gap-3">
+          <a routerLink="#" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">👤 MON PROFIL</a>
+          @if (!isAdmin) {
+            <a routerLink="#" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">🏓 MES MATCHS</a>
+            <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'invites'] : ['/home']" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">✉️ MES INVITATIONS</a>
+            <a href="#" (click)="$event.preventDefault(); goJoinPublic(); close()" class="hover:text-blue-600 flex font-bold items-center gap-3">➕ MATCH PUBLIC</a>
+          }
+          <a href="#" (click)="$event.preventDefault(); goCreatePmatch() ; close()" class="hover:text-blue-600 flex font-bold items-center gap-3">
             ⭐ {{ isAdmin ? 'Créer Match Public' : 'Créer Match Privé' }}
           </a>
-          <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">🛠️ REGLAGES</a>
+          <a routerLink="#" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">🛠️ REGLAGES</a>
           <button (click)="onLogout()" class="mt-4 text-left hover:text-red-500 flex font-bold items-center gap-3 p-1">⏻ SE DECONNECTER</button>
         </nav>
       </div>
@@ -27,14 +29,51 @@
   <aside class="hidden mid:flex flex-col w-72 bg-white/50 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 p-6 flex-shrink-0 self-start mt-6 mr-2 mid:mr-6 z-20 mb-8 font-bold min-h-[70vh]">
     <nav class="flex flex-col gap-6 text-lg">
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">👤 Mon Profil</a>
-      <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">🏓 Mes Matchs</a>
-      <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'invites'] : ['/home']" (click)="close()" class="hover:text-blue-600 flex items-center gap-3">✉️ Mes Invitations</a>
-      <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">➕ Rejoindre Match Public</a>
+      @if (!isAdmin) {
+        <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">🏓 Mes Matchs</a>
+        <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'invites'] : ['/home']" (click)="close()" class="hover:text-blue-600 flex items-center gap-3">✉️ Mes Invitations</a>
+        <a href="#" (click)="$event.preventDefault(); goJoinPublic()" class="hover:text-blue-600 flex items-center gap-3">➕ Rejoindre Match Public</a>
+      }
       <a href="#" (click)="$event.preventDefault(); goCreatePmatch()" class="hover:text-blue-600 flex items-center gap-3">⭐ {{ isAdmin ? 'Créer Match Public' : 'Créer Match Privé' }}</a>
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">🛠️ Reglages</a>
       <button (click)="onLogout()" class="hover:text-red-500 flex items-center gap-3 p-1">⏻ Se Déconnecter</button>
     </nav>
   </aside>
+
+      <!-- Restriction popup shown when user has active penalty or debt -->
+      @if (showRestrictionPopup) {
+        <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+          <div class="relative bg-white rounded-xl p-6 max-w-sm w-full text-center">
+            <button class="absolute top-3 right-3 text-gray-400 hover:text-gray-800" (click)="closeRestrictionPopup()">✕</button>
+            <h3 class="text-lg font-semibold underline text-red-600 mb-3">Attention</h3>
+            <!-- Always show the primary French message first -->
+            <p class="text-sm text-gray-700 mb-3">{{ restrictionMessage }}</p>
+            <div class="text-sm text-gray-700 mb-4 space-y-2">
+              @if (restrictionPenalties && restrictionPenalties.length > 0) {
+                <!-- Add explicit track expression required by the project's @for compiler plugin. Use penalty.tr (unique numeric id) when present, fallback to reason or $index. -->
+                @for (p of restrictionPenalties; track p.tr ?? p.reason ?? $index) {
+                  <p>
+                    <strong>Pénalité: </strong>
+                    <span>{{ translatePenaltyReason(p?.reason) }}</span>
+                    @if (p?.endDate) {
+                      <span> — fin: <strong>{{ p.endDate ? (p.endDate | date:'dd/MM/yyyy') : '' }}</strong></span>
+                    }
+                  </p>
+                }
+              }
+              @if (restrictionDebtAmount != null) {
+                <p>
+                  <strong>Dette: </strong>
+                  <span class="text-red-600"><strong>{{ restrictionDebtAmount }} €</strong></span>
+                </p>
+              }
+            </div>
+            <div class="flex justify-center">
+              <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded" (click)="closeRestrictionPopup()">OK</button>
+            </div>
+          </div>
+        </div>
+      }
 </div>
 
 

@@ -9,6 +9,7 @@ import { map, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { NewPrivMatch } from './layout/content/pages/new-priv-match/new-priv-match';
 import { InvitePaymentsPage } from './layout/content/pages/payments/invite-payments';
+import { JoinPublicMatch } from './layout/content/pages/join-public-match/join-public-match';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
@@ -59,6 +60,15 @@ export const authGuard: CanActivateFn = (route, state) => {
           return router.createUrlTree(['/home', currentMatricule]);
         }
 
+        // If trying to access create_pmatch manually and the user has a restriction
+        // (active penalty or debt), redirect to home and set a query param that will
+        // trigger a popup on the UI.
+        if (url.includes('create_pmatch') && (String(u?.account?.status || '').toLowerCase() === 'debt'
+            || (typeof u?.account?.balance === 'number' && u.account.balance < 0)
+            || (Array.isArray(u?.penalties) && u.penalties.some((p: any) => p && p.isActive)))) {
+          return router.createUrlTree(['/home', currentMatricule], { queryParams: { blocked: '1' } });
+        }
+
         return true;
       }
 
@@ -79,6 +89,7 @@ export const routes: Routes = [
   { path: 'home/:userId/create_pmatch', component: NewPrivMatch, canActivate: [authGuard] },
   { path: 'home/:userId/create_public', component: NewPubMatch, canActivate: [authGuard] },
   { path: 'home/:userId/invites', component: InvitePaymentsPage, canActivate: [authGuard] },
+  { path: 'home/:userId/join_public', component: JoinPublicMatch, canActivate: [authGuard] },
   { path: 'home/:userId', component: HomeAccount, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];
