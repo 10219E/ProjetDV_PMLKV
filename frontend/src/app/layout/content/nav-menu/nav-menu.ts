@@ -189,6 +189,44 @@ export class NavMenu implements OnInit, OnDestroy {
     });
   }
 
+  // Navigate to the page that lists/join public matches for the current user.
+  goJoinPublic(): void {
+    // close the nav menu immediately on click (mobile UX)
+    this.close();
+    this.userService.getCurrentUser().pipe(take(1)).subscribe({
+      next: (u: any) => {
+        // If user has an active penalty or debt, show inline popup and DO NOT navigate
+        if (this.userHasRestriction(u)) {
+          this.setRestrictionFromUser(u);
+          this.showRestrictionPopup = true;
+          try { localStorage.setItem('blockedPopup', '1'); } catch(e) {}
+          this.cdr.detectChanges();
+          return;
+        }
+        const id = u && u.matricule;
+        if (id) {
+          this.router.navigate([`/home`, id, 'join_public']);
+          this.close();
+          return;
+        }
+        // fallback to parse from URL
+        this.navigateFromUrlFallbackJoinPublic();
+      },
+      error: (_err) => this.navigateFromUrlFallbackJoinPublic()
+    });
+  }
+
+  private navigateFromUrlFallbackJoinPublic(): void {
+    const url = this.router.url || '';
+    const m = url.match(/\/home\/(\w+)/);
+    if (m && m[1]) {
+      this.router.navigate([`/home`, m[1], 'join_public']);
+    } else {
+      this.router.navigate(['/']);
+    }
+    this.close();
+  }
+
   // Determine whether the given user object should be blocked from creating matches.
   // Block when account.status === 'debt' or account.balance < 0, or when there is any
   // active penalty (penalty.isActive === true and optionally within date range).
