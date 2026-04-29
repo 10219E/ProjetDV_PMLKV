@@ -724,6 +724,8 @@ export class MatchForm implements OnInit {
       delete errors['duplicate'];
       delete errors['selfInvite'];
       delete errors['adminNotAllowed'];
+      // inviteNotAllowed used when a user has penalties or outstanding debt
+      delete errors['inviteNotAllowed'];
       delete errors['timeout'];
       // if no other errors remain, clear; otherwise set back
       if (Object.keys(errors).length === 0) {
@@ -836,12 +838,66 @@ export class MatchForm implements OnInit {
             this.cd.detectChanges();
             return;
           }
+          // Block invites when the found user has an active penalty or an outstanding debt
+          try {
+            const acc = user?.account || {};
+            if ((acc.status || '').toString().toLowerCase() === 'debt' || (typeof acc.balance === 'number' && acc.balance < 0)) {
+              const control = this.getInviteControl(index);
+              if (control) {
+                const err = control.errors || {};
+                err['inviteNotAllowed'] = true;
+                control.setErrors(err);
+              }
+              this.inviteStates[index] = { status: 'error', user };
+              if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+              this.cd.detectChanges();
+              return;
+            }
+            const penalties = Array.isArray(user?.penalties) ? user.penalties : [];
+            const now = new Date();
+            for (const p of penalties) {
+              if (!p) continue;
+              if (p.isActive) {
+                if (p.startDate && p.endDate) {
+                  const s = new Date(p.startDate);
+                  const e = new Date(p.endDate);
+                  if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && now >= s && now <= e) {
+                    const control = this.getInviteControl(index);
+                    if (control) {
+                      const err = control.errors || {};
+                      err['inviteNotAllowed'] = true;
+                      control.setErrors(err);
+                    }
+                    this.inviteStates[index] = { status: 'error', user };
+                    if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+                    this.cd.detectChanges();
+                    return;
+                  }
+                } else {
+                  const control = this.getInviteControl(index);
+                  if (control) {
+                    const err = control.errors || {};
+                    err['inviteNotAllowed'] = true;
+                    control.setErrors(err);
+                  }
+                  this.inviteStates[index] = { status: 'error', user };
+                  if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+                  this.cd.detectChanges();
+                  return;
+                }
+              }
+            }
+          } catch (e) {
+            // if the check fails for any reason, fall back to allowing the invite (do not block)
+            console.warn('invite restriction check failed', e);
+          }
           // otherwise user found -> keep email in control but store user (matricule) for later use
           // clear any adminNotAllowed error
           const control = this.getInviteControl(index);
           if (control) {
             const errs = control.errors || {};
             delete errs['adminNotAllowed'];
+            delete errs['inviteNotAllowed'];
             if (Object.keys(errs).length === 0) control.setErrors(null); else control.setErrors(errs);
           }
           this.inviteStates[index] = { status: 'found', user };

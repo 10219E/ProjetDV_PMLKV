@@ -135,6 +135,9 @@
               @if (getInviteControl(i)?.errors?.adminNotAllowed) {
                 <p class="text-red-500 text-xs mt-1">Impossible d'inviter un administrateur</p>
               }
+              @if (getInviteControl(i)?.errors?.inviteNotAllowed) {
+                <p class="text-red-500 text-xs mt-1">Vous ne pouvez pas inviter cet utilisateur.</p>
+              }
             }
 
             @if (inviteStates[i]?.status === 'found') {

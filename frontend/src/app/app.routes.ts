@@ -59,6 +59,15 @@ export const authGuard: CanActivateFn = (route, state) => {
           return router.createUrlTree(['/home', currentMatricule]);
         }
 
+        // If trying to access create_pmatch manually and the user has a restriction
+        // (active penalty or debt), redirect to home and set a query param that will
+        // trigger a popup on the UI.
+        if (url.includes('create_pmatch') && (String(u?.account?.status || '').toLowerCase() === 'debt'
+            || (typeof u?.account?.balance === 'number' && u.account.balance < 0)
+            || (Array.isArray(u?.penalties) && u.penalties.some((p: any) => p && p.isActive)))) {
+          return router.createUrlTree(['/home', currentMatricule], { queryParams: { blocked: '1' } });
+        }
+
         return true;
       }
 
