@@ -23,11 +23,18 @@
 									@for (p of payments; track p) {
 									  <div class="p-4 bg-white rounded-md shadow flex items-center justify-between">
 										<div class="flex flex-col">
-										  <div class="font-semibold">Match: {{ p.match?.matchId || 'N/A' }}</div>
+										  <div class="font-semibold text-md">
+											Terrain: {{ p.field?.fieldId || p.match?.fieldId || 'N/A' }}
+											<span class="text-md text-gray-600 font-semibold ml-1">
+											  —> {{ p.match?.matchDate | date:'dd/MM/yyyy' }}
+											  {{ p.match?.startTime?.hour != null ? (p.match?.startTime?.hour + ':' + (( (p.match?.startTime?.minute || 0) < 10) ? ('0' + (p.match?.startTime?.minute || 0)) : (p.match?.startTime?.minute || 0) )) : (p.match?.startTime ? ' ' + p.match?.startTime : '') }}
+											  -
+											  {{ p.match?.endTime?.hour != null ? (p.match?.endTime?.hour + ':' + (( (p.match?.endTime?.minute || 0) < 10) ? ('0' + (p.match?.endTime?.minute || 0)) : (p.match?.endTime?.minute || 0) )) : (p.match?.endTime ? ' ' + p.match?.endTime : '') }}
+											</span>
+										  </div>
 										  <div class="text-sm text-gray-600">Organisateur: {{ p.organiser?.firstName }} {{ p.organiser?.lastName }}</div>
 										  <div class="text-sm text-gray-600">Montant: {{ p.payment?.amount | number:'1.2-2' }} €</div>
 										  <div class="text-sm text-gray-600">Lieu: {{ p.site?.name || p.field?.siteId || '—' }}</div>
-										  <div class="text-sm text-gray-600">Date: {{ p.match?.matchDate }} {{ p.match?.startTime }} - {{ p.match?.endTime }}</div>
 																																		  <div class="text-sm text-gray-600">Participants: {{ p.participants?.length || 0 }} | Remaining slots: {{ p.remainingSlots ?? '—' }}</div>
 										</div>
 										<div class="flex gap-2">
