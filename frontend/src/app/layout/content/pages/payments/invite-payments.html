@@ -32,10 +32,10 @@
 											  {{ p.match?.endTime?.hour != null ? (p.match?.endTime?.hour + ':' + (( (p.match?.endTime?.minute || 0) < 10) ? ('0' + (p.match?.endTime?.minute || 0)) : (p.match?.endTime?.minute || 0) )) : (p.match?.endTime ? ' ' + p.match?.endTime : '') }}
 											</span>
 										  </div>
-										  <div class="text-sm text-gray-600">Organisateur: {{ p.organiser?.firstName }} {{ p.organiser?.lastName }}</div>
+										  <div class="text-sm text-gray-600">Organisateur,-trice: {{ p.organiser?.firstName }} {{ p.organiser?.lastName }}</div>
 										  <div class="text-sm text-gray-600">Montant: {{ p.payment?.amount | number:'1.2-2' }} €</div>
-										  <div class="text-sm text-gray-600">Lieu: {{ p.site?.name || p.field?.siteId || '—' }}</div>
-																																		  <div class="text-sm text-gray-600">Participants: {{ p.participants?.length || 0 }} | Remaining slots: {{ p.remainingSlots ?? '—' }}</div>
+										  <div class="text-sm text-gray-600">Complexe: {{ p.site?.name || p.field?.siteId || '—' }}</div>
+																																		  <div class="text-sm text-gray-600">Participants: {{ p.participants?.length || 0 }} | En attente: {{ p.remainingSlots ?? '—' }}</div>
 										</div>
 										<div class="flex gap-2">
 										  <button class="bg-green-600 text-white px-3 py-1 rounded" (click)="accept(p)">Accepter / Payer</button>
