@@ -55,6 +55,7 @@ public class SchedulerService {
 
 	//MARKS MATCHES AS COMPLETED WHEN THEIR END DATETIME HAS ELAPSED AND THEIR STATUS INDICATES THEY WERE CONFIRMED/CLOSED
 	//PREVIOUS MATCH PLAYERS ARE DELETED FROM THE PREVIOUS MATCH
+	//EXCEPTION FOR PUBLIC MATCHES - WE ALSO MARK OPENED AS COMPLETED AS WE DON'T HAVE ENOUGH TRAFFIC TO JUSTIFY CANCELLING EACH PUBLIC MATCH INDIVIDUALLY
 	@Scheduled(cron = "0 0/5 * * * *")
 	public void markElapsedMatchesCompleted() {
 		if (!schedulerLock.tryLock()) {
@@ -80,7 +81,7 @@ public class SchedulerService {
 				}
 			}
 
-			logger.info("[SchedulerService] Completed mark elapsed matches completed — {} matches updated in total", totalUpdated);
+			logger.info("[SchedulerService] Completed mark elapsed matches completed — {} matches checked in total", totalUpdated);
 		} finally {
 			schedulerLock.unlock();
 		}
@@ -333,23 +334,25 @@ public class SchedulerService {
 				boolean shouldComplete = false;
 				if ("private".equals(m.getType()) && "confirmed".equals(m.getPrivStatus())) {
 					shouldComplete = true;
-				}
-				if ("public".equals(m.getType()) && ("confirmed".equals(m.getPubStatus()) || "closed".equals(m.getPubStatus()))) {
+				}//WORKAROUND INCLUDING OPEN AS WE DON'T HAVE ENOUGH TRAFFIC TO JUSTIFY CANCELLING EACH PUBLIC MATCH
+				if ("public".equals(m.getType()) && ("closed".equals(m.getPubStatus()) || "open".equals(m.getPubStatus()))) {
 					shouldComplete = true;
 				}
 				if ((m.getPrivStatus() != null && m.getPrivStatus().equals("confirmed")) ||
-						(m.getPubStatus() != null && (m.getPubStatus().equals("confirmed") || m.getPubStatus().equals("closed")))) {
+						(m.getPubStatus() != null && (m.getPubStatus().equals("closed")) || m.getPubStatus().equals("open"))) {
 					shouldComplete = true;
 				}
 
 				if (shouldComplete) {
 					if ("private".equals(m.getType())) {
 						m.setPrivStatus("completed");
+						updated++;
 					} else if ("public".equals(m.getType())) {
 						m.setPubStatus("completed");
+						updated++;
 					} else {
-						m.setPrivStatus("completed");
-						m.setPubStatus("completed");
+						//m.setPrivStatus("completed");
+						//m.setPubStatus("completed");
 					}
 
 
@@ -361,7 +364,6 @@ public class SchedulerService {
 					} catch (Exception ex) {
 						logger.error("[SchedulerService] Failed to delete MatchPlayers for completed match {}: {}", m.getMatchId(), ex.getMessage(), ex);
 					}
-					updated++;
 					logger.debug("[SchedulerService] Marked match {} as completed", m.getMatchId());
 				}
 			} catch (Exception ex) {
