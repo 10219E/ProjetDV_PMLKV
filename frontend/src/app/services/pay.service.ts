@@ -5,7 +5,6 @@ import { catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { MatchPaymentControllerService } from '../api/api/matchPaymentController.service';
 import { MatchPaymentDto } from '../api/model/matchPaymentDto';
-import { PendingInviteDetails } from '../api/model/pendingInviteDetails';
 import { SessionService } from './session.service';
 
 @Injectable({ providedIn: 'root' })
@@ -25,21 +24,9 @@ export class PayService {
 	}
   }
 
-  fetchPendingInvitesForUser(matricule: string): Observable<PendingInviteDetails[]> {
-   this._setAuthHeaderOnApiService();
-   // If backend returns 404 when there are no invites, treat that as an empty list
-   // so callers don't have to handle a NotFound error for a normal "no data" case.
-   return this.matchPaymentService.getPendingWithDetailsPaymentsByUser(matricule).pipe(
-	 catchError((err: any) => {
-	   // HttpErrorResponse has a status property; defensive check in case shape differs
-	   if (err && (err.status === 404 || err.status === '404')) {
-		 return of([] as PendingInviteDetails[]);
-	   }
-	   // rethrow other errors so they can be handled by the caller
-	   return throwError(() => err);
-	 })
-   );
-  }
+
+
+
 
   createPayment(payment: MatchPaymentDto): Observable<any> {
 	this._setAuthHeaderOnApiService();

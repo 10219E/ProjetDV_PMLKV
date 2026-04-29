@@ -40,14 +40,16 @@ public class ValidationBoiler {
                     "User " + userId + " has outstanding debt. Cannot proceed with this operation.");
         }
 
-        long pendingCount = pendingPayments.stream()
+
+        //WE'RE BLOCKING THIS CHECK AS IT DOESN'T MAKE SENSE - TO RESTRICTIVE - YOU CAN BE INVITED TO MULTIPLE MATCHES AT ONCE
+        /*long pendingCount = pendingPayments.stream()
                 .filter(payment -> "pending".equals(payment.getStatus()))
                 .count();
 
         if (pendingCount > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "User " + userId + " has " + pendingCount + " pending match payments. Cannot proceed with this operation.");
-        }
+        }*/
     }
 
     // Check if collection is not empty (for List, Set, etc.)

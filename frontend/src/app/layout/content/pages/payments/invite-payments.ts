@@ -6,6 +6,7 @@ import { NavMenu } from '../../nav-menu/nav-menu';
 import { HomeAccountHeader } from '../../header/header';
 import { PayFormComponent } from '../../pay-form/pay-form';
 import { PayService } from '../../../../services/pay.service';
+import { InviteService } from '../../../../services/invite.service';
 import { AuthService } from '../../../../services/auth.service';
 import { UserService } from '../../../../services/user.service';
 import { take } from 'rxjs/operators';
@@ -33,6 +34,7 @@ export class InvitePaymentsPage implements OnInit {
 	private route: ActivatedRoute,
 	private router: Router,
 	private payService: PayService,
+	private inviteService: InviteService,
 	private auth: AuthService,
 	private userService: UserService,
 	private cd: ChangeDetectorRef
@@ -64,14 +66,14 @@ export class InvitePaymentsPage implements OnInit {
   private loadPending(matricule: string) {
 	this.loading = true;
 	this.error = null;
-	this.payService.fetchPendingInvitesForUser(matricule).subscribe({
+	this.inviteService.fetchPendingInvitesForUser(matricule).subscribe({
 	  next: (data: any) => {
 		// API returns an array of PendingInviteDetails
 		this.payments = Array.isArray(data) ? data : [];
 		this.loading = false;
 		this.cd.detectChanges();
 	  },
-	  error: (err) => {
+	  error: (err: any) => {
 		console.error('Failed to load pending invites', err);
 		this.error = err?.message || 'Erreur lors du chargement des invitations.';
 		this.payments = [];
@@ -118,8 +120,6 @@ export class InvitePaymentsPage implements OnInit {
 		const dto: MatchPaymentDto = {
 		  tr: this.selectedPayment!.payment!.tr,
 		  userMatricule: currentMat,
-		  matchId: this.selectedPayment!.match?.matchId,
-		  amount: evt.amount,
 		  status: 'clear',
 		  paymentMethod: 'CARD'
 		};
@@ -131,7 +131,7 @@ export class InvitePaymentsPage implements OnInit {
 			this.selectedPayment = null;
 			this.cd.detectChanges();
 		  },
-		  error: (err) => {
+		  error: (err: any) => {
 			console.error('Failed to update payment', err);
 			this.error = err?.message || 'Erreur lors du traitement du paiement.';
 			// keep the payment in the list so user can retry
@@ -140,7 +140,7 @@ export class InvitePaymentsPage implements OnInit {
 		  }
 		});
 	  },
-	  error: (err) => {
+	  error: (err: any) => {
 		console.error('Failed to resolve current user', err);
 		this.error = 'Impossible de récupérer l’utilisateur courant.';
 		this.cd.detectChanges();
