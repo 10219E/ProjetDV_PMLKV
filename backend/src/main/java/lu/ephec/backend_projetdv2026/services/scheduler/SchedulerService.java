@@ -81,7 +81,7 @@ public class SchedulerService {
 				}
 			}
 
-			logger.info("[SchedulerService] Completed mark elapsed matches completed — {} matches checked in total", totalUpdated);
+			logger.info("[SchedulerService] Completed mark elapsed matches completed — {} matches updated in total", totalUpdated);
 		} finally {
 			schedulerLock.unlock();
 		}
