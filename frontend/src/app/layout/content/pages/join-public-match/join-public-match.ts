@@ -46,31 +46,31 @@ export class JoinPublicMatch implements OnInit {
 						return dateOnly >= tomorrow;
 					  });
 
-          // Fetch site infos from InfoService and build a map id->name, then attach siteName to matches
-          this.infoService.getSites().subscribe({
-          next: (sites: SiteInfo[]) => {
-            const map: Record<number, string> = {};
-                  (sites || []).forEach(s => {
-                  if (s?.siteId != null) {
-                    const name = (s.name ?? '').toString().trim();
-                    map[s.siteId] = name.length > 0 ? name : '—';
-                  }
-                  });
-            // attach siteName to each match and keep typing
-            this.matches = filtered.map(m => {
-            const siteName = m?.fieldId != null ? (map[m.fieldId!] ?? '—') : '—';
-            return ({ ...(m as any), siteName } as MatchDto & { siteName?: string });
+            // Fetch site infos from InfoService and build a map id->name, then attach siteName to matches
+            this.infoService.getSites().subscribe({
+            next: (sites: SiteInfo[]) => {
+              const map: Record<number, string> = {};
+                    (sites || []).forEach(s => {
+                    if (s?.siteId != null) {
+                      const name = (s.name ?? '').toString().trim();
+                      map[s.siteId] = name.length > 0 ? name : '—';
+                    }
+                    });
+              // attach siteName to each match and keep typing
+              this.matches = filtered.map(m => {
+              const siteName = m?.fieldId != null ? (map[m.fieldId!] ?? '—') : '—';
+              return ({ ...(m as any), siteName } as MatchDto & { siteName?: string });
+              });
+              this.loading = false;
+              this.cd.detectChanges();
+            },
+            error: () => {
+              // if site fetch fails, still show filtered matches with fallback
+              this.matches = filtered.map(m => ({ ...(m as any), siteName: '—' } as MatchDto & { siteName?: string }));
+              this.loading = false;
+              this.cd.detectChanges();
+            }
             });
-            this.loading = false;
-            this.cd.detectChanges();
-          },
-          error: () => {
-            // if site fetch fails, still show filtered matches with fallback
-            this.matches = filtered.map(m => ({ ...(m as any), siteName: '—' } as MatchDto & { siteName?: string }));
-            this.loading = false;
-            this.cd.detectChanges();
-          }
-          });
 					},
 		error: (err: any) => {
 		  console.error('Failed to load public matches', err);
