@@ -11,7 +11,7 @@
         <nav class="flex flex-col gap-6 text-lg">
           <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">👤 MON PROFIL</a>
           <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">🏓 MES MATCHS</a>
-          <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">✉️ MES INVITATIONS</a>
+          <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'invites'] : ['/home']" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">✉️ MES INVITATIONS</a>
           <a routerLink="#" class="hover:text-blue-600 flex font-bold items-center gap-3">➕ MATCH PUBLIC</a>
           <a href="#" (click)="$event.preventDefault(); goCreatePmatch()" class="hover:text-blue-600 flex font-bold items-center gap-3">
             ⭐ {{ isAdmin ? 'Créer Match Public' : 'Créer Match Privé' }}
@@ -28,7 +28,7 @@
     <nav class="flex flex-col gap-6 text-lg">
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">👤 Mon Profil</a>
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">🏓 Mes Matchs</a>
-      <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">✉️ Mes Invitations</a>
+      <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'invites'] : ['/home']" (click)="close()" class="hover:text-blue-600 flex items-center gap-3">✉️ Mes Invitations</a>
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">➕ Rejoindre Match Public</a>
       <a href="#" (click)="$event.preventDefault(); goCreatePmatch()" class="hover:text-blue-600 flex items-center gap-3">⭐ {{ isAdmin ? 'Créer Match Public' : 'Créer Match Privé' }}</a>
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">🛠️ Reglages</a>

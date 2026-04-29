@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpHeaders } from '@angular/common/http';
+// HttpHeaders removed — not used in this service
 import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service';
@@ -24,6 +24,10 @@ export class PayService {
 	}
   }
 
+
+
+
+
   createPayment(payment: MatchPaymentDto): Observable<any> {
 	this._setAuthHeaderOnApiService();
 
@@ -36,6 +40,12 @@ export class PayService {
 
 	// matchPaymentService.createPayment expects the generated DTO type
 	return this.matchPaymentService.createPayment(payment);
+  }
+
+  // Update an existing payment (mark as cleared/refunded/etc.)
+  updatePayment(paymentId: number, payment: MatchPaymentDto): Observable<any> {
+	this._setAuthHeaderOnApiService();
+	return this.matchPaymentService.updatePayment(paymentId, payment);
   }
 
   /**

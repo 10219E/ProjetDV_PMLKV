@@ -181,14 +181,34 @@ public class PaymentService {
         return payments;
     }
 
+    // GET PENDING PAYMENTS FOR A USER
+    public List<MatchPayments> fetchPendingByUser(String userId) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        List<MatchPayments> payments = jpaMatchPaymentsRepo.findByUser_MatriculeAndStatus(userId, "pending");
+        if (payments.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No pending payments found for user: " + userId);
+        }
+        return payments;
+    }
+
     // UPDATE MATCH PAYMENT
     @Transactional
     public Optional<MatchPayments> updatePayment(Integer paymentId, MatchPayments updatedPayment) {
         ValidationBoiler.verifyNotNull(paymentId, "Payment ID");
         ValidationBoiler.verifyNotNull(updatedPayment, "Update data");
         ValidationBoiler.verifyExists(jpaMatchPaymentsRepo.existsById(paymentId), "Payment", paymentId);
-        ValidationBoiler.verifyExists(jpaMatchRepo.findById(updatedPayment.getMatch().getMatchId()).isPresent(), "Match", updatedPayment.getMatch().getMatchId());
-        ValidationBoiler.verifyExists(jpaUserRepo.findById(updatedPayment.getUser().getMatricule()).isPresent(), "User", updatedPayment.getUser().getMatricule());
+
+        // Only validate referenced Match/User if provided in the update payload to avoid NPEs
+        if (updatedPayment.getMatch() != null && updatedPayment.getMatch().getMatchId() != null) {
+            ValidationBoiler.verifyExists(jpaMatchRepo.existsById(updatedPayment.getMatch().getMatchId()), "Match", updatedPayment.getMatch().getMatchId());
+        }
+
+        if (updatedPayment.getUser() != null && updatedPayment.getUser().getMatricule() != null && !updatedPayment.getUser().getMatricule().isBlank()) {
+            ValidationBoiler.verifyExists(jpaUserRepo.existsById(updatedPayment.getUser().getMatricule()), "User", updatedPayment.getUser().getMatricule());
+        }
 
         return jpaMatchPaymentsRepo.findById(paymentId).map(payment -> {
             // UPDATE AMOUNT, ONLY FOR REFUNDS

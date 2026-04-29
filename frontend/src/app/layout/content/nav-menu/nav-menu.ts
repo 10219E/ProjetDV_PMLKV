@@ -17,6 +17,7 @@ export class NavMenu implements OnInit, OnDestroy {
   visible = false;
   private sub?: Subscription;
   isAdmin = false;
+  currentMatricule: string | null = null;
   // track whether we attempted to move the mobile overlay to body
   private _movedOverlay = false;
   // When true the component will not render/move the mobile overlay (useful for page-level placements)
@@ -55,10 +56,12 @@ export class NavMenu implements OnInit, OnDestroy {
           next: (u: any) => {
             const rid = Number(u?.roleId ?? -1);
             this.isAdmin = [7, 9].includes(rid);
+            this.currentMatricule = u?.matricule ?? null;
             this.cdr.detectChanges();
           },
           error: () => {
             this.isAdmin = false;
+            this.currentMatricule = null;
             this.cdr.detectChanges();
           }
         });
@@ -110,6 +113,8 @@ export class NavMenu implements OnInit, OnDestroy {
       error: (_err) => this.navigateFromUrlFallback()
     });
   }
+
+  // NOTE: navigation to invites uses `currentMatricule` property so template can build routerLink
 
   private navigateFromUrlFallback(): void {
     // router.url might be something like /home/123 or /home/123/other

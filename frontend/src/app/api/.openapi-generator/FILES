@@ -29,6 +29,7 @@ model/matchDto.ts
 model/matchPaymentDto.ts
 model/matchPayments.ts
 model/models.ts
+model/pendingInviteDetails.ts
 model/site.ts
 model/siteClosureDays.ts
 model/siteDto.ts
