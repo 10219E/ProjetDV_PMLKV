@@ -181,6 +181,19 @@ public class PaymentService {
         return payments;
     }
 
+    // GET PENDING PAYMENTS FOR A USER
+    public List<MatchPayments> fetchPendingByUser(String userId) {
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        List<MatchPayments> payments = jpaMatchPaymentsRepo.findByUser_MatriculeAndStatus(userId, "pending");
+        if (payments.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No pending payments found for user: " + userId);
+        }
+        return payments;
+    }
+
     // UPDATE MATCH PAYMENT
     @Transactional
     public Optional<MatchPayments> updatePayment(Integer paymentId, MatchPayments updatedPayment) {

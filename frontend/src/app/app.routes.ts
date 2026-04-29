@@ -8,6 +8,7 @@ import { UserService } from './services/user.service';
 import { map, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { NewPrivMatch } from './layout/content/pages/new-priv-match/new-priv-match';
+import { InvitePaymentsPage } from './layout/content/pages/payments/invite-payments';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
@@ -77,6 +78,7 @@ export const routes: Routes = [
   { path: 'home', component: HomeComponent, canActivate: [authGuard] },
   { path: 'home/:userId/create_pmatch', component: NewPrivMatch, canActivate: [authGuard] },
   { path: 'home/:userId/create_public', component: NewPubMatch, canActivate: [authGuard] },
+  { path: 'home/:userId/invites', component: InvitePaymentsPage, canActivate: [authGuard] },
   { path: 'home/:userId', component: HomeAccount, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];

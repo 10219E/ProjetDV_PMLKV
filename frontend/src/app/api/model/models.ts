@@ -9,6 +9,7 @@ export * from './matchCreationDto';
 export * from './matchDto';
 export * from './matchPaymentDto';
 export * from './matchPayments';
+export * from './pendingInviteDetails';
 export * from './site';
 export * from './siteClosureDays';
 export * from './siteDto';
