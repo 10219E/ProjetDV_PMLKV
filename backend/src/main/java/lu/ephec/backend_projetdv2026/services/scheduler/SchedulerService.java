@@ -68,7 +68,7 @@ public class SchedulerService {
 			// Initialize counter for updated matches
 			int updatedCount = 0;
 
-			//get all matches that are open (public) or (awaiting)
+			//get all matches that are open (public) or awaiting (private)
 			List<Match> privmatches = jpaMatchRepo.findByTypeAndPrivStatus("private", "awaiting");
 			List<Match> pubmatches = jpaMatchRepo.findByTypeAndPubStatus("public", "open");
 			List<Match> matches = new ArrayList<>();
