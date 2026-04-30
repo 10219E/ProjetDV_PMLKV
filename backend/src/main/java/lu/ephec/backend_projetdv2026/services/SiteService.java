@@ -297,33 +297,28 @@ public class SiteService {
                     ValidationBoiler.verifyDatesValid(LocalDate.now(), date, "Closure date must be in the future");
                 })
                 .filter(date -> !jpaClosureDaysRepo.existsBySiteIdAndClosureDate(siteId, date))
-                .map(date -> new SiteClosureDays(null, siteId, date, reason, null))
+                .map(date -> new SiteClosureDays(null, siteId, date, reason, false, null))
                 .map(jpaClosureDaysRepo::save)
                 .toList();
     }
 
     // SET MULTIPLE DATES TO MULTIPLE SITES
     @Transactional
-    public List<SiteClosureDays> newClosureMultiSite(List<Integer> siteIds, List<LocalDate> closureDates, String reason) {
-        ValidationBoiler.verifyListNotEmpty(siteIds, "Site IDs");
+    public List<SiteClosureDays> newClosureForAllSites(List<LocalDate> closureDates, String reason) {
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
         ValidationBoiler.verifyNotEmpty(reason, "Closure reason");
-
 
         closureDates.forEach(date -> {
             ValidationBoiler.verifyDatesValid(LocalDate.now(), date, "Closure date must be in the future");
         });
 
         List<SiteClosureDays> result = new java.util.ArrayList<>();
-        for (Integer siteId : siteIds) {
-            if (jpaSiteRepo.existsById(siteId)) {
-                closureDates.stream()
-                        .filter(date -> !jpaClosureDaysRepo.existsBySiteIdAndClosureDate(siteId, date))
-                        .map(date -> new SiteClosureDays(null, siteId, date, reason, null))
-                        .map(jpaClosureDaysRepo::save)
-                        .forEach(result::add);
-            }
-        }
+        closureDates.stream()
+                .filter(date -> !jpaClosureDaysRepo.existsByForAllAndClosureDate(true, date))
+                .map(date -> new SiteClosureDays(null, null, date, reason, true, null))
+                .map(jpaClosureDaysRepo::save)
+                .forEach(result::add);
+
         return result;
     }
 
