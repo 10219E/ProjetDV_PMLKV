@@ -20,6 +20,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -52,6 +55,78 @@ public class SchedulerService {
 
 	///SCHEDULER RUNS EVERY 5 MIN + LOCK CHECK TO AVOID CONFLICTS WITH MULTIPLE INSTANCES
 
+	//CHECK IF PUBLIC OR PRIVATE MATCH IS FULLY BOOKED AND SETS TO PUBLIC - CLOSED OR PRIVATE - CONFIRMED
+	@Scheduled(cron = "0 0/5 * * * *")
+	public void confirmMatchPayment() {
+		if (!schedulerLock.tryLock()) {
+			logger.warn("[SchedulerService] confirmMatches is already running, skipping this execution");
+			return;
+		}
+		try {
+			logger.info("[SchedulerService] Running player count check to confirm match");
+
+			// Initialize counter for updated matches
+			int updatedCount = 0;
+
+			//get all matches that are open (public) or (awaiting)
+			List<Match> privmatches = jpaMatchRepo.findByTypeAndPrivStatus("private", "awaiting");
+			List<Match> pubmatches = jpaMatchRepo.findByTypeAndPubStatus("public", "open");
+			List<Match> matches = new ArrayList<>();
+			matches.addAll(privmatches);
+			matches.addAll(pubmatches);
+
+			for (Match match : matches) {
+				//get all players for the match
+				List<MatchPlayers> matchPlayers = jpaMatchPlayersRepo.findByMatch_MatchId(match.getMatchId());
+				String matchstatus = match.getType().equals("private") ? match.getPrivStatus() : match.getPubStatus();
+				//check each player for matchPlayers if payment (match payments) is clear for the match and user
+				if (matchPlayers.size() == match.getMaxPlayers()) {
+					boolean allPaid = true;
+					for (MatchPlayers mp : matchPlayers) {
+						List<MatchPayments> payments = paymentService.fetchByUser(mp.getUser().getMatricule());
+
+						boolean playerPaid = false;
+						for (MatchPayments payment : payments) {
+							//check for user if he paid for match (status clear) and (payment date not null)
+							if (payment.getStatus().equals("clear") && payment.getPaymentDate() != null) {
+								playerPaid = true;
+								break;
+							}
+						}
+
+						if (!playerPaid) {
+							allPaid = false;
+							break;
+						}
+					}
+
+					if (allPaid) {
+						// Update match status if all players have paid
+						if (match.getType().equals("private")) {
+							match.setPrivStatus("confirmed");
+						} else {
+							match.setPubStatus("closed");
+						}
+						updatedCount++;
+					} else {
+						// Restore original status if not all players have paid
+						if (match.getType().equals("private")) {
+							match.setPrivStatus(matchstatus);
+						} else {
+							match.setPubStatus(matchstatus);
+						}
+					}
+
+					jpaMatchRepo.save(match);
+				}
+			}
+
+			// Log the number of matches updated
+			logger.info("[SchedulerService] Player count check to confirm match completed. {} matches were updated.", updatedCount);
+		} finally {
+			schedulerLock.unlock();
+		}
+	}
 
 	//MARKS MATCHES AS COMPLETED WHEN THEIR END DATETIME HAS ELAPSED AND THEIR STATUS INDICATES THEY WERE CONFIRMED/CLOSED
 	//PREVIOUS MATCH PLAYERS ARE DELETED FROM THE PREVIOUS MATCH
