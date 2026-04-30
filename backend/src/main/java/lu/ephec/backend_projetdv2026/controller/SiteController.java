@@ -70,6 +70,7 @@ public class SiteController {
             m.put("siteId", c.getSiteId());
             m.put("closureDate", c.getClosureDate());
             m.put("reason", c.getReason());
+            m.put("isForall", c.getForAll());
             return m;
         }).collect(Collectors.toList());
         return ResponseEntity.ok(simplified);
