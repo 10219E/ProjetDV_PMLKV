@@ -79,10 +79,17 @@ public class SchedulerService {
 				//get all players for the match
 				List<MatchPlayers> matchPlayers = jpaMatchPlayersRepo.findByMatch_MatchId(match.getMatchId());
 				String matchstatus = match.getType().equals("private") ? match.getPrivStatus() : match.getPubStatus();
-				//check each player for matchPlayers if payment (match payments) is clear for the match and user
+				//check each player for matchPlayers if payment (match payments) is clear for the match and user (I could also check MatchPlayer confirmed
+				//but checking the actual payment is more accurate as it reflects the financial status, while MatchPlayer status could be out of sync due to various reasons)
 				if (matchPlayers.size() == match.getMaxPlayers()) {
 					boolean allPaid = true;
 					for (MatchPlayers mp : matchPlayers) {
+						//check if user is null (can happen in public matches if no player assigned
+						if (mp.getUser().getMatricule() == null) {
+							allPaid = false;
+							break;
+						}
+
 						List<MatchPayments> payments = paymentService.fetchByUser(mp.getUser().getMatricule());
 
 						boolean playerPaid = false;
