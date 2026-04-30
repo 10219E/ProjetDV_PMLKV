@@ -288,8 +288,7 @@ public class SiteServiceH2DbTests extends InitBaseH2Test {
             reporter.publishEntry("info", "Successfully deleted closures for site=" + siteId);
         }
 
-        //DEACTIVATED TEST FOR NOW AS WE CHANGED LOGIC IN APPLYING MULTIPLE CLOSURES
-        /*@Test
+        @Test
         @Order(9)
         void insertMultipleSitesClosuresDB() {
             // ARRANGE
@@ -328,11 +327,11 @@ public class SiteServiceH2DbTests extends InitBaseH2Test {
             siteService.deleteSite(saved2.getSiteId());
 
             reporter.publishEntry("info", "Created closures for 2 sites");
-        }*/
+        }
 
         /// TEST SITE INACTIVATION + FIELDS + MATCH (+BONUS DELETE) ///
         @Test
-        @Order(9)
+        @Order(10)
         void updateSiteToInactiveAndIsFieldInactiveDB() {
             // ARRANGE - Create a new site with fields
             Site site = new Site();
