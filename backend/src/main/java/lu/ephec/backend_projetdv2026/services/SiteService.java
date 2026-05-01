@@ -297,7 +297,7 @@ public class SiteService {
                     ValidationBoiler.verifyDatesValid(LocalDate.now(), date, "Closure date must be in the future");
                 })
                 .filter(date -> !jpaClosureDaysRepo.existsBySiteIdAndClosureDate(siteId, date))
-                .map(date -> new SiteClosureDays(null, siteId, date, reason, null))
+                .map(date -> new SiteClosureDays(null, siteId, date, reason, false, null))
                 .map(jpaClosureDaysRepo::save)
                 .toList();
     }
@@ -319,11 +319,31 @@ public class SiteService {
             if (jpaSiteRepo.existsById(siteId)) {
                 closureDates.stream()
                         .filter(date -> !jpaClosureDaysRepo.existsBySiteIdAndClosureDate(siteId, date))
-                        .map(date -> new SiteClosureDays(null, siteId, date, reason, null))
+                        .map(date -> new SiteClosureDays(null, siteId, date, reason, false, null))
                         .map(jpaClosureDaysRepo::save)
                         .forEach(result::add);
             }
         }
+        return result;
+    }
+
+    //SET DATES (EX: Vacation) TO ALL SITES
+    @Transactional
+    public List<SiteClosureDays> newClosureForAllSites(List<LocalDate> closureDates, String reason) {
+        ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
+        ValidationBoiler.verifyNotEmpty(reason, "Closure reason");
+
+        closureDates.forEach(date -> {
+            ValidationBoiler.verifyDatesValid(LocalDate.now(), date, "Closure date must be in the future");
+        });
+
+        List<SiteClosureDays> result = new java.util.ArrayList<>();
+        closureDates.stream()
+                .filter(date -> !jpaClosureDaysRepo.existsByForAllAndClosureDate(true, date))
+                .map(date -> new SiteClosureDays(null, null, date, reason, true, null))
+                .map(jpaClosureDaysRepo::save)
+                .forEach(result::add);
+
         return result;
     }
 
@@ -343,8 +363,13 @@ public class SiteService {
 
     //FETCH BY SITE
     public List<SiteClosureDays> fetchClosureForSite(Integer siteId) {
-        ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
-        return jpaClosureDaysRepo.findBySiteId(siteId);
+        if (siteId != 0 && siteId != null)
+            {
+                ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
+                return jpaClosureDaysRepo.findBySiteId(siteId);}
+        else {
+            return jpaClosureDaysRepo.findByForAll(true);
+        }
     }
 
     // DELETE CLOSURE DAY for specific Site and Date

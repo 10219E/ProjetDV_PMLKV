@@ -14,6 +14,8 @@ import { MatchCal } from '../match-cal/match-cal';
 import { UserFormComponent } from '../user-form/user-form';
 import { PayFormComponent } from '../pay-form/pay-form';
 import { PayService } from '../../../services/pay.service';
+import {FieldService} from '../../../services/field.service';
+
 
 @Component({
   selector: 'app-match-form',
@@ -97,7 +99,7 @@ export class MatchForm implements OnInit {
   // DTO stored while waiting for payment
   private pendingDto: any | null = null;
 
-  constructor(private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService) {}
+  constructor(private fieldService: FieldService, private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService) {}
   // keep a direct reference to PayFormComponent to satisfy analyzers that the imported component is used
   // (template uses <app-pay-form> conditionally with @if which some static analyzers may not detect)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -241,7 +243,7 @@ export class MatchForm implements OnInit {
       this.tempSelectedDate = null;
       this.dateReadOnly = false;
       // fetch fields only; sessions will be loaded when a field is selected
-      this.sessionService.fetchFieldsBySite(id).subscribe({
+      this.fieldService.fetchFieldsBySite(id).subscribe({
         next: (data: any[]) => {
           this.fields = data || [];
           this.cd.detectChanges();
@@ -467,7 +469,7 @@ export class MatchForm implements OnInit {
     const siteId = site?.siteId;
     if (!siteId) return;
 
-    this.sessionService.fetchFieldsBySite(siteId).subscribe({
+    this.fieldService.fetchFieldsBySite(siteId).subscribe({
       next: (data: any[]) => {
         // only fetch fields for the preselected site; do not load sessions until a field is selected
         this.fields = data || [];

@@ -20,6 +20,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
+
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -52,9 +55,89 @@ public class SchedulerService {
 
 	///SCHEDULER RUNS EVERY 5 MIN + LOCK CHECK TO AVOID CONFLICTS WITH MULTIPLE INSTANCES
 
+	//CHECK IF PUBLIC OR PRIVATE MATCH IS FULLY BOOKED AND SETS TO PUBLIC - CLOSED OR PRIVATE - CONFIRMED
+	@Scheduled(cron = "0 0/5 * * * *")
+	public void confirmMatchPayment() {
+		if (!schedulerLock.tryLock()) {
+			logger.warn("[SchedulerService] confirmMatches is already running, skipping this execution");
+			return;
+		}
+		try {
+			logger.info("[SchedulerService] Running player count check to confirm match");
+
+			// Initialize counter for updated matches
+			int updatedCount = 0;
+
+			//get all matches that are open (public) or awaiting (private)
+			List<Match> privmatches = jpaMatchRepo.findByTypeAndPrivStatus("private", "awaiting");
+			List<Match> pubmatches = jpaMatchRepo.findByTypeAndPubStatus("public", "open");
+			List<Match> matches = new ArrayList<>();
+			matches.addAll(privmatches);
+			matches.addAll(pubmatches);
+
+			for (Match match : matches) {
+				//get all players for the match
+				List<MatchPlayers> matchPlayers = jpaMatchPlayersRepo.findByMatch_MatchId(match.getMatchId());
+				String matchstatus = match.getType().equals("private") ? match.getPrivStatus() : match.getPubStatus();
+				//check each player for matchPlayers if payment (match payments) is clear for the match and user (I could also check MatchPlayer confirmed
+				//but checking the actual payment is more accurate as it reflects the financial status, while MatchPlayer status could be out of sync due to various reasons)
+				if (matchPlayers.size() == match.getMaxPlayers()) {
+					boolean allPaid = true;
+					for (MatchPlayers mp : matchPlayers) {
+						//check if user is null (can happen in public matches if no player assigned
+						if (mp.getUser().getMatricule() == null) {
+							allPaid = false;
+							break;
+						}
+
+						List<MatchPayments> payments = paymentService.fetchByUser(mp.getUser().getMatricule());
+
+						boolean playerPaid = false;
+						for (MatchPayments payment : payments) {
+							//check for user if he paid for match (status clear) and (payment date not null)
+							if (payment.getStatus().equals("clear") && payment.getPaymentDate() != null) {
+								playerPaid = true;
+								break;
+							}
+						}
+
+						if (!playerPaid) {
+							allPaid = false;
+							break;
+						}
+					}
+
+					if (allPaid) {
+						// Update match status if all players have paid
+						if (match.getType().equals("private")) {
+							match.setPrivStatus("confirmed");
+						} else {
+							match.setPubStatus("closed");
+						}
+						updatedCount++;
+					} else {
+						// Restore original status if not all players have paid
+						if (match.getType().equals("private")) {
+							match.setPrivStatus(matchstatus);
+						} else {
+							match.setPubStatus(matchstatus);
+						}
+					}
+
+					jpaMatchRepo.save(match);
+				}
+			}
+
+			// Log the number of matches updated
+			logger.info("[SchedulerService] Player count check to confirm match completed. {} matches were updated.", updatedCount);
+		} finally {
+			schedulerLock.unlock();
+		}
+	}
 
 	//MARKS MATCHES AS COMPLETED WHEN THEIR END DATETIME HAS ELAPSED AND THEIR STATUS INDICATES THEY WERE CONFIRMED/CLOSED
 	//PREVIOUS MATCH PLAYERS ARE DELETED FROM THE PREVIOUS MATCH
+	//EXCEPTION FOR PUBLIC MATCHES - WE ALSO MARK OPENED AS COMPLETED AS WE DON'T HAVE ENOUGH TRAFFIC TO JUSTIFY CANCELLING EACH PUBLIC MATCH INDIVIDUALLY
 	@Scheduled(cron = "0 0/5 * * * *")
 	public void markElapsedMatchesCompleted() {
 		if (!schedulerLock.tryLock()) {
@@ -333,23 +416,25 @@ public class SchedulerService {
 				boolean shouldComplete = false;
 				if ("private".equals(m.getType()) && "confirmed".equals(m.getPrivStatus())) {
 					shouldComplete = true;
-				}
-				if ("public".equals(m.getType()) && ("confirmed".equals(m.getPubStatus()) || "closed".equals(m.getPubStatus()))) {
+				}//WORKAROUND INCLUDING OPEN AS WE DON'T HAVE ENOUGH TRAFFIC TO JUSTIFY CANCELLING EACH PUBLIC MATCH
+				if ("public".equals(m.getType()) && ("closed".equals(m.getPubStatus()) || "open".equals(m.getPubStatus()))) {
 					shouldComplete = true;
 				}
 				if ((m.getPrivStatus() != null && m.getPrivStatus().equals("confirmed")) ||
-						(m.getPubStatus() != null && (m.getPubStatus().equals("confirmed") || m.getPubStatus().equals("closed")))) {
+						(m.getPubStatus() != null && (m.getPubStatus().equals("closed")) || m.getPubStatus().equals("open"))) {
 					shouldComplete = true;
 				}
 
 				if (shouldComplete) {
 					if ("private".equals(m.getType())) {
 						m.setPrivStatus("completed");
+						updated++;
 					} else if ("public".equals(m.getType())) {
 						m.setPubStatus("completed");
+						updated++;
 					} else {
-						m.setPrivStatus("completed");
-						m.setPubStatus("completed");
+						//m.setPrivStatus("completed");
+						//m.setPubStatus("completed");
 					}
 
 
@@ -361,7 +446,6 @@ public class SchedulerService {
 					} catch (Exception ex) {
 						logger.error("[SchedulerService] Failed to delete MatchPlayers for completed match {}: {}", m.getMatchId(), ex.getMessage(), ex);
 					}
-					updated++;
 					logger.debug("[SchedulerService] Marked match {} as completed", m.getMatchId());
 				}
 			} catch (Exception ex) {

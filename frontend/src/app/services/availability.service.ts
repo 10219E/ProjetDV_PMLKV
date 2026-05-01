@@ -21,24 +21,24 @@ export class AvailabilityService {
 
 	return this.matchService.getMatchesBySite(siteId).pipe(
 	  map((matches: any[]) => {
-		const taken = new Set<string>();
-		(matches || []).forEach(m => {
-		  if (!m) return;
-		  if (m.matchDate !== matchDate) return;
-		  const hhmm = this.matchStartToHHMM(m.startTime);
-		  if (!hhmm) return;
-		  // Only count as taken if match is not field-specific OR matches the selected field
-		  if (!m.fieldId || (fieldId !== null && fieldId !== undefined && Number(m.fieldId) === Number(fieldId))) {
-			taken.add(hhmm);
-		  }
-		});
-		return (sessions || []).filter(s => !taken.has(s._start));
-	  }),
-	  catchError((err) => {
-		console.error('AvailabilityService.filterSessionsByAvailability error', err);
-		return of(sessions || []);
-	  })
-	);
+      const taken = new Set<string>();
+      (matches || []).forEach(m => {
+        if (!m) return;
+        if (m.matchDate !== matchDate) return;
+        const hhmm = this.matchStartToHHMM(m.startTime);
+        if (!hhmm) return;
+        // Only count as taken if match is not field-specific OR matches the selected field
+        if (!m.fieldId || (fieldId !== null && fieldId !== undefined && Number(m.fieldId) === Number(fieldId))) {
+        taken.add(hhmm);
+        }
+      });
+      return (sessions || []).filter(s => !taken.has(s._start));
+      }),
+      catchError((err) => {
+      console.error('AvailabilityService.filterSessionsByAvailability error', err);
+      return of(sessions || []);
+      })
+    );
   }
 
   // Convert MatchDto.startTime (LocalTime object or string like '15:00:00') into 'HH:MM'

@@ -17,18 +17,40 @@ export class ClosuresService {
   getClosuresForSite(siteId: number): Observable<Set<string>> {
     if (siteId === null || siteId === undefined) return of(new Set<string>());
     this.setAuthHeader();
-    this.setAuthHeader();
-    return this.siteController.getClosuresForSite(siteId).pipe(
-      map((rows: any[]) => {
+
+    // Combine both API calls into a single observable
+    return combineLatest([
+      this.siteController.getClosuresForSite(siteId),
+      this.siteController.getClosuresForSite(0)
+    ]).pipe(
+      map(([siteRows, allSitesRows]) => {
         const set = new Set<string>();
-        (rows || []).forEach(r => {
+
+        // Process site-specific closures
+        (siteRows || []).forEach(r => {
           try {
-            const iso = r?.closureDate;
+            // More robust type assertion
+            const closure = r as { closureDate?: string };
+            const iso = closure.closureDate;
             if (iso) set.add(this.normalizeIso(iso));
           } catch (e) {
             // ignore malformed rows
           }
         });
+
+        // Process all-sites closures
+        (allSitesRows || []).forEach(r => {
+          try {
+            const closureWithFlag = { ...r, isForAllSites: true };
+            // More robust type assertion
+            const closure = closureWithFlag as { closureDate?: string };
+            const iso = closure.closureDate;
+            if (iso && closureWithFlag) set.add(this.normalizeIso(iso));
+          } catch (e) {
+            // ignore malformed rows
+          }
+        });
+
         return set;
       }),
       catchError(err => {

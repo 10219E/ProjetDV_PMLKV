@@ -28,6 +28,9 @@ public class SiteClosureDays {
     @Column(name = "reason", length = 255)
     private String reason;
 
+    @Column(name = "for_all", nullable = true) //default BIT 0
+    private Boolean forAll;
+
     // ManyToOne relationship to Site (owning side)
     @ManyToOne
     @JoinColumn(name = "site_id", insertable = false, updatable = false)
