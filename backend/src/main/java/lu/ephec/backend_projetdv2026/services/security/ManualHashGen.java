@@ -11,10 +11,10 @@ public class ManualHashGen {
         System.out.println("M001 -> " + enc.encode("M@dminFVZ1!")); //vfievez@ephec.be
         System.out.println("M002 -> " + enc.encode("M@dminOGG1!")); //ogues@ephec.be
         System.out.println("G0001 -> " + enc.encode("VIP@ccess1!")); //mchlo@ephec.be
-        System.out.println("G0002 -> " + enc.encode("VIP@ccess2!")); //jdupont@ephec.be
+        System.out.println("G0002 -> " + enc.encode("VIP@ccess2!")); //jdupont@ephec.be ///HAS DEBT
         System.out.println("G0003 -> " + enc.encode("VIP@ccess3!")); //gguy@ephec.be
         System.out.println("S0001 -> " + enc.encode("Norm@lS!te1")); //cmartin@ephec.be
-        System.out.println("S0002 -> " + enc.encode("Norm@lS!te2")); //adubois@ephec.be
+        System.out.println("S0002 -> " + enc.encode("Norm@lS!te2")); //adubois@ephec.be ///HAS DEBT
         System.out.println("S0003 -> " + enc.encode("Norm@lS!te3")); //lvandriesche@ephec.be
         System.out.println("L0001 -> " + enc.encode("Invite@Usr1!")); //sbernard@ephec.be
         System.out.println("L0002 -> " + enc.encode("Invite@Usr2!")); //tmara@ephec.be
