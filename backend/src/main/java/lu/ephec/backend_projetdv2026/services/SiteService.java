@@ -363,8 +363,13 @@ public class SiteService {
 
     //FETCH BY SITE
     public List<SiteClosureDays> fetchClosureForSite(Integer siteId) {
-        ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
-        return jpaClosureDaysRepo.findBySiteId(siteId);
+        if (siteId != 0 && siteId != null)
+            {
+                ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
+                return jpaClosureDaysRepo.findBySiteId(siteId);}
+        else {
+            return jpaClosureDaysRepo.findByForAll(true);
+        }
     }
 
     // DELETE CLOSURE DAY for specific Site and Date

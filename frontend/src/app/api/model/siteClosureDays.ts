@@ -15,6 +15,7 @@ export interface SiteClosureDays {
     siteId?: number;
     closureDate?: string;
     reason?: string;
+    forAll?: boolean;
     site?: Site;
 }
 

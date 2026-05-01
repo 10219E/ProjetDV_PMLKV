@@ -19,6 +19,8 @@ public interface JPASiteClosureDaysRepo extends JpaRepository<SiteClosureDays, I
 
     List<SiteClosureDays> findByClosureDate(LocalDate closureDate);
 
+    List<SiteClosureDays> findByForAll(boolean forAll);
+
     List<SiteClosureDays> findByClosureDateBetween(LocalDate startDate, LocalDate endDate);
 
 }
