@@ -17,7 +17,7 @@ public class MatchPlayerController {
             this.matchService = matchService;
         }
 
-        @PutMapping("/{id}")
+        @PutMapping(value= "/{id}", produces = "application/json")
         public MatchPlayers updateMatchPlayer(@PathVariable Integer id, @RequestBody MatchPlayerDto matchPlayerDto) {
             // Ensure the match ID in the path matches the match ID in the DTO body
             if (!id.equals(matchPlayerDto.getMatch().getMatchId())) {
@@ -32,5 +32,12 @@ public class MatchPlayerController {
             ).orElseThrow(() -> new RuntimeException("MatchPlayer not found for match " + id));
 
             return updatedMatchPlayer;
+        }
+
+        @GetMapping(value = "/mymatches/{userMatricule}", produces = "application/json")
+        public Iterable<MatchPlayerDto> getMyMatches(@PathVariable String userMatricule) {
+            return matchService.fetchMatchesByUserMatricule(userMatricule).stream()
+                    .map(MatchPlayerDto::fromEntity)
+                    .toList();
         }
 }
