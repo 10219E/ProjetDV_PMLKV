@@ -1,13 +1,14 @@
 import { Injectable } from '@angular/core';
 import {Observable, of} from 'rxjs';
 import { MatchControllerService } from '../api/api/matchController.service';
+import {MatchPlayerControllerService, MatchPlayerDto, MatchPlayers} from '../api';
 import { MatchDto } from '../api/model/matchDto';
 import { AuthService } from './auth.service';
 import {catchError, map} from 'rxjs/operators';
 
 @Injectable({ providedIn: 'root' })
 export class MatchService {
-  constructor(private matchControllerService: MatchControllerService, private authService: AuthService) {}
+  constructor(private matchControllerService: MatchControllerService, private authService: AuthService, private matchPlayerControllerService: MatchPlayerControllerService) {}
 
   // Fetch all matches for a given site using the generated API client.
   // This calls GET /api/matches/site/{siteId}
@@ -72,11 +73,35 @@ export class MatchService {
 	return this.matchControllerService.getByTypeAndStatus(type, status);
   }
 
+// Join Public match and update player status
+  joinPublicMatch(matchId: number, userMatricule: string, playerRoleId?: string): Observable<MatchPlayers> {
+
+    this.setAuthHeader();
+
+    // Create a MatchPlayerDto to update the player status
+    const matchPlayerDto: MatchPlayerDto = {
+      match: { matchId: matchId },
+      user: { matricule: userMatricule },
+      status: 'approved',
+      playerRole: playerRoleId ? playerRoleId : undefined
+    };
+
+    // Update the match player status and return the Observable
+    return this.matchPlayerControllerService.updateMatchPlayer(matchId, matchPlayerDto).pipe(
+      catchError((error) => {
+        console.error(`Error joining match ${matchId} for user ${userMatricule}:`, error);
+        throw error;
+      })
+    );
+  }
+
+
   // Ensure Authorization header is set on the generated client from AuthService token
   private setAuthHeader(): void {
 	const token = this.authService.getToken();
 	if (token) {
 	  this.matchControllerService.defaultHeaders = this.matchControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+	  this.matchPlayerControllerService.defaultHeaders = this.matchPlayerControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
 	}
   }
 }
