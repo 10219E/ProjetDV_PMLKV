@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import {Observable, of} from 'rxjs';
 import { MatchControllerService } from '../api/api/matchController.service';
-import {MatchPlayerControllerService, MatchPlayerDto, MatchPlayers} from '../api';
+import {MatchPlayerControllerService, MatchPlayerDto} from '../api';
 import { MatchDto } from '../api/model/matchDto';
 import { AuthService } from './auth.service';
 import {catchError, map} from 'rxjs/operators';
@@ -75,14 +75,14 @@ export class MatchService {
 
   // Join Public match and update player status
   /**WATCHOUT HERE, PRIVATE MATCHES PLAYERS ARE INSERTED BY THE SERVICE, SO THIS FUNCTION IS ONLY FOR PUBLIC MATCHES (EXCEPT IF I HAVE TIME TO IMPLEMENT DECLINE ON PRIVATE INVITES)*/
-  joinPublicMatch(matchId: number, userMatricule: string, playerRoleId?: string): Observable<MatchPlayers> {
+  joinPublicMatch(matchId: number, userMatricule: string, playerRoleId?: string): Observable<MatchPlayerDto> {
 
     this.setAuthHeader();
 
     // Create a MatchPlayerDto to update the player status
     const matchPlayerDto: MatchPlayerDto = {
       match: { matchId: matchId },
-      user: { matricule: userMatricule },
+      userMatricule: userMatricule,
       status: 'approved',
       playerRole: playerRoleId ? playerRoleId : undefined
     };
@@ -96,6 +96,17 @@ export class MatchService {
     );
   }
 
+
+  getMyMatches(matricule: string): Observable<MatchPlayerDto[]> {
+    this.setAuthHeader();
+    return this.matchPlayerControllerService.getMyMatches(matricule).pipe(
+      map((data: any) => Array.isArray(data) ? data : []),
+      catchError((error) => {
+        if (error.status === 404) return of([]);
+        throw error;
+      })
+    );
+  }
 
   // Ensure Authorization header is set on the generated client from AuthService token
   private setAuthHeader(): void {

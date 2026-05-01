@@ -29,8 +29,8 @@ model/matchCreationDto.ts
 model/matchDto.ts
 model/matchPaymentDto.ts
 model/matchPayments.ts
+model/matchPlayerDetails.ts
 model/matchPlayerDto.ts
-model/matchPlayers.ts
 model/models.ts
 model/pendingInviteDetails.ts
 model/site.ts

@@ -31,6 +31,11 @@ export class JoinPublicMatch implements OnInit {
   payAmount = 0;
   selectedMatch: MatchDto | null = null;
 
+  // Confirmation popup state
+  showSuccessDialog = false;
+  popupMessage: string | null = null;
+  confirmedMatch: (MatchDto & { siteName?: string }) | null = null;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -178,11 +183,17 @@ export class JoinPublicMatch implements OnInit {
             // Then join the match
             this.matchService.joinPublicMatch(this.selectedMatch!.matchId!, currentMat).subscribe({
               next: () => {
-                // Navigate to home page instead of match details
-                const userId = this.route.snapshot.paramMap.get('userId');
-                if (userId) {
-                  this.router.navigate(['/home', userId]).catch(() => {});
-                }
+                // Set the confirmation message with match details
+                const matchDate = this.selectedMatch!.matchDate ? new Date(this.selectedMatch!.matchDate) : null;
+                const formattedDate = matchDate ? matchDate.toLocaleDateString('fr-FR') : '—';
+                const startTime = this.formatTime(this.selectedMatch!.startTime);
+                const endTime = this.formatTime(this.selectedMatch!.endTime);
+
+                this.popupMessage = `Vous vous êtes inscrits pour ce match, le ${formattedDate} de ${startTime} à ${endTime}. Veuillez vous présenter 15 minutes avant le début du match.`;
+                this.confirmedMatch = this.selectedMatch as MatchDto & { siteName?: string };
+                this.selectedMatch = null;
+                this.showSuccessDialog = true;
+                this.cd.detectChanges();
               },
               error: (err: any) => {
                 console.error('Failed to join match', err);
@@ -209,6 +220,24 @@ export class JoinPublicMatch implements OnInit {
   onPaymentCancelled() {
     this.showPayForm = false;
     this.selectedMatch = null;
+    this.cd.detectChanges();
+  }
+
+  closeConfirmation(): void {
+    this.showSuccessDialog = false;
+    const userId = this.route.snapshot.paramMap.get('userId');
+    if (userId) {
+      this.router.navigate(['/home', userId]).catch(() => {});
+    }
+  }
+
+  acknowledgeSuccess(): void {
+    this.showSuccessDialog = false;
+    this.popupMessage = null;
+    const userId = this.route.snapshot.paramMap.get('userId');
+    if (userId) {
+      this.router.navigate(['/home', userId]).catch(() => {});
+    }
     this.cd.detectChanges();
   }
 

@@ -10,6 +10,7 @@ import { of } from 'rxjs';
 import { NewPrivMatch } from './layout/content/pages/new-priv-match/new-priv-match';
 import { InvitePaymentsPage } from './layout/content/pages/payments/invite-payments';
 import { JoinPublicMatch } from './layout/content/pages/join-public-match/join-public-match';
+import { MyMatches } from './layout/content/pages/my-matches/my-matches';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
@@ -90,6 +91,7 @@ export const routes: Routes = [
   { path: 'home/:userId/create_public', component: NewPubMatch, canActivate: [authGuard] },
   { path: 'home/:userId/invites', component: InvitePaymentsPage, canActivate: [authGuard] },
   { path: 'home/:userId/join_public', component: JoinPublicMatch, canActivate: [authGuard] },
+  { path: 'home/:userId/my_matches', component: MyMatches, canActivate: [authGuard] },
   { path: 'home/:userId', component: HomeAccount, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];
