@@ -11,7 +11,7 @@
         <nav class="flex flex-col gap-6 text-lg">
           <a routerLink="#" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">👤 MON PROFIL</a>
           @if (!isAdmin) {
-            <a routerLink="#" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">🏓 MES MATCHS</a>
+            <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'my_matches'] : ['/home']" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">🏓 MES MATCHS</a>
             <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'invites'] : ['/home']" (click)="close()" class="hover:text-blue-600 flex font-bold items-center gap-3">✉️ MES INVITATIONS</a>
             <a href="#" (click)="$event.preventDefault(); goJoinPublic(); close()" class="hover:text-blue-600 flex font-bold items-center gap-3">➕ MATCH PUBLIC</a>
           }
@@ -30,7 +30,7 @@
     <nav class="flex flex-col gap-6 text-lg">
       <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">👤 Mon Profil</a>
       @if (!isAdmin) {
-        <a routerLink="#" class="hover:text-blue-600 flex items-center gap-3">🏓 Mes Matchs</a>
+        <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'my_matches'] : ['/home']" class="hover:text-blue-600 flex items-center gap-3">🏓 Mes Matchs</a>
         <a [routerLink]="currentMatricule ? ['/home', currentMatricule, 'invites'] : ['/home']" (click)="close()" class="hover:text-blue-600 flex items-center gap-3">✉️ Mes Invitations</a>
         <a href="#" (click)="$event.preventDefault(); goJoinPublic()" class="hover:text-blue-600 flex items-center gap-3">➕ Rejoindre Match Public</a>
       }

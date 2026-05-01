@@ -7,14 +7,12 @@
  * https://openapi-generator.tech
  * Do not edit the class manually.
  */
+import { MatchPlayerDto } from './matchPlayerDto';
 import { MatchDto } from './matchDto';
 
 
-export interface MatchPlayerDto { 
-    matchPlayerId?: number;
+export interface MatchPlayerDetails { 
+    player?: MatchPlayerDto;
     match?: MatchDto;
-    userMatricule?: string;
-    status?: string;
-    playerRole?: string;
 }
 

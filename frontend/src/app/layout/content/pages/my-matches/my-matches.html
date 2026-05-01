@@ -1,0 +1,68 @@
+<div class="relative flex flex-col min-h-screen px-4 md:px-8">
+  <app-home-account-header [todayDate]="null"></app-home-account-header>
+
+  <div class="flex flex-1 mid:flex-row relative">
+    <main class="flex-1 p-6 relative flex flex-col items-stretch z-10">
+      <div class="max-w-4xl mx-auto bg-white/60 backdrop-blur-sm border border-gray-200 p-6 rounded-xl mt-6">
+        <h2 class="font-bold text-2xl mb-4">Mes Matchs</h2>
+
+        @if (loading) {
+          <div class="text-sm text-gray-600">Chargement...</div>
+        }
+        @if (error) {
+          <div class="text-sm text-red-600">{{ error }}</div>
+        }
+
+        @if (!loading && matchPlayers.length === 0) {
+          <div class="text-sm italic text-gray-500">Vous n'êtes inscrit à aucun match pour le moment.</div>
+        }
+
+        @if (matchPlayers.length > 0) {
+          <div class="space-y-4">
+            @for (mp of matchPlayers; track mp.player.matchPlayerId ?? $index) {
+              <div class="p-4 bg-white rounded-md shadow flex items-center justify-between">
+                <div class="flex flex-col gap-1">
+                  <div class="font-semibold text-md">
+                    Complexe Sportif: {{ mp.match.siteName || '—' }}
+                  </div>
+                  <div class="text-sm text-gray-600">
+                    Terrain: {{ mp.match.fieldId ?? 'N/A' }}
+                  </div>
+                  <div class="text-sm text-gray-700">
+                    {{ mp.match.matchDate | date:'dd/MM/yyyy' }}
+                    &nbsp;
+                    {{ formatTime(mp.match.startTime) }} - {{ formatTime(mp.match.endTime) }}
+                  </div>
+                  <div class="flex gap-2 mt-1">
+                    <span class="px-2 py-0.5 rounded text-white text-xs font-medium"
+                          [class.bg-blue-500]="mp.match.type === 'public'"
+                          [class.bg-purple-500]="mp.match.type !== 'public'">
+                      {{ matchType(mp) }}
+                    </span>
+                    <span class="px-2 py-0.5 rounded text-xs font-medium"
+                          [class.bg-yellow-100]="isPending(mp)"
+                          [class.text-yellow-700]="isPending(mp)"
+                          [class.bg-green-100]="!isPending(mp)"
+                          [class.text-green-700]="!isPending(mp)">
+                      {{ getStatusTranslation(mp.player.status) }}
+                    </span>
+                  </div>
+                </div>
+                @if (isPending(mp)) {
+                  <div>
+                    <button class="bg-blue-600 text-white px-3 py-1 rounded ml-5 mr-5 whitespace-nowrap"
+                            (click)="goToInvitation()">
+                      Vers l'invitation
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </main>
+
+    <app-nav-menu></app-nav-menu>
+  </div>
+</div>
