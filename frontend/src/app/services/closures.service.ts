@@ -29,8 +29,10 @@ export class ClosuresService {
         // Process site-specific closures
         (siteRows || []).forEach(r => {
           try {
-            const iso = r?.['closureDate'];
-            if (iso) set.add(this.normalizeIso('iso'));
+            // More robust type assertion
+            const closure = r as { closureDate?: string };
+            const iso = closure.closureDate;
+            if (iso) set.add(this.normalizeIso(iso));
           } catch (e) {
             // ignore malformed rows
           }
@@ -40,8 +42,10 @@ export class ClosuresService {
         (allSitesRows || []).forEach(r => {
           try {
             const closureWithFlag = { ...r, isForAllSites: true };
-            const iso = r?.['closureDate'];
-            if (iso && closureWithFlag) set.add(this.normalizeIso('iso'));
+            // More robust type assertion
+            const closure = closureWithFlag as { closureDate?: string };
+            const iso = closure.closureDate;
+            if (iso && closureWithFlag) set.add(this.normalizeIso(iso));
           } catch (e) {
             // ignore malformed rows
           }
