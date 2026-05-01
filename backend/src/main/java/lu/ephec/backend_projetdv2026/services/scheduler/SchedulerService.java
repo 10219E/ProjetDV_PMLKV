@@ -84,8 +84,8 @@ public class SchedulerService {
 				if (matchPlayers.size() == match.getMaxPlayers()) {
 					boolean allPaid = true;
 					for (MatchPlayers mp : matchPlayers) {
-						//check if user is null (can happen in public matches if no player assigned
-						if (mp.getUser().getMatricule() == null) {
+						//check if user is null (can happen in public matches if no player assigned yet)
+						if (mp.getUser() == null) {
 							allPaid = false;
 							break;
 						}

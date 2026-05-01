@@ -391,6 +391,13 @@ public class MatchService {
 
     ////MATCH PLAYERS OPS////
 
+    //GET MATCHES FOR USER
+    public List<MatchPlayers> fetchMatchesByUserMatricule(String userMatricule) {
+        ValidationBoiler.verifyNotEmpty(userMatricule, "User matricule");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userMatricule), "User", userMatricule);
+        return jpaMatchPlayersRepo.findByUser_Matricule(userMatricule);
+    }
+
     // INITIALIZE ALL 4 PLAYER SLOTS FOR A MATCH
     @Transactional
     protected void initializeMatchPlayers(Match match, List<String> usersToInvite) {

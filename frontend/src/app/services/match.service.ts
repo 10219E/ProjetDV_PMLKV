@@ -73,7 +73,8 @@ export class MatchService {
 	return this.matchControllerService.getByTypeAndStatus(type, status);
   }
 
-// Join Public match and update player status
+  // Join Public match and update player status
+  /**WATCHOUT HERE, PRIVATE MATCHES PLAYERS ARE INSERTED BY THE SERVICE, SO THIS FUNCTION IS ONLY FOR PUBLIC MATCHES (EXCEPT IF I HAVE TIME TO IMPLEMENT DECLINE ON PRIVATE INVITES)*/
   joinPublicMatch(matchId: number, userMatricule: string, playerRoleId?: string): Observable<MatchPlayers> {
 
     this.setAuthHeader();
@@ -86,7 +87,7 @@ export class MatchService {
       playerRole: playerRoleId ? playerRoleId : undefined
     };
 
-    // Update the match player status and return the Observable
+ // Update the match player status and return the Observable
     return this.matchPlayerControllerService.updateMatchPlayer(matchId, matchPlayerDto).pipe(
       catchError((error) => {
         console.error(`Error joining match ${matchId} for user ${userMatricule}:`, error);
