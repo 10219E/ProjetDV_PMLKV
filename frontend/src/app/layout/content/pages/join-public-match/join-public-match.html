@@ -2,50 +2,55 @@
   <app-home-account-header [todayDate]="null"></app-home-account-header>
 
   <div class="flex flex-1 mid:flex-row relative">
-	<main class="flex-1 p-6 relative flex flex-col items-stretch z-10">
-	  <div class="max-w-4xl mx-auto bg-white/60 backdrop-blur-sm border border-gray-200 p-6 rounded-xl mt-6">
-		<h2 class="font-bold text-2xl mb-4">Matchs publics disponibles</h2>
+    <main class="flex-1 p-6 relative flex flex-col items-stretch z-10">
+      <div class="max-w-4xl mx-auto bg-white/60 backdrop-blur-sm border border-gray-200 p-6 rounded-xl mt-6">
+        <h2 class="font-bold text-2xl mb-4">Matchs publics disponibles</h2>
 
-		@if (loading) {
-		  <div class="text-sm text-gray-600">Chargement...</div>
-		}
-		@if (error) {
-		  <div class="text-sm text-red-600">{{ error }}</div>
-		}
+        @if (loading) {
+          <div class="text-sm text-gray-600">Chargement...</div>
+        }
+        @if (error) {
+          <div class="text-sm text-red-600">{{ error }}</div>
+        }
 
-		@if (!loading && matches.length === 0) {
-		  <div class="text-sm italic text-gray-500">Aucun match public ouvert pour le moment.</div>
-		}
+        @if (!loading && matches.length === 0) {
+          <div class="text-sm italic text-gray-500">Aucun match public ouvert pour le moment.</div>
+        }
 
-		@if (matches.length > 0) {
-		  <div class="space-y-4">
-			@for (m of matches; track m.matchId ?? $index) {
-			  <div class="p-4 bg-white rounded-md shadow flex items-center justify-between">
-				<div class="flex flex-col">
-				  <div class="font-semibold text-md">
-					Complexe Sportif: {{ m.siteName || '—' }}
-					<span class="text-md text-gray-600 font-semibold ml-1">
-					  <p></p> <span class="text-sm"> {{ m.matchDate | date:'dd/MM/yyyy' }}
-					  {{ formatTime(m.startTime) }}
-					  -
-					  {{ formatTime(m.endTime) }}
-          </span></span>
-				  </div>
-				  <div class="text-sm text-gray-600">Terrain: {{ m.fieldId || 'N/A' }}</div>
-				  <div class="text-sm text-gray-600">Prix: {{ m.pricing != null ? ((m.pricing / 4) | number:'1.2-2') + ' €' : '—' }}</div>
-				</div>
-				<div class="flex gap-2">
-				  <button class="bg-green-600 text-white px-3 py-1 rounded ml-5 mr-5" (click)="joinMatch(m)">Rejoindre</button>
-				</div>
-			  </div>
-			}
-		  </div>
-		}
-	  </div>
-	</main>
+        @if (matches.length > 0) {
+          <div class="space-y-4">
+            @for (m of matches; track m.matchId ?? $index) {
+              <div class="p-4 bg-white rounded-md shadow flex items-center justify-between">
+                <div class="flex flex-col">
+                  <div class="font-semibold text-md">
+                    Complexe Sportif: {{ m.siteName || '—' }}
+                    <span class="text-md text-gray-600 font-semibold ml-1">
+                      <p></p> <span class="text-sm"> {{ m.matchDate | date:'dd/MM/yyyy' }}
+                      {{ formatTime(m.startTime) }}
+                      -
+                      {{ formatTime(m.endTime) }}
+                    </span></span>
+                  </div>
+                  <div class="text-sm text-gray-600">Terrain: {{ m.fieldId || 'N/A' }}</div>
+                  <div class="text-sm text-gray-600">Prix: {{ m.pricing != null ? ((m.pricing / 4) | number:'1.2-2') + ' €' : '—' }}</div>
+                </div>
+                <div class="flex gap-2">
+                  <button class="bg-green-600 text-white px-3 py-1 rounded ml-5 mr-5" (click)="joinMatch(m)">Rejoindre</button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </main>
 
-	<app-nav-menu></app-nav-menu>
+    <app-nav-menu></app-nav-menu>
   </div>
+
+  <!-- Payment form popup -->
+  @if (showPayForm) {
+    <app-pay-form [amount]="payAmount" (paid)="onPaymentCompleted($event)" (cancelled)="onPaymentCancelled()"></app-pay-form>
+  }
 </div>
 
 

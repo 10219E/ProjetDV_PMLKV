@@ -444,8 +444,6 @@ export class MatchForm implements OnInit {
 
   }
 
-  // ...existing code...
-
   // Load fields and filter by allowed site ids. If allowedSiteIds is undefined, do not filter (load all fields)
   private loadFieldsForAllowedSites(allowedSiteIds?: number[] | undefined): void {
     // store allowed site ids and if there is exactly one allowed site, preselect it and load fields for it
@@ -620,12 +618,6 @@ export class MatchForm implements OnInit {
     if (!isNaN(d.getTime())) return d;
     return null;
   }
-
-  // ...existing code...
-
-  // ...existing code...
-
-  // ...existing code...
 
   confirmDate(): void {
     if (!this.tempSelectedDate) return;
