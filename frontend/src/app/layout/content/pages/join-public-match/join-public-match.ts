@@ -5,15 +5,12 @@ import { NavMenu } from '../../nav-menu/nav-menu';
 import { HomeAccountHeader } from '../../header/header';
 import { MatchService } from '../../../../services/match.service';
 import { MatchDto } from '../../../../api/model/matchDto';
-import { InfoService } from '../../../../services/info.service';
-import { SiteInfo } from '../../../../api/model/siteInfo';
-import {FieldService} from '../../../../services/field.service';
-import {FieldDto} from "../../../../api/model/fieldDto";
 import { PayFormComponent } from '../../pay-form/pay-form';
 import { PayService } from '../../../../services/pay.service';
 import { UserService } from '../../../../services/user.service';
 import { take } from 'rxjs/operators';
 import { MatchPaymentDto } from '../../../../api/model/matchPaymentDto';
+import { MatchSiteFieldDto } from '../../../../api/model/matchSiteFieldDto';
 
 @Component({
   selector: 'app-join-public-match',
@@ -22,7 +19,7 @@ import { MatchPaymentDto } from '../../../../api/model/matchPaymentDto';
   templateUrl: './join-public-match.html'
 })
 export class JoinPublicMatch implements OnInit {
-  matches: Array<MatchDto & { siteName?: string }> = [];
+  matches: Array<MatchSiteFieldDto> = [];
   loading = false;
   error: string | null = null;
 
@@ -34,21 +31,26 @@ export class JoinPublicMatch implements OnInit {
   // Confirmation popup state
   showSuccessDialog = false;
   popupMessage: string | null = null;
-  confirmedMatch: (MatchDto & { siteName?: string }) | null = null;
+  confirmedMatch: MatchSiteFieldDto | null = null;
+
+  // Status translations
+  private statusTranslations: Record<string, string> = {
+    open: 'Ouvert',
+    closed: 'Fermé',
+    cancelled: 'Annulé',
+    completed: 'Terminé'
+  };
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private matchService: MatchService,
-    private infoService: InfoService,
-    private fieldService: FieldService,
     private cd: ChangeDetectorRef,
     private payService: PayService,
     private userService: UserService
   ) {}
 
   ngOnInit(): void {
-    // load public matches with status open
     this.loadMatches();
   }
 
@@ -56,7 +58,6 @@ export class JoinPublicMatch implements OnInit {
     this.loading = true;
     this.error = null;
     try {
-        // Get the current user's matricule
         this.userService.getCurrentUser().pipe(take(1)).subscribe({
             next: (user: any) => {
                 const userId = user?.matricule;
@@ -67,65 +68,19 @@ export class JoinPublicMatch implements OnInit {
                     return;
                 }
 
-                // Use the new service method to get available public matches
                 this.matchService.getAvailablePublicMatches(userId).subscribe({
-                    next: (data: any) => {
+                    next: (data: MatchSiteFieldDto[]) => {
                         const all = Array.isArray(data) ? data : [];
-                        // keep only matches from tomorrow (exclude today and past matches)
                         const tomorrow = this.getTomorrowIsoDate();
-                        const filtered: MatchDto[] = all.filter((m: MatchDto) => {
-                            const dateOnly = (m?.matchDate ?? '').split('T')[0];
+
+                        // Filter matches from tomorrow onwards
+                        this.matches = all.filter(m => {
+                            const dateOnly = (m.match?.matchDate ?? '').split('T')[0];
                             return dateOnly >= tomorrow;
                         });
 
-                        // First, get all fields to build a fieldId to siteId map
-                        this.fieldService.fetchAllFields().subscribe({
-                            next: (fields: FieldDto[]) => {
-                                const fieldToSiteMap: Record<number, number> = {};
-                                (fields || []).forEach(f => {
-                                    if (f?.fieldId != null && f?.siteId != null) {
-                                        fieldToSiteMap[f.fieldId] = f.siteId;
-                                    }
-                                });
-
-                                // Then get all sites to build a siteId to siteName map
-                                this.infoService.getSites().subscribe({
-                                    next: (sites: SiteInfo[]) => {
-                                        const siteMap: Record<number, string> = {};
-                                        (sites || []).forEach(s => {
-                                            if (s?.siteId != null) {
-                                                const name = (s.name ?? '').toString().trim();
-                                                siteMap[s.siteId] = name.length > 0 ? name : '—';
-                                            }
-                                        });
-
-                                        // Now attach siteName to each match using the fieldToSiteMap
-                                        this.matches = filtered.map(m => {
-                                            const siteId = m?.fieldId != null ? fieldToSiteMap[m.fieldId] : null;
-                                            const siteName = siteId != null ? (siteMap[siteId] ?? '—') : '—';
-                                            return { ...m, siteName } as MatchDto & { siteName?: string };
-                                        });
-
-                                        this.loading = false;
-                                        this.cd.detectChanges();
-                                    },
-                                    error: (err) => {
-                                        console.error('Error fetching sites:', err);
-                                        // If site fetch fails, still show matches with fallback
-                                        this.matches = filtered.map(m => ({ ...m, siteName: '—' } as MatchDto & { siteName?: string }));
-                                        this.loading = false;
-                                        this.cd.detectChanges();
-                                    }
-                                });
-                            },
-                            error: (err) => {
-                                console.error('Error fetching fields:', err);
-                                // If field fetch fails, still show matches with fallback
-                                this.matches = filtered.map(m => ({ ...m, siteName: '—' } as MatchDto & { siteName?: string }));
-                                this.loading = false;
-                                this.cd.detectChanges();
-                            }
-                        });
+                        this.loading = false;
+                        this.cd.detectChanges();
                     },
                     error: (err: any) => {
                         console.error('Failed to load available public matches', err);
@@ -150,11 +105,16 @@ export class JoinPublicMatch implements OnInit {
     }
   }
 
-  // Placeholder action when user clicks Join. Real implementation should call backend or navigate to match details.
-  joinMatch(m: MatchDto) {
+  joinMatch(m: MatchSiteFieldDto) {
+    if (!m.match) {
+      this.error = 'Invalid match data';
+      this.cd.detectChanges();
+      return;
+    }
+
     console.log('Join match', m);
-    this.selectedMatch = m;
-    this.payAmount = m.pricing != null ? (m.pricing / 4) : 0;
+    this.selectedMatch = m.match;
+    this.payAmount = m.match.pricing != null ? (m.match.pricing / 4) : 0;
     this.showPayForm = true;
     this.cd.detectChanges();
   }
@@ -169,7 +129,6 @@ export class JoinPublicMatch implements OnInit {
       return;
     }
 
-    // Resolve current authenticated user's matricule and call join endpoint
     this.userService.getCurrentUser().pipe(take(1)).subscribe({
       next: (u: any) => {
         const currentMat = u?.matricule;
@@ -179,19 +138,16 @@ export class JoinPublicMatch implements OnInit {
           return;
         }
 
-        // Create payment DTO for the match join
         const dto: MatchPaymentDto = {
-          matchId: this.selectedMatch!.matchId, // Add matchId to the payment DTO
+          matchId: this.selectedMatch!.matchId,
           userMatricule: currentMat,
           amount: evt.amount,
           status: 'clear',
           paymentMethod: 'CARD'
         };
 
-        // First, create the payment record
         this.payService.createPayment(dto).subscribe({
           next: (paymentResponse: any) => {
-            // Extract the transaction reference (tr) from the payment response
             const paymentId = paymentResponse?.tr;
 
             if (!paymentId) {
@@ -200,17 +156,15 @@ export class JoinPublicMatch implements OnInit {
               return;
             }
 
-            // Then join the match
             this.matchService.joinPublicMatch(this.selectedMatch!.matchId!, currentMat).subscribe({
               next: () => {
-                // Set the confirmation message with match details
                 const matchDate = this.selectedMatch!.matchDate ? new Date(this.selectedMatch!.matchDate) : null;
                 const formattedDate = matchDate ? matchDate.toLocaleDateString('fr-FR') : '—';
                 const startTime = this.formatTime(this.selectedMatch!.startTime);
                 const endTime = this.formatTime(this.selectedMatch!.endTime);
 
                 this.popupMessage = `Vous vous êtes inscrits pour ce match, le ${formattedDate} de ${startTime} à ${endTime}. Veuillez vous présenter 15 minutes avant le début du match.`;
-                this.confirmedMatch = this.selectedMatch as MatchDto & { siteName?: string };
+                this.confirmedMatch = this.matches.find(m => m.match?.matchId === this.selectedMatch?.matchId) || null;
                 this.selectedMatch = null;
                 this.showSuccessDialog = true;
                 this.cd.detectChanges();
@@ -243,14 +197,6 @@ export class JoinPublicMatch implements OnInit {
     this.cd.detectChanges();
   }
 
-  closeConfirmation(): void {
-    this.showSuccessDialog = false;
-    const userId = this.route.snapshot.paramMap.get('userId');
-    if (userId) {
-      this.router.navigate(['/home', userId]).catch(() => {});
-    }
-  }
-
   acknowledgeSuccess(): void {
     this.showSuccessDialog = false;
     this.popupMessage = null;
@@ -261,28 +207,63 @@ export class JoinPublicMatch implements OnInit {
     this.cd.detectChanges();
   }
 
-  viewMatch(m: MatchDto) {
-    console.log('View match', m);
-    // implement view behavior: for now navigate to match detail route if available
-    const userId = this.route.snapshot.paramMap.get('userId');
-    if (userId && m && m.matchId != null) {
-      this.router.navigate(['/home', userId, 'match', String(m.matchId)]).catch(() => {});
-    }
-  }
+  // Helper methods for formatting and displaying data
 
   formatTime(t?: any): string {
     if (!t) return '';
-    // LocalTime from API typically has { hour?: number, minute?: number }
     const hour = (t && (t.hour ?? t.Hour)) ?? null;
     const minute = (t && (t.minute ?? t.Minute)) ?? 0;
     if (hour == null) {
-      // fallback to string representation
       try { return String(t); } catch { return ''; }
     }
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   }
 
-  // Return tomorrow's date in local YYYY-MM-DD format (used to filter matches)
+  getStatusTranslation(status?: string): string {
+    if (!status) return '—';
+
+    const lowerStatus = status.toLowerCase();
+    return this.statusTranslations[lowerStatus] ||
+           status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  }
+
+  formatMatchDate(date?: string): string {
+    if (!date) return '—';
+    const d = new Date(date);
+    return d.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+
+  getMatchTimeRange(match: MatchSiteFieldDto['match']): string {
+    const start = this.formatTime(match?.startTime);
+    const end = this.formatTime(match?.endTime);
+    return `${start} - ${end}`;
+  }
+
+  getFieldType(field: MatchSiteFieldDto['field']): string {
+    return field?.isIndoor ? 'Intérieur' : 'Extérieur';
+  }
+
+  getSiteName(site: MatchSiteFieldDto['site']): string {
+    return site?.name || '—';
+  }
+
+  getMatchType(match: MatchSiteFieldDto['match']): string {
+    const type = match?.type ?? '';
+    if (type === 'public') return 'Public';
+    if (type === 'private') return 'Privé';
+    return type || '—';
+  }
+
+  getMatchPricing(match: MatchSiteFieldDto['match']): string {
+    if (match?.pricing == null) return 'Prix non disponible';
+    return `${(match.pricing / 4).toFixed(2)} €`;
+  }
+
   private getTomorrowIsoDate(): string {
     const d = new Date();
     d.setDate(d.getDate() + 1);

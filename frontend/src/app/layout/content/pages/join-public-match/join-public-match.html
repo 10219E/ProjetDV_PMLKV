@@ -19,23 +19,39 @@
 
         @if (matches.length > 0) {
           <div class="space-y-4">
-            @for (m of matches; track m.matchId ?? $index) {
+            @for (m of matches; track m.match?.matchId ?? $index) {
               <div class="p-4 bg-white rounded-md shadow flex items-center justify-between">
-                <div class="flex flex-col">
+                <div class="flex flex-col gap-1">
                   <div class="font-semibold text-md">
-                    Complexe Sportif: {{ m.siteName || '—' }}
-                    <span class="text-md text-gray-600 font-semibold ml-1">
-                      <p></p> <span class="text-sm"> {{ m.matchDate | date:'dd/MM/yyyy' }}
-                      {{ formatTime(m.startTime) }}
-                      -
-                      {{ formatTime(m.endTime) }}
-                    </span></span>
+                    Complexe Sportif: {{ getSiteName(m.site) }}
                   </div>
-                  <div class="text-sm text-gray-600">Terrain: {{ m.fieldId || 'N/A' }}</div>
-                  <div class="text-sm text-gray-600">Prix: {{ m.pricing != null ? ((m.pricing / 4) | number:'1.2-2') + ' €' : '—' }}</div>
+                  <div class="text-sm text-gray-600">
+                    Terrain: {{ m.match?.fieldId ?? 'N/A' }} ({{ getFieldType(m.field) }})
+                  </div>
+                  <div class="text-sm text-gray-700">
+                    {{ formatMatchDate(m.match?.matchDate) }}
+                    &nbsp;
+                    {{ getMatchTimeRange(m.match) }}
+                  </div>
+                  <div class="flex gap-2 mt-1">
+                    <span class="px-2 py-0.5 rounded text-white text-xs font-medium"
+                          [class.bg-blue-500]="m.match?.type === 'public'"
+                          [class.bg-purple-500]="m.match?.type !== 'public'">
+                      {{ getMatchType(m.match) }}
+                    </span>
+                    <span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                      {{ getStatusTranslation(m.match?.pubStatus) }}
+                    </span>
+                  </div>
+                  <div class="text-sm text-gray-600 mt-1">
+                    Prix: {{ getMatchPricing(m.match) }}
+                  </div>
                 </div>
                 <div class="flex gap-2">
-                  <button class="bg-green-600 text-white px-3 py-1 rounded ml-5 mr-5" (click)="joinMatch(m)">Rejoindre</button>
+                  <button class="bg-green-600 text-white px-3 py-1 rounded ml-5 mr-5 whitespace-nowrap"
+                          (click)="joinMatch(m)">
+                    Rejoindre
+                  </button>
                 </div>
               </div>
             }
