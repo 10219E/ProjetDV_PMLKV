@@ -14,7 +14,7 @@ import { SiteDto } from './siteDto';
 import { FieldDto } from './fieldDto';
 
 
-export interface PendingInviteDetails { 
+export interface InvitesDto { 
     payment?: MatchPaymentDto;
     match?: MatchDto;
     field?: FieldDto;

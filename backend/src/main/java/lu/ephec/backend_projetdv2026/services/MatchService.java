@@ -7,11 +7,14 @@ import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.MatchPlayers;
 import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +29,7 @@ public class MatchService {
     private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
+    private final Logger logger = LoggerFactory.getLogger(MatchService.class);
 
     // Dependency Injection
     public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo, JPASiteClosureDaysRepo jpaSiteClosureDaysRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
@@ -47,6 +51,52 @@ public class MatchService {
         return jpaMatchRepo.existsById(matchId);
     }
 
+    //GET MY MATCHES (part of removing business logic of frontend branch 72)
+    @Transactional
+    public List<Match> fetchMyUpcomingMatches(String userId) {
+        // Input validation
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        // Get all public and private matches
+        List<Match> matchList = new ArrayList<>();
+
+        Match allpublic = jpaMatchRepo.findByType("public").stream()
+                .filter(match ->
+                        !"cancelled".equals(match.getPubStatus()) &&
+                        !"completed".equals(match.getPubStatus()))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "No public matches found for user: " + userId));
+
+        Match allprivate = jpaMatchRepo.findByType("private").stream()
+                .filter(match ->
+                        !"cancelled".equals(match.getPrivStatus()) &&
+                        !"completed".equals(match.getPrivStatus()))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "No private matches found for user: " + userId));
+
+        try {matchList.add(allprivate);
+        matchList.add(allpublic);} catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // Get matches where user is registered
+        List<MatchPlayers> myregistered = jpaMatchPlayersRepo.findByUser_Matricule(userId);
+
+        logger.info("Fetching matches where user is registered: " + myregistered.size());
+
+        // Find matches that are both in matchList and in myregistered
+        List<Match> mymatches = matchList.stream()
+                .filter(match -> myregistered.stream()
+                        .anyMatch(mp -> mp.getMatch().getMatchId().equals(match.getMatchId())))
+                .toList();
+
+        logger.info("Found matches where user is registered: " + mymatches.size());
+
+        return mymatches;
+    }
 
     //SET MATCH
     //FOR PUB MATCHES LIST WILL NOT BE PASSED //OVERCHARGE

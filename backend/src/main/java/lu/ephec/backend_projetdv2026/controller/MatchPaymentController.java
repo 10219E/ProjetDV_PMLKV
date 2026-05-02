@@ -1,22 +1,20 @@
 package lu.ephec.backend_projetdv2026.controller;
 
+import lu.ephec.backend_projetdv2026.dto.*;
 import lu.ephec.backend_projetdv2026.models.MatchPayments;
-import lu.ephec.backend_projetdv2026.dto.MatchPaymentDto;
+
 import java.util.List;
 import java.util.stream.Collectors;
 import lu.ephec.backend_projetdv2026.services.PaymentService;
 import lu.ephec.backend_projetdv2026.services.MatchService;
 import lu.ephec.backend_projetdv2026.models.MatchPlayers;
-import lu.ephec.backend_projetdv2026.dto.MatchDto;
-import lu.ephec.backend_projetdv2026.dto.FieldDto;
-import lu.ephec.backend_projetdv2026.dto.SiteDto;
-import lu.ephec.backend_projetdv2026.dto.UserProfileDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import lu.ephec.backend_projetdv2026.dto.compodto.InvitesDto;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -72,12 +70,12 @@ public class MatchPaymentController {
 	}
 
 	@GetMapping (value = "/invites/{userId}", produces = "application/json")
-	public ResponseEntity<List<PendingInviteDetails>> getPendingWithDetailsPaymentsByUser(@PathVariable String userId) {
+	public ResponseEntity<List<InvitesDto>> getPendingWithDetailsPaymentsByUser(@PathVariable String userId) {
 		logger.info("[MATCH PAYMENT CONTROLLER] Get pending payments details for match user request received: userId={}", userId);
 		try {
 			List<MatchPayments> payments = paymentService.fetchPendingByUser(userId);
 
-			List<PendingInviteDetails> result = payments.stream().map(p -> {
+			List<InvitesDto> result = payments.stream().map(p -> {
 				MatchPaymentDto payDto = MatchPaymentDto.fromEntity(p);
 
 				MatchDto matchDto = null;
@@ -115,7 +113,7 @@ public class MatchPaymentController {
 					}
 				}
 
-				PendingInviteDetails dto = new PendingInviteDetails();
+				InvitesDto dto = new InvitesDto();
 				dto.setPayment(payDto);
 				dto.setMatch(matchDto);
 				dto.setField(fieldDto);
@@ -136,34 +134,4 @@ public class MatchPaymentController {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
 		}
 	}
-
-	// Composite DTO reusing existing DTOs for the controller response
-	public static class PendingInviteDetails {
-		private MatchPaymentDto payment;
-		private MatchDto match;
-		private FieldDto field;
-		private SiteDto site;
-		private UserProfileDto organiser;
-		private List<UserProfileDto> participants;
-		private Integer occupancy;
-		private Integer remainingSlots;
-
-		public MatchPaymentDto getPayment() { return payment; }
-		public void setPayment(MatchPaymentDto payment) { this.payment = payment; }
-		public MatchDto getMatch() { return match; }
-		public void setMatch(MatchDto match) { this.match = match; }
-		public FieldDto getField() { return field; }
-		public void setField(FieldDto field) { this.field = field; }
-		public SiteDto getSite() { return site; }
-		public void setSite(SiteDto site) { this.site = site; }
-		public UserProfileDto getOrganiser() { return organiser; }
-		public void setOrganiser(UserProfileDto organiser) { this.organiser = organiser; }
-		public List<UserProfileDto> getParticipants() { return participants; }
-		public void setParticipants(List<UserProfileDto> participants) { this.participants = participants; }
-		public Integer getOccupancy() { return occupancy; }
-		public void setOccupancy(Integer occupancy) { this.occupancy = occupancy; }
-		public Integer getRemainingSlots() { return remainingSlots; }
-		public void setRemainingSlots(Integer remainingSlots) { this.remainingSlots = remainingSlots; }
-	}
-
 }

@@ -17,11 +17,11 @@ import { Observable }                                        from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
+import { InvitesDto } from '../model/invitesDto';
+// @ts-ignore
 import { MatchPaymentDto } from '../model/matchPaymentDto';
 // @ts-ignore
 import { MatchPayments } from '../model/matchPayments';
-// @ts-ignore
-import { PendingInviteDetails } from '../model/pendingInviteDetails';
 
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS }                     from '../variables';
@@ -111,9 +111,9 @@ export class MatchPaymentControllerService extends BaseService {
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public getPendingWithDetailsPaymentsByUser(userId: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<Array<PendingInviteDetails>>;
-    public getPendingWithDetailsPaymentsByUser(userId: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<PendingInviteDetails>>>;
-    public getPendingWithDetailsPaymentsByUser(userId: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<PendingInviteDetails>>>;
+    public getPendingWithDetailsPaymentsByUser(userId: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<Array<InvitesDto>>;
+    public getPendingWithDetailsPaymentsByUser(userId: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<InvitesDto>>>;
+    public getPendingWithDetailsPaymentsByUser(userId: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<InvitesDto>>>;
     public getPendingWithDetailsPaymentsByUser(userId: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
         if (userId === null || userId === undefined) {
             throw new Error('Required parameter userId was null or undefined when calling getPendingWithDetailsPaymentsByUser.');
@@ -146,7 +146,7 @@ export class MatchPaymentControllerService extends BaseService {
 
         let localVarPath = `/api/payments/invites/${this.configuration.encodeParam({name: "userId", value: userId, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: undefined})}`;
         const { basePath, withCredentials } = this.configuration;
-        return this.httpClient.request<Array<PendingInviteDetails>>('get', `${basePath}${localVarPath}`,
+        return this.httpClient.request<Array<InvitesDto>>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 responseType: <any>responseType_,

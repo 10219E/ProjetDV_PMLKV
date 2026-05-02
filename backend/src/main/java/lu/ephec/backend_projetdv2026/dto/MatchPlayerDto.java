@@ -29,9 +29,16 @@ public class MatchPlayerDto {
         );
     }
 
+    // Getters
     public Integer getMatchPlayerId() { return matchPlayerId; }
     public MatchDto getMatch() { return match; }
     public String getUserMatricule() { return userMatricule; }
     public String getStatus() { return status; }
     public String getPlayerRole() { return playerRole; }
+
+    // Setters
+    public void setMatch(MatchDto match) { this.match = match; }
+    public void setUserMatricule(String userMatricule) { this.userMatricule = userMatricule; }
+    public void setStatus(String status) { this.status = status; }
+    public void setPlayerRole(String playerRole) { this.playerRole = playerRole; }
 }
