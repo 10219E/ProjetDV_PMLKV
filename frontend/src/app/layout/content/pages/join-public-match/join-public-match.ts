@@ -56,77 +56,97 @@ export class JoinPublicMatch implements OnInit {
     this.loading = true;
     this.error = null;
     try {
-      this.matchService.getMatchesByTypeAndStatus('public', 'open').subscribe({
-        next: (data: any) => {
-          const all = Array.isArray(data) ? data : [];
-          // keep only matches from tomorrow (exclude today and past matches)
-          const tomorrow = this.getTomorrowIsoDate();
-          const filtered: MatchDto[] = all.filter((m: MatchDto) => {
-            const dateOnly = (m?.matchDate ?? '').split('T')[0];
-            return dateOnly >= tomorrow;
-          });
-
-          // First, get all fields to build a fieldId to siteId map
-          this.fieldService.fetchAllFields().subscribe({
-            next: (fields: FieldDto[]) => {
-              const fieldToSiteMap: Record<number, number> = {};
-              (fields || []).forEach(f => {
-                if (f?.fieldId != null && f?.siteId != null) {
-                  fieldToSiteMap[f.fieldId] = f.siteId;
+        // Get the current user's matricule
+        this.userService.getCurrentUser().pipe(take(1)).subscribe({
+            next: (user: any) => {
+                const userId = user?.matricule;
+                if (!userId) {
+                    this.error = 'Unable to determine current user.';
+                    this.loading = false;
+                    this.cd.detectChanges();
+                    return;
                 }
-              });
 
-              // Then get all sites to build a siteId to siteName map
-              this.infoService.getSites().subscribe({
-                next: (sites: SiteInfo[]) => {
-                  const siteMap: Record<number, string> = {};
-                  (sites || []).forEach(s => {
-                    if (s?.siteId != null) {
-                      const name = (s.name ?? '').toString().trim();
-                      siteMap[s.siteId] = name.length > 0 ? name : '—';
+                // Use the new service method to get available public matches
+                this.matchService.getAvailablePublicMatches(userId).subscribe({
+                    next: (data: any) => {
+                        const all = Array.isArray(data) ? data : [];
+                        // keep only matches from tomorrow (exclude today and past matches)
+                        const tomorrow = this.getTomorrowIsoDate();
+                        const filtered: MatchDto[] = all.filter((m: MatchDto) => {
+                            const dateOnly = (m?.matchDate ?? '').split('T')[0];
+                            return dateOnly >= tomorrow;
+                        });
+
+                        // First, get all fields to build a fieldId to siteId map
+                        this.fieldService.fetchAllFields().subscribe({
+                            next: (fields: FieldDto[]) => {
+                                const fieldToSiteMap: Record<number, number> = {};
+                                (fields || []).forEach(f => {
+                                    if (f?.fieldId != null && f?.siteId != null) {
+                                        fieldToSiteMap[f.fieldId] = f.siteId;
+                                    }
+                                });
+
+                                // Then get all sites to build a siteId to siteName map
+                                this.infoService.getSites().subscribe({
+                                    next: (sites: SiteInfo[]) => {
+                                        const siteMap: Record<number, string> = {};
+                                        (sites || []).forEach(s => {
+                                            if (s?.siteId != null) {
+                                                const name = (s.name ?? '').toString().trim();
+                                                siteMap[s.siteId] = name.length > 0 ? name : '—';
+                                            }
+                                        });
+
+                                        // Now attach siteName to each match using the fieldToSiteMap
+                                        this.matches = filtered.map(m => {
+                                            const siteId = m?.fieldId != null ? fieldToSiteMap[m.fieldId] : null;
+                                            const siteName = siteId != null ? (siteMap[siteId] ?? '—') : '—';
+                                            return { ...m, siteName } as MatchDto & { siteName?: string };
+                                        });
+
+                                        this.loading = false;
+                                        this.cd.detectChanges();
+                                    },
+                                    error: (err) => {
+                                        console.error('Error fetching sites:', err);
+                                        // If site fetch fails, still show matches with fallback
+                                        this.matches = filtered.map(m => ({ ...m, siteName: '—' } as MatchDto & { siteName?: string }));
+                                        this.loading = false;
+                                        this.cd.detectChanges();
+                                    }
+                                });
+                            },
+                            error: (err) => {
+                                console.error('Error fetching fields:', err);
+                                // If field fetch fails, still show matches with fallback
+                                this.matches = filtered.map(m => ({ ...m, siteName: '—' } as MatchDto & { siteName?: string }));
+                                this.loading = false;
+                                this.cd.detectChanges();
+                            }
+                        });
+                    },
+                    error: (err: any) => {
+                        console.error('Failed to load available public matches', err);
+                        this.error = err?.message || 'Erreur lors du chargement des matchs publics disponibles.';
+                        this.matches = [];
+                        this.loading = false;
+                        this.cd.detectChanges();
                     }
-                  });
-
-                  // Now attach siteName to each match using the fieldToSiteMap
-                  this.matches = filtered.map(m => {
-                    const siteId = m?.fieldId != null ? fieldToSiteMap[m.fieldId] : null;
-                    const siteName = siteId != null ? (siteMap[siteId] ?? '—') : '—';
-                    return { ...m, siteName } as MatchDto & { siteName?: string };
-                  });
-
-                  this.loading = false;
-                  this.cd.detectChanges();
-                },
-                error: (err) => {
-                  console.error('Error fetching sites:', err);
-                  // If site fetch fails, still show matches with fallback
-                  this.matches = filtered.map(m => ({ ...m, siteName: '—' } as MatchDto & { siteName?: string }));
-                  this.loading = false;
-                  this.cd.detectChanges();
-                }
-              });
+                });
             },
-            error: (err) => {
-              console.error('Error fetching fields:', err);
-              // If field fetch fails, still show matches with fallback
-              this.matches = filtered.map(m => ({ ...m, siteName: '—' } as MatchDto & { siteName?: string }));
-              this.loading = false;
-              this.cd.detectChanges();
+            error: (err: any) => {
+                console.error('Failed to resolve current user', err);
+                this.error = 'Impossible de récupérer l’utilisateur courant.';
+                this.loading = false;
+                this.cd.detectChanges();
             }
-          });
-        },
-        error: (err: any) => {
-          console.error('Failed to load public matches', err);
-          this.error = err?.message || 'Erreur lors du chargement des matchs publics.';
-          this.matches = [];
-          this.loading = false;
-          this.cd.detectChanges();
-        }
-      });
+        });
     } catch (e) {
-      this.loading = false;
-      this.error = 'Erreur interne.';
-      this.cd.detectChanges();
+        this.loading = false;
+        this.error = 'Erreur interne.';
+        this.cd.detectChanges();
     }
   }
 

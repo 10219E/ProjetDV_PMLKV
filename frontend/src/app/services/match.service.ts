@@ -36,6 +36,20 @@ export class MatchService {
     );
   }
 
+  getAvailablePublicMatches(userId: string): Observable<Array<MatchDto>> {
+    if (!userId) {
+      throw new Error('userId is required');
+    }
+    this.setAuthHeader();
+    return this.matchControllerService.getAvailablePublicMatches(userId).pipe(
+      map((data: any) => Array.isArray(data) ? data : []),
+      catchError((error) => {
+        if (error.status === 404) return of([]);
+        throw error;
+      })
+    );
+  }
+
   // Fetch matches by type: calls GET /api/matches/type/{type}
   getMatchesByType(type: string): Observable<MatchDto[]> {
     this.setAuthHeader();

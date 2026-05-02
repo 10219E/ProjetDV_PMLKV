@@ -1,8 +1,11 @@
 package lu.ephec.backend_projetdv2026.controller;
 
 import lu.ephec.backend_projetdv2026.dto.MatchDto;
+import lu.ephec.backend_projetdv2026.dto.compodto.MatchAndPlayerDto;
 import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.services.MatchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +19,7 @@ import java.util.stream.Collectors;
 public class MatchController {
 
     private final MatchService matchService;
+    private final Logger logger = LoggerFactory.getLogger(MatchController.class);
 
     public MatchController(MatchService matchService) {
         this.matchService = matchService;
@@ -92,6 +96,26 @@ public class MatchController {
     @GetMapping(value = "/site/{siteId}", produces = "application/json")
     public ResponseEntity<List<MatchDto>> getBySite(@PathVariable Integer siteId) {
         List<MatchDto> responses = matchService.fetchBySite(siteId).stream()
+                .map(MatchDto::from)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping(value = "/mypublicmatches/{userMatricule}", produces = "application/json")
+    public ResponseEntity<List<MatchDto>> getAvailablePublicMatches(@PathVariable String userMatricule) {
+
+        // Validate the userMatricule parameter
+        if (userMatricule == null || userMatricule.trim().isEmpty()) {
+            throw new IllegalArgumentException("User matricule cannot be null or empty");
+        }
+
+        logger.info("[MatchController] Fetching available public matches for user: {}", userMatricule);
+
+        // Get the list of available public matches from the service
+        List<Match> matches = matchService.fetchAvailablePublicMatches(userMatricule);
+        logger.info("[MatchController] Found {} available public matches for user: {}", matches.size(), userMatricule);
+
+        List<MatchDto> responses = matches.stream()
                 .map(MatchDto::from)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);

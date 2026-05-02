@@ -9,6 +9,7 @@ import lu.ephec.backend_projetdv2026.services.MatchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -54,21 +55,22 @@ public class MatchPlayerController {
     }
 
     @GetMapping(value = "/mymatches/{userMatricule}", produces = "application/json")
-    public List<MatchAndPlayerDto> getMyMatches(@PathVariable String userMatricule) {
-        logger.info("Fetching matches for user: {}", userMatricule);
+    public ResponseEntity<List<MatchAndPlayerDto>> getMyMatches(@PathVariable String userMatricule) {
 
         // Validate the userMatricule parameter
         if (userMatricule == null || userMatricule.trim().isEmpty()) {
             throw new IllegalArgumentException("User matricule cannot be null or empty");
         }
 
+        logger.info("[MatchPlayerController] Fetching matches for user: {}", userMatricule);
+
         // Get the list of matches from the service
         List<Match> matches = matchService.fetchMyUpcomingMatches(userMatricule);
-        logger.info("Found {} matches for user: {}", matches.size(), userMatricule);
+        logger.info("[MatchPlayerController] Found {} matches for user: {}", matches.size(), userMatricule);
 
         // Get the list of match players from the service
         List<MatchPlayers> matchPlayers = matchService.fetchMatchesByUserMatricule(userMatricule);
-        logger.info("Found {} MatchPlayers entries for user: {}", matchPlayers.size(), userMatricule);
+        logger.info("[MatchPlayerController] Found {} MatchPlayers entries for user: {}", matchPlayers.size(), userMatricule);
 
         // Create a map of match players by match ID for quick lookup
         Map<Integer, MatchPlayers> matchPlayersMap = matchPlayers.stream()
@@ -79,7 +81,7 @@ public class MatchPlayerController {
                 ));
 
         // Convert to MatchAndPlayerCompoDto
-        return matches.stream()
+        return ResponseEntity.ok(matches.stream()
                 .map(match -> {
                     MatchAndPlayerDto details = new MatchAndPlayerDto();
 
@@ -104,6 +106,6 @@ public class MatchPlayerController {
 
                     return details;
                 })
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 }

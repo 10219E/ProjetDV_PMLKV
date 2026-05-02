@@ -17,6 +17,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class MatchService {
@@ -96,6 +98,35 @@ public class MatchService {
         logger.info("Found matches where user is registered: " + mymatches.size());
 
         return mymatches;
+    }
+
+    //GET AVAILABLE PUBLIC MATCHES FOR USER (part of removing business logic of frontend branch 72)
+    public List<Match> fetchAvailablePublicMatches(String userId) {
+        // Input validation
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        // Get all public matches that are open or pending
+        List<Match> publicMatches = jpaMatchRepo.findByTypeAndPubStatus("public", "open");
+
+        logger.info("Total public matches found: {}", publicMatches.size());
+
+        // Get matches where user is registered
+        List<MatchPlayers> myregistered = jpaMatchPlayersRepo.findByUser_Matricule(userId);
+
+        // Create a set of match IDs the user is already registered for
+        Set<Integer> registeredMatchIds = myregistered.stream()
+                .map(mp -> mp.getMatch().getMatchId())
+                .collect(Collectors.toSet());
+
+        // Filter public matches to exclude those the user is already registered for
+        List<Match> availableMatches = publicMatches.stream()
+                .filter(match -> !registeredMatchIds.contains(match.getMatchId()))
+                .collect(Collectors.toList());
+
+        logger.info("Found {} available public matches for user {}", availableMatches.size(), userId);
+
+        return availableMatches;
     }
 
     //SET MATCH
