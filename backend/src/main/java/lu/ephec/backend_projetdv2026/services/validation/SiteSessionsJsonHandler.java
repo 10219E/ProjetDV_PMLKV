@@ -1,13 +1,19 @@
 package lu.ephec.backend_projetdv2026.services.validation;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import lu.ephec.backend_projetdv2026.services.availability.AvailabilityService;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class SiteSessionsJsonHandler {
@@ -104,5 +110,27 @@ public class SiteSessionsJsonHandler {
     //FORMAT TIME TO ISO FOR JSON INPUT
     private String formatTime(LocalTime time) {
         return time.format(DateTimeFormatter.ISO_LOCAL_TIME);
+    }
+
+    //AVAILABILITY SERVICE JSON PARSER
+    public List<AvailabilityService.Session> parseSessionsJson(String jsonString) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(jsonString);
+            JsonNode sessionsArray = rootNode.get("sessions");
+            List<AvailabilityService.Session> sessions = new ArrayList<>();
+
+            for (JsonNode sessionNode : sessionsArray) {
+                AvailabilityService.Session session = new AvailabilityService.Session();
+                session.setStartTime(LocalTime.parse(sessionNode.get("start_time").asText()));
+                session.setEndTime(LocalTime.parse(sessionNode.get("end_time").asText()));
+
+                sessions.add(session);
+            }
+
+            return sessions;
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Error parsing session JSON: " + e.getMessage());
+        }
     }
 }
