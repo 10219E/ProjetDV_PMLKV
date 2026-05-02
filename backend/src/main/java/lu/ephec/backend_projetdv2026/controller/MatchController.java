@@ -1,7 +1,6 @@
 package lu.ephec.backend_projetdv2026.controller;
 
 import lu.ephec.backend_projetdv2026.dto.MatchDto;
-import lu.ephec.backend_projetdv2026.dto.compodto.MatchAndPlayerDto;
 import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.services.MatchService;
 import org.slf4j.Logger;

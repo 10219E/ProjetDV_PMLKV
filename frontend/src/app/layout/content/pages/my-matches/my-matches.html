@@ -19,24 +19,24 @@
 
         @if (matchPlayers.length > 0) {
           <div class="space-y-4">
-            @for (mp of matchPlayers; track mp.player.matchPlayerId ?? $index) {
+            @for (mp of matchPlayers; track mp.player?.matchPlayerId ?? $index) {
               <div class="p-4 bg-white rounded-md shadow flex items-center justify-between">
                 <div class="flex flex-col gap-1">
                   <div class="font-semibold text-md">
-                    Complexe Sportif: {{ mp.match.siteName || '—' }}
+                    Complexe Sportif: {{ getSiteName(mp.site) }}
                   </div>
                   <div class="text-sm text-gray-600">
-                    Terrain: {{ mp.match.fieldId ?? 'N/A' }}
+                    Terrain: {{ mp.field?.fieldId ?? 'N/A' }} ({{ getFieldType(mp.field) }})
                   </div>
                   <div class="text-sm text-gray-700">
-                    {{ mp.match.matchDate | date:'dd/MM/yyyy' }}
+                    {{ formatMatchDate(mp.match?.matchDate) }}
                     &nbsp;
-                    {{ formatTime(mp.match.startTime) }} - {{ formatTime(mp.match.endTime) }}
+                    {{ getMatchTimeRange(mp.match) }}
                   </div>
                   <div class="flex gap-2 mt-1">
                     <span class="px-2 py-0.5 rounded text-white text-xs font-medium"
-                          [class.bg-blue-500]="mp.match.type === 'public'"
-                          [class.bg-purple-500]="mp.match.type !== 'public'">
+                          [class.bg-blue-500]="mp.match?.type === 'public'"
+                          [class.bg-purple-500]="mp.match?.type !== 'public'">
                       {{ matchType(mp) }}
                     </span>
                     <span class="px-2 py-0.5 rounded text-xs font-medium"
@@ -44,7 +44,7 @@
                           [class.text-yellow-700]="isPending(mp)"
                           [class.bg-green-100]="!isPending(mp)"
                           [class.text-green-700]="!isPending(mp)">
-                      {{ getStatusTranslation(mp.player.status) }}
+                      {{ getStatusTranslation(mp.player?.status) }}
                     </span>
                   </div>
                 </div>

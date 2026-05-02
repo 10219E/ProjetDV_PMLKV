@@ -17,9 +17,9 @@ import { Observable }                                        from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
-import { MatchAndPlayerDto } from '../model/matchAndPlayerDto';
-// @ts-ignore
 import { MatchPlayerDto } from '../model/matchPlayerDto';
+// @ts-ignore
+import { MatchPlayerSiteFieldDto } from '../model/matchPlayerSiteFieldDto';
 
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS }                     from '../variables';
@@ -44,9 +44,9 @@ export class MatchPlayerControllerService extends BaseService {
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public getMyMatches(userMatricule: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<Array<MatchAndPlayerDto>>;
-    public getMyMatches(userMatricule: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<MatchAndPlayerDto>>>;
-    public getMyMatches(userMatricule: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<MatchAndPlayerDto>>>;
+    public getMyMatches(userMatricule: string, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<Array<MatchPlayerSiteFieldDto>>;
+    public getMyMatches(userMatricule: string, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<Array<MatchPlayerSiteFieldDto>>>;
+    public getMyMatches(userMatricule: string, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<Array<MatchPlayerSiteFieldDto>>>;
     public getMyMatches(userMatricule: string, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
         if (userMatricule === null || userMatricule === undefined) {
             throw new Error('Required parameter userMatricule was null or undefined when calling getMyMatches.');
@@ -79,7 +79,7 @@ export class MatchPlayerControllerService extends BaseService {
 
         let localVarPath = `/api/match-players/mymatches/${this.configuration.encodeParam({name: "userMatricule", value: userMatricule, in: "path", style: "simple", explode: false, dataType: "string", dataFormat: undefined})}`;
         const { basePath, withCredentials } = this.configuration;
-        return this.httpClient.request<Array<MatchAndPlayerDto>>('get', `${basePath}${localVarPath}`,
+        return this.httpClient.request<Array<MatchPlayerSiteFieldDto>>('get', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 responseType: <any>responseType_,
@@ -100,9 +100,9 @@ export class MatchPlayerControllerService extends BaseService {
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public updateMatchPlayer(id: number, matchPlayerDto: MatchPlayerDto, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<MatchAndPlayerDto>;
-    public updateMatchPlayer(id: number, matchPlayerDto: MatchPlayerDto, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<MatchAndPlayerDto>>;
-    public updateMatchPlayer(id: number, matchPlayerDto: MatchPlayerDto, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<MatchAndPlayerDto>>;
+    public updateMatchPlayer(id: number, matchPlayerDto: MatchPlayerDto, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<MatchPlayerSiteFieldDto>;
+    public updateMatchPlayer(id: number, matchPlayerDto: MatchPlayerDto, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<MatchPlayerSiteFieldDto>>;
+    public updateMatchPlayer(id: number, matchPlayerDto: MatchPlayerDto, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<MatchPlayerSiteFieldDto>>;
     public updateMatchPlayer(id: number, matchPlayerDto: MatchPlayerDto, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
         if (id === null || id === undefined) {
             throw new Error('Required parameter id was null or undefined when calling updateMatchPlayer.');
@@ -147,7 +147,7 @@ export class MatchPlayerControllerService extends BaseService {
 
         let localVarPath = `/api/match-players/${this.configuration.encodeParam({name: "id", value: id, in: "path", style: "simple", explode: false, dataType: "number", dataFormat: "int32"})}`;
         const { basePath, withCredentials } = this.configuration;
-        return this.httpClient.request<MatchAndPlayerDto>('put', `${basePath}${localVarPath}`,
+        return this.httpClient.request<MatchPlayerSiteFieldDto>('put', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
                 body: matchPlayerDto,

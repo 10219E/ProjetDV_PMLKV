@@ -9,10 +9,14 @@
  */
 import { MatchPlayerDto } from './matchPlayerDto';
 import { MatchDto } from './matchDto';
+import { SiteDto } from './siteDto';
+import { FieldDto } from './fieldDto';
 
 
-export interface MatchAndPlayerDto { 
+export interface MatchPlayerSiteFieldDto { 
     player?: MatchPlayerDto;
     match?: MatchDto;
+    field?: FieldDto;
+    site?: SiteDto;
 }
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import {Observable, of} from 'rxjs';
 import { MatchControllerService } from '../api/api/matchController.service';
-import {MatchPlayerControllerService, MatchPlayerDto} from '../api';
+import {MatchPlayerControllerService, MatchPlayerDto, MatchPlayerSiteFieldDto} from '../api';
 import { MatchDto } from '../api/model/matchDto';
 import { AuthService } from './auth.service';
 import {catchError, map} from 'rxjs/operators';

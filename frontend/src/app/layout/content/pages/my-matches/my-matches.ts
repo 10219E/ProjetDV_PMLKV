@@ -4,12 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { NavMenu } from '../../nav-menu/nav-menu';
 import { HomeAccountHeader } from '../../header/header';
 import { MatchService } from '../../../../services/match.service';
-import { MatchPlayerDto } from '../../../../api/model/matchPlayerDto';
-import { MatchDto } from '../../../../api/model/matchDto';
-import { InfoService } from '../../../../services/info.service';
-import { SiteInfo } from '../../../../api/model/siteInfo';
-import { FieldService } from '../../../../services/field.service';
-import { FieldDto } from '../../../../api/model/fieldDto';
+import { MatchPlayerSiteFieldDto } from '../../../../api/model/matchPlayerSiteFieldDto';
 
 @Component({
   selector: 'app-my-matches',
@@ -18,17 +13,23 @@ import { FieldDto } from '../../../../api/model/fieldDto';
   templateUrl: './my-matches.html'
 })
 export class MyMatches implements OnInit {
-  matchPlayers: Array<{ match: MatchDto & { siteName?: string }, player: MatchPlayerDto }> = [];
+  matchPlayers: MatchPlayerSiteFieldDto[] = [];
   loading = false;
   error: string | null = null;
   userId: string | null = null;
+
+  // Status translations
+  private statusTranslations: Record<string, string> = {
+    approved: 'Confirmé',
+    pending: 'En attente',
+    declined: 'Rejeté',
+    invited: 'Invité'
+  };
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private matchService: MatchService,
-    private infoService: InfoService,
-    private fieldService: FieldService,
     private cd: ChangeDetectorRef
   ) {}
 
@@ -42,45 +43,21 @@ export class MyMatches implements OnInit {
   private loadMatches(matricule: string): void {
     this.loading = true;
     this.error = null;
+
     this.matchService.getMyMatches(matricule).subscribe({
-      next: (data: any) => {
-        const all: Array<{ match: MatchDto, player: MatchPlayerDto }> = Array.isArray(data) ? data : [];
+      next: (data: MatchPlayerSiteFieldDto[]) => {
+        // Directly use the data from the API response
+        this.matchPlayers = Array.isArray(data) ? data : [];
 
-        this.fieldService.fetchAllFields().subscribe({
-          next: (fields: FieldDto[]) => {
-            const fieldToSiteMap: Record<number, number> = {};
-            (fields || []).forEach(f => {
-              if (f?.fieldId != null && f?.siteId != null) fieldToSiteMap[f.fieldId] = f.siteId;
-            });
-
-            this.infoService.getSites().subscribe({
-              next: (sites: SiteInfo[]) => {
-                const siteMap: Record<number, string> = {};
-                (sites || []).forEach(s => {
-                  if (s?.siteId != null) siteMap[s.siteId] = (s.name ?? '').toString().trim() || '—';
-                });
-
-                this.matchPlayers = all.map(item => {
-                  const siteId = item.match?.fieldId != null ? fieldToSiteMap[item.match.fieldId] : undefined;
-                  const siteName = siteId != null ? (siteMap[siteId] ?? '—') : '—';
-                  return { match: { ...item.match, siteName }, player: item.player };
-                });
-                this.loading = false;
-                this.cd.detectChanges();
-              },
-              error: () => {
-                this.matchPlayers = all.map(item => ({ match: { ...item.match, siteName: '—' }, player: item.player }));
-                this.loading = false;
-                this.cd.detectChanges();
-              }
-            });
-          },
-          error: () => {
-            this.matchPlayers = all.map(item => ({ match: { ...item.match, siteName: '—' }, player: item.player }));
-            this.loading = false;
-            this.cd.detectChanges();
-          }
+        // Sort matches by date (closest first)
+        this.matchPlayers.sort((a, b) => {
+          const dateA = a.match?.matchDate ? new Date(a.match.matchDate).getTime() : Infinity;
+          const dateB = b.match?.matchDate ? new Date(b.match.matchDate).getTime() : Infinity;
+          return dateA - dateB;
         });
+
+        this.loading = false;
+        this.cd.detectChanges();
       },
       error: (err: any) => {
         this.error = err?.message || 'Erreur lors du chargement de vos matchs.';
@@ -107,34 +84,52 @@ export class MyMatches implements OnInit {
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
   }
 
-  matchType(mp: { match: MatchDto, player: MatchPlayerDto }): string {
+  matchType(mp: MatchPlayerSiteFieldDto): string {
     const type = mp.match?.type ?? '';
     if (type === 'public') return 'Public';
     if (type === 'private') return 'Privé';
     return type || '—';
   }
 
-  isPending(mp: { match: MatchDto, player: MatchPlayerDto }): boolean {
+  isPending(mp: MatchPlayerSiteFieldDto): boolean {
     return (mp.player?.status ?? '').toLowerCase() === 'pending';
   }
 
-  // Add this method to your MyMatches class
+  // Method to get status translation from the constructor
   getStatusTranslation(status?: string): string {
     if (!status) return '—';
 
     const lowerStatus = status.toLowerCase();
+    return this.statusTranslations[lowerStatus] ||
+           status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  }
 
-    switch (lowerStatus) {
-      case 'approved':
-        return 'Confirmé';
-      case 'pending':
-        return 'En attente';
-      case 'declined':
-        return 'Rejeté';
-      case 'invited':
-        return 'Invité';
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-    }
+  // Method to format match date
+  formatMatchDate(date?: string): string {
+    if (!date) return '—';
+    const d = new Date(date);
+    return d.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+
+  // Method to get match time range
+  getMatchTimeRange(match: MatchPlayerSiteFieldDto['match']): string {
+    const start = this.formatTime(match?.startTime);
+    const end = this.formatTime(match?.endTime);
+    return `${start} - ${end}`;
+  }
+
+  // Method to get field type
+  getFieldType(field: MatchPlayerSiteFieldDto['field']): string {
+    return field?.isIndoor ? 'Intérieur' : 'Extérieur';
+  }
+
+  // Method to get site name
+  getSiteName(site: MatchPlayerSiteFieldDto['site']): string {
+    return site?.name || '—';
   }
 }
