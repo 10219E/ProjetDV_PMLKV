@@ -37,7 +37,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/fscount").permitAll()
                         .requestMatchers("/api/sitelist").permitAll()
                         .requestMatchers("/api/identify").permitAll() //get user matricule by email for FE
-                        .requestMatchers("/api/matches/**").permitAll()
 
                         // OpenAPI / Swagger (permit in dev)
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**").permitAll()

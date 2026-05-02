@@ -15,6 +15,8 @@ import { UserFormComponent } from '../user-form/user-form';
 import { PayFormComponent } from '../pay-form/pay-form';
 import { PayService } from '../../../services/pay.service';
 import {FieldService} from '../../../services/field.service';
+import {SimpleInviteDto} from '../../../api';
+import {InviteService} from '../../../services/invite.service';
 
 
 @Component({
@@ -99,7 +101,7 @@ export class MatchForm implements OnInit {
   // DTO stored while waiting for payment
   private pendingDto: any | null = null;
 
-  constructor(private fieldService: FieldService, private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService) {}
+  constructor(private fieldService: FieldService, private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService, private inviteService: InviteService) {}
   // keep a direct reference to PayFormComponent to satisfy analyzers that the imported component is used
   // (template uses <app-pay-form> conditionally with @if which some static analyzers may not detect)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -778,7 +780,7 @@ export class MatchForm implements OnInit {
     this.inviteStates[index] = { status: 'checking' };
     this.cd.detectChanges();
 
-    // call UserService to lookup by email
+    // call InviteService to lookup by email
     try {
       // start watchdog timer BEFORE subscribing to avoid races with synchronous observables
       if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
@@ -800,7 +802,7 @@ export class MatchForm implements OnInit {
       }, 3000);
       this.inviteTimeouts[index] = watchdog();
 
-      sub = this.userService.getUserByEmail(email).pipe(finalize(() => {
+      sub = this.inviteService.getInviteByEmail(email).pipe(finalize(() => {
         // finalize: ensure timeout is cleared and spinner is not left running
         if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
         // if still checking (no next/error received), mark as not_found to stop spinner
@@ -815,7 +817,7 @@ export class MatchForm implements OnInit {
           this.cd.detectChanges();
         }
       })).subscribe({
-        next: (user) => {
+        next: (user: SimpleInviteDto) => {
           // user found -> if admin, disallow invite; otherwise accept
           const roleId = user?.roleId ?? null;
           if (roleId === 7 || roleId === 9) {
@@ -826,65 +828,27 @@ export class MatchForm implements OnInit {
               err['adminNotAllowed'] = true;
               control.setErrors(err);
             }
-            this.inviteStates[index] = { status: 'error', user };
-              // clear any pending timeout
-              if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+            this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
+            // clear any pending timeout
+            if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
             this.cd.detectChanges();
             return;
           }
-          // Block invites when the found user has an active penalty or an outstanding debt
-          try {
-            const acc = user?.account || {};
-            if ((acc.status || '').toString().toLowerCase() === 'debt' || (typeof acc.balance === 'number' && acc.balance < 0)) {
-              const control = this.getInviteControl(index);
-              if (control) {
-                const err = control.errors || {};
-                err['inviteNotAllowed'] = true;
-                control.setErrors(err);
-              }
-              this.inviteStates[index] = { status: 'error', user };
-              if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
-              this.cd.detectChanges();
-              return;
+
+          // Block invites when the found user has an active penalty
+          if (user.hasActivePenalties) {
+            const control = this.getInviteControl(index);
+            if (control) {
+              const err = control.errors || {};
+              err['inviteNotAllowed'] = true;
+              control.setErrors(err);
             }
-            const penalties = Array.isArray(user?.penalties) ? user.penalties : [];
-            const now = new Date();
-            for (const p of penalties) {
-              if (!p) continue;
-              if (p.isActive) {
-                if (p.startDate && p.endDate) {
-                  const s = new Date(p.startDate);
-                  const e = new Date(p.endDate);
-                  if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && now >= s && now <= e) {
-                    const control = this.getInviteControl(index);
-                    if (control) {
-                      const err = control.errors || {};
-                      err['inviteNotAllowed'] = true;
-                      control.setErrors(err);
-                    }
-                    this.inviteStates[index] = { status: 'error', user };
-                    if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
-                    this.cd.detectChanges();
-                    return;
-                  }
-                } else {
-                  const control = this.getInviteControl(index);
-                  if (control) {
-                    const err = control.errors || {};
-                    err['inviteNotAllowed'] = true;
-                    control.setErrors(err);
-                  }
-                  this.inviteStates[index] = { status: 'error', user };
-                  if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
-                  this.cd.detectChanges();
-                  return;
-                }
-              }
-            }
-          } catch (e) {
-            // if the check fails for any reason, fall back to allowing the invite (do not block)
-            console.warn('invite restriction check failed', e);
+            this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
+            if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+            this.cd.detectChanges();
+            return;
           }
+
           // otherwise user found -> keep email in control but store user (matricule) for later use
           // clear any adminNotAllowed error
           const control = this.getInviteControl(index);
@@ -894,7 +858,7 @@ export class MatchForm implements OnInit {
             delete errs['inviteNotAllowed'];
             if (Object.keys(errs).length === 0) control.setErrors(null); else control.setErrors(errs);
           }
-          this.inviteStates[index] = { status: 'found', user };
+          this.inviteStates[index] = { status: 'found', user: { matricule: user.matricule, email: user.email } };
           // re-run cross-field validation in case this email creates a duplicate/self-invite
           this.runInviteCrossValidation();
           // clear any pending timeout
