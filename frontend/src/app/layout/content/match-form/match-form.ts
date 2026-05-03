@@ -372,15 +372,6 @@ export class MatchForm implements OnInit {
                         }
                   const allowed = (this.sites || []).map(s => s.siteId).filter((id: any) => id !== undefined && id !== null);
                   this.loadFieldsForAllowedSites(allowed);
-
-                  // if only one site available, preselect and disable the control
-                  if (this.sites.length === 1) {
-                    const only = this.sites[0];
-                    this.form.get('siteId')?.setValue(only.siteId);
-                    this.form.get('siteId')?.disable();
-                  } else {
-                    this.form.get('siteId')?.enable();
-                  }
                 },
                 error: (err) => {
                   console.error('Failed to load sites for all-site user', err);
@@ -398,17 +389,7 @@ export class MatchForm implements OnInit {
                   this.currentUserRoleId = profile?.roleId ?? null;
               const userSites = (this.sites || []).map((s: any) => s.siteId).filter((id: any) => id !== undefined && id !== null);
               this.loadFieldsForAllowedSites(userSites);
-
-              if (this.sites.length === 1) {
-                const onlySite = this.sites[0];
-                this.form.get('siteId')?.setValue(onlySite.siteId);
-                this.form.get('siteId')?.disable();
-                // No need to call loadSessionsForPreselectedSite here since
-                // loadFieldsForAllowedSites will trigger the valueChanges handler
-                // which will load fields via getFieldsBySite
-              } else {
-                this.form.get('siteId')?.enable();
-              }
+              // Site selection and disabling is now handled within loadFieldsForAllowedSites
             }
           },
           error: (err) => {
@@ -434,9 +415,13 @@ export class MatchForm implements OnInit {
     if (allowedSiteIds.length === 1) {
       const only = Number(allowedSiteIds[0]);
       this.form.get('siteId')?.setValue(only);
+      this.form.get('siteId')?.disable();
       // this will trigger the valueChanges handler and load fields via getFieldsBySite
+    } else {
+      // For multiple sites, enable the site selection
+      this.form.get('siteId')?.enable();
+      // do not load fields until the user selects a site (valueChanges will handle it)
     }
-    // if multiple allowed sites, do not load fields until the user selects a site (valueChanges will handle it)
   }
 
 
