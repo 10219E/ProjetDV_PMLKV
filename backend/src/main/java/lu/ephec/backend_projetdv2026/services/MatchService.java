@@ -623,30 +623,37 @@ public class MatchService {
         // Check user is not already in another role in this match
         Optional<MatchPlayers> existingUserInMatch = jpaMatchPlayersRepo
                 .findByMatch_MatchIdAndUser_Matricule(matchId, userId);
-
-        if (existingUserInMatch.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "User " + userId + " is already assigned to role " + existingUserInMatch.get().getPlayerRole()
-                            + " in match " + matchId);
-        }
-
-        List<MatchPlayers> players = jpaMatchPlayersRepo.findByMatch_MatchId(matchId);
+        
         MatchPlayers slotToFill = null;
 
-        // For public matches: find first "pending" slot
-        if (match.getType().equals("public")) {
-            slotToFill = players.stream()
-                    .filter(p -> p.getStatus().equals("pending") && p.getUser() == null)
-                    .findFirst()
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
-                            "No available slots (pending) in public match " + matchId));
-        }
-        // For private matches: filling "declined" slots
-        else if (match.getType().equals("private")) {
-            slotToFill = players.stream()
-                    .filter(p -> p.getStatus().equals("declined"))
-                    .findFirst()
-                    .orElse(null);
+        if (existingUserInMatch.isPresent()) {
+            // Allow updating if the user has declined status
+            if (!existingUserInMatch.get().getStatus().equals("declined")) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "User " + userId + " is already assigned to role " + existingUserInMatch.get().getPlayerRole()
+                                + " in match " + matchId);
+            }
+            // If user has declined status, we'll update their existing record instead of creating a new one
+            slotToFill = existingUserInMatch.get();
+        } else {
+            List<MatchPlayers> players = jpaMatchPlayersRepo.findByMatch_MatchId(matchId);
+            slotToFill = null;
+
+            // For public matches: find first "pending" slot
+            if (match.getType().equals("public")) {
+                slotToFill = players.stream()
+                        .filter(p -> p.getStatus().equals("pending") && p.getUser() == null)
+                        .findFirst()
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
+                                "No available slots (pending) in public match " + matchId));
+            }
+            // For private matches: filling "declined" slots
+            else if (match.getType().equals("private")) {
+                slotToFill = players.stream()
+                        .filter(p -> p.getStatus().equals("declined"))
+                        .findFirst()
+                        .orElse(null);
+            }
         }
 
         if (slotToFill == null) {

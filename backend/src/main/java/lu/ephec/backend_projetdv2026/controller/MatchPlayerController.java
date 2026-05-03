@@ -1,10 +1,12 @@
 package lu.ephec.backend_projetdv2026.controller;
 
+import com.fasterxml.jackson.databind.deser.DataFormatReaders;
 import lu.ephec.backend_projetdv2026.dto.FieldDto;
 import lu.ephec.backend_projetdv2026.dto.SiteDto;
 import lu.ephec.backend_projetdv2026.dto.compodto.MatchPlayerSiteFieldDto;
 import lu.ephec.backend_projetdv2026.dto.MatchPlayerDto;
 import lu.ephec.backend_projetdv2026.dto.MatchDto;
+import lu.ephec.backend_projetdv2026.dto.compodto.DeclinedPlayersDto;
 import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.models.MatchPlayers;
 import lu.ephec.backend_projetdv2026.models.Site;
@@ -18,6 +20,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,13 +35,11 @@ public class MatchPlayerController {
     private final MatchService matchService;
     private static final Logger logger = LoggerFactory.getLogger(MatchPlayerController.class);
     private final SiteFieldsByMatchService siteFieldsByMatchService;
-    private final SiteService siteService;
 
     @Autowired
     public MatchPlayerController(MatchService matchService, SiteFieldsByMatchService siteFieldsByMatchService, SiteService siteService) {
         this.matchService = matchService;
         this.siteFieldsByMatchService = siteFieldsByMatchService;
-        this.siteService = siteService;
     }
 
     @PutMapping(value = "/decline/{userid}/{matchid}", produces = "application/json")
@@ -80,6 +83,60 @@ public class MatchPlayerController {
 
         return details;
     }
+    
+    @GetMapping(value = "/hasdeclined/{organiserId}", produces = "application/json")
+    public ResponseEntity<List<DeclinedPlayersDto>> hasDeclinedMatches(@PathVariable String organiserId) {
+        logger.info("[MatchPlayerController] Checking if any match invitations have been declined for organiser {}", organiserId);
+        
+        try {
+            // Get all matches organized by this user
+            List<Match> organiserMatches = matchService.fetchByOrganiser(organiserId);
+            
+            if (organiserMatches == null || organiserMatches.isEmpty()) {
+                logger.info("[MatchPlayerController] Organiser {} has no matches", organiserId);
+                return ResponseEntity.ok(Collections.emptyList());
+            }
+            
+            // Collect all declined players from all matches organized by this user
+            List<DeclinedPlayersDto> allDeclinedPlayers = new ArrayList<>();
+            
+            for (Match match : organiserMatches) {
+                List<MatchPlayers> players = matchService.fetchAllForMatch(match.getMatchId());
+                
+                // Find declined players and add them to the result list
+                List<DeclinedPlayersDto> declinedPlayers = players.stream()
+                        .filter(mp -> "declined".equalsIgnoreCase(mp.getStatus()))
+                        .map(mp -> new DeclinedPlayersDto(
+                                mp.getUser().getMatricule(),
+                                mp.getUser().getFirstName() + " " + mp.getUser().getLastName(),
+                                mp.getPlayerRole(),
+                                mp.getStatus()))
+                        .collect(Collectors.toList());
+                
+                allDeclinedPlayers.addAll(declinedPlayers);
+            }
+            
+            logger.info("[MatchPlayerController] Found {} declined players across all matches for organiser {}", 
+                    allDeclinedPlayers.size(), organiserId);
+            
+            return ResponseEntity.ok(allDeclinedPlayers);
+            
+        } catch(Exception ex) {
+            logger.error("[MatchPlayerController] Error fetching declined matches for organiser {}: {}", 
+                    organiserId, ex.getMessage());
+            return ResponseEntity.status(500).body(Collections.emptyList());
+        }
+    }
+    
+    /*@GetMapping(value = "/players/{matchid}", produces = "application/json")
+    public ResponseEntity<List<MatchPlayerDto>> getPlayersForMatch(@PathVariable Integer matchid) {
+        logger.info("[MatchPlayerController] Fetching players for match with ID {}", matchid);
+        List<MatchPlayerDto> players = matchService.fetchAllForMatch(matchid).stream()
+                .map(MatchPlayerDto::fromEntity)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(players);
+    }*/
+    
 
     @GetMapping(value = "/mymatches/{userMatricule}", produces = "application/json")
     public ResponseEntity<List<MatchPlayerSiteFieldDto>> getMyMatches(@PathVariable String userMatricule) {
@@ -156,4 +213,6 @@ public class MatchPlayerController {
                 })
                 .collect(Collectors.toList()));
     }
+
+
 }
