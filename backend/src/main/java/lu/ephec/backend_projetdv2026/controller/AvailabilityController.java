@@ -37,13 +37,8 @@ public class AvailabilityController {
      * @param date The date to check availability (format: yyyy-MM-dd)
      * @return ResponseEntity containing the availability information
      */
-    @Operation(summary = "Get available sessions for a field on a specific date")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved available sessions"),
-            @ApiResponse(responseCode = "400", description = "Invalid input parameters"),
-            @ApiResponse(responseCode = "404", description = "Site or field not found")
-    })
-    @GetMapping("/{siteId}/{fieldId}")
+
+    @GetMapping(value = "/{siteId}/{fieldId}", produces = "application/json")
     public ResponseEntity<AvailabilityDto> getAvailableSessions(
             @Parameter(description = "ID of the site", required = true)
             @PathVariable Integer siteId,
@@ -95,16 +90,11 @@ public class AvailabilityController {
      * @param siteId The ID of the site
      * @param fieldId The ID of the field
      * @param startDate The start date of the range (format: yyyy-MM-dd)
-     * @param endDate The end date of the range (format: yyyy-MM-dd)
+     * @param range (in days) from startDate
      * @return ResponseEntity containing a list of available dates
      */
-    @Operation(summary = "Get available dates for a field within a date range")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved available dates"),
-            @ApiResponse(responseCode = "400", description = "Invalid input parameters"),
-            @ApiResponse(responseCode = "404", description = "Site or field not found")
-    })
-    @GetMapping("/dates/{siteId}/{fieldId}")
+
+    @GetMapping(value = "/dates/{siteId}/{fieldId}", produces = "application/json")
     public ResponseEntity<List<LocalDate>> getAvailableDates(
             @Parameter(description = "ID of the site", required = true)
             @PathVariable Integer siteId,
@@ -116,12 +106,14 @@ public class AvailabilityController {
                     schema = @Schema(type = "string", format = "date", example = "2023-12-25"))
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
 
-            @Parameter(description = "End date of the range (format: yyyy-MM-dd)", required = true,
-                    schema = @Schema(type = "string", format = "date", example = "2023-12-31"))
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @Parameter(description = "Number of days from start date", required = true,
+                    schema = @Schema(type = "number", example = "7"))
+            @PathVariable Integer range) {
 
         logger.info("Starting getAvailableDates for siteId: {}, fieldId: {}, startDate: {}, endDate: {}",
-                siteId, fieldId, startDate, endDate);
+                siteId, fieldId, startDate, range);
+
+        LocalDate endDate = startDate.plusDays(range);
 
         try {
             // Validate date range
