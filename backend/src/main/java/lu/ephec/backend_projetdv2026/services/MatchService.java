@@ -63,26 +63,20 @@ public class MatchService {
         // Get all public and private matches
         List<Match> matchList = new ArrayList<>();
 
-        Match allpublic = jpaMatchRepo.findByType("public").stream()
+        List<Match> publicMatches = jpaMatchRepo.findByType("public").stream()
                 .filter(match ->
                         !"cancelled".equals(match.getPubStatus()) &&
                         !"completed".equals(match.getPubStatus()))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "No public matches found for user: " + userId));
+                .collect(Collectors.toList());
 
-        Match allprivate = jpaMatchRepo.findByType("private").stream()
+        List<Match> privateMatches = jpaMatchRepo.findByType("private").stream()
                 .filter(match ->
                         !"cancelled".equals(match.getPrivStatus()) &&
                         !"completed".equals(match.getPrivStatus()))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "No private matches found for user: " + userId));
+                .collect(Collectors.toList());
 
-        try {matchList.add(allprivate);
-        matchList.add(allpublic);} catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        matchList.addAll(publicMatches);
+        matchList.addAll(privateMatches);
 
         // Get matches where user is registered
         List<MatchPlayers> myregistered = jpaMatchPlayersRepo.findByUser_Matricule(userId);
