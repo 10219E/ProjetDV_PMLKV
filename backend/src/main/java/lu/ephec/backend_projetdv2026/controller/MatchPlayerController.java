@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,15 +39,19 @@ public class MatchPlayerController {
         this.siteService = siteService;
     }
 
-    @PostMapping(value = "/decline/{userid}/{matchid}", produces = "application/json")
-    public ResponseEntity<String> declineMatch(@PathVariable Integer matchid, @PathVariable String userid) {
+    @PutMapping(value = "/decline/{userid}/{matchid}", produces = "application/json")
+    public ResponseEntity<Map<String, String>> declineMatch(@PathVariable Integer matchid, @PathVariable String userid) {
         logger.info("[MatchPlayerController] Decline match request received for match ID: {}", matchid);
         try {
             matchService.declineMatchPlayer(matchid, userid);
-            return ResponseEntity.ok("Match declined successfully");
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Match declined successfully");
+            return ResponseEntity.ok(response);
         } catch (Exception ex) {
             logger.error("[MatchPlayerController] Error declining match with ID {}: {}", matchid, ex.getMessage());
-            return ResponseEntity.status(500).body("Error declining match: " + ex.getMessage());
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Error declining match: " + ex.getMessage());
+            return ResponseEntity.status(500).body(errorResponse);
         }
     }
 

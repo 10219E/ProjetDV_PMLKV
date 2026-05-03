@@ -39,13 +39,22 @@
                           [class.bg-purple-500]="mp.match?.type !== 'public'">
                       {{ matchType(mp) }}
                     </span>
-                    <span class="px-2 py-0.5 rounded text-xs font-medium"
-                          [class.bg-yellow-100]="isPending(mp)"
-                          [class.text-yellow-700]="isPending(mp)"
-                          [class.bg-green-100]="!isPending(mp)"
-                          [class.text-green-700]="!isPending(mp)">
-                      {{ getStatusTranslation(mp.player?.status) }}
-                    </span>
+                    @if (mp.player?.status === 'declined') {
+                      <span class="px-2 py-0.5 rounded text-xs font-medium"
+                            [class.bg-red-100]="!isPending(mp)"
+                            [class.text-black-700]="!isPending(mp)">
+                        {{ getStatusTranslation(mp.player?.status) }}
+                        </span>
+                    } @else {
+                      <span class="px-2 py-0.5 rounded text-xs font-medium"
+                            [class.bg-yellow-100]="isPending(mp)"
+                            [class.text-yellow-700]="isPending(mp)"
+                            [class.bg-green-100]="!isPending(mp)"
+                            [class.text-green-700]="!isPending(mp)">
+                        {{ getStatusTranslation(mp.player?.status) }}
+                        </span>
+                    }
+
                   </div>
                 </div>
                 @if (isPending(mp)) {

@@ -111,6 +111,15 @@ export class PayService {
 
 	return null;
   }
+
+  // Cancel a payment by setting its status to 'cancelled'
+  cancelPayment(paymentId: number): Observable<any> {
+	this._setAuthHeaderOnApiService();
+	const paymentDto: MatchPaymentDto = {
+	  status: 'cancelled'
+	};
+	return this.updatePayment(paymentId, paymentDto);
+  }
 }
 
 

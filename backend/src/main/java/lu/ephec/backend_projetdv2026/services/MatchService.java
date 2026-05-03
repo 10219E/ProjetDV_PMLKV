@@ -573,13 +573,11 @@ public class MatchService {
                     "User " + userId + " is not in match " + matchId);
         }
 
-        //set the fields
-        MatchPlayers matchPlayer = new MatchPlayers();
-        matchPlayer.setMatch(match);
-        matchPlayer.setUser(user);
-        matchPlayer.setStatus("declined");
+        // Update the existing player's status to declined
+        MatchPlayers existingPlayer = existingUserInMatch.get();
+        existingPlayer.setStatus("declined");
 
-        return jpaMatchPlayersRepo.save(matchPlayer);
+        return jpaMatchPlayersRepo.save(existingPlayer);
     }
 
     // UPDATE PLAYER TO MATCH -- autohandling of available role
