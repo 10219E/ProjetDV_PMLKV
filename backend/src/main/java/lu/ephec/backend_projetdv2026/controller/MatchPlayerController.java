@@ -38,6 +38,18 @@ public class MatchPlayerController {
         this.siteService = siteService;
     }
 
+    @PostMapping(value = "/decline/{userid}/{matchid}", produces = "application/json")
+    public ResponseEntity<String> declineMatch(@PathVariable Integer matchid, @PathVariable String userid) {
+        logger.info("[MatchPlayerController] Decline match request received for match ID: {}", matchid);
+        try {
+            matchService.declineMatchPlayer(matchid, userid);
+            return ResponseEntity.ok("Match declined successfully");
+        } catch (Exception ex) {
+            logger.error("[MatchPlayerController] Error declining match with ID {}: {}", matchid, ex.getMessage());
+            return ResponseEntity.status(500).body("Error declining match: " + ex.getMessage());
+        }
+    }
+
     @PutMapping(value = "/{id}", produces = "application/json")
     public MatchPlayerSiteFieldDto updateMatchPlayer(@PathVariable Integer id, @RequestBody MatchPlayerDto matchPlayerDto) {
         if (!id.equals(matchPlayerDto.getMatch().getMatchId())) {

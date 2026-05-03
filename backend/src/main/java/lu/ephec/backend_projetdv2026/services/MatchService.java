@@ -552,6 +552,36 @@ public class MatchService {
         return players;
     }
 
+    //DECLINE MATCH PLAYER
+    @Transactional
+    public MatchPlayers declineMatchPlayer(Integer matchId, String userId) {
+        ValidationBoiler.verifyNotNull(matchId, "Match ID");
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        //ValidationBoiler.verifyExists(jpaMatchRepo.existsById(matchId), "Match", matchId);
+        //ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        //assign required variables
+        var user = jpaUserRepo.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found with id: " + userId));
+        var match = jpaMatchRepo.findById(matchId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found with id: " + matchId));
+
+        // Check user is in this match
+        Optional<MatchPlayers> existingUserInMatch = jpaMatchPlayersRepo
+                .findByMatch_MatchIdAndUser_Matricule(matchId, userId);
+
+        if (!existingUserInMatch.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "User " + userId + " is not in match " + matchId);
+        }
+
+        //set the fields
+        MatchPlayers matchPlayer = new MatchPlayers();
+        matchPlayer.setMatch(match);
+        matchPlayer.setUser(user);
+        matchPlayer.setStatus("declined");
+
+        return jpaMatchPlayersRepo.save(matchPlayer);
+    }
+
     // UPDATE PLAYER TO MATCH -- autohandling of available role
     // For public matches: fills the first available "pending" slot
     // For private matches: can replace "declined" players
