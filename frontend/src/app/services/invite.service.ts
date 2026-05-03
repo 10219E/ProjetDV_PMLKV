@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { MatchPaymentControllerService } from '../api/api/matchPaymentController.service';
+import { MatchPlayerControllerService } from '../api/api/matchPlayerController.service';
 import { InvitesDto } from '../api/model/invitesDto';
 import { AuthService } from './auth.service';
 import { SessionService } from './session.service';
@@ -9,16 +10,21 @@ import {SimpleInviteDto, UserControllerService} from '../api';
 
 @Injectable({ providedIn: 'root' })
 export class InviteService {
-  constructor(private userControllerService : UserControllerService, private matchPaymentService: MatchPaymentControllerService, private auth: AuthService, private sessionService: SessionService) {}
+  constructor(private userControllerService : UserControllerService, private matchPaymentService: MatchPaymentControllerService, private matchPlayerService: MatchPlayerControllerService, private auth: AuthService, private sessionService: SessionService) {}
 
   private _setAuthHeaderOnApiService(): void {
 	try {
 	  this.sessionService.setAuthHeader(this.matchPaymentService);
 	} catch (e) {
-	  const token = this.auth.getToken();
-	  if (token && this.matchPaymentService && this.matchPaymentService.defaultHeaders && this.matchPaymentService.defaultHeaders.set) {
-		this.matchPaymentService.defaultHeaders = this.matchPaymentService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-	  }
+	  // ignore
+	}
+  }
+
+  private _setAuthHeaderOnMatchPlayerService(): void {
+	try {
+	  this.sessionService.setAuthHeader(this.matchPlayerService);
+	} catch (e) {
+	  // ignore
 	}
   }
 
@@ -39,6 +45,11 @@ export class InviteService {
 		return throwError(() => err);
 	  })
 	);
+  }
+
+  declineMatch(matchId: number, userId: string): Observable<{ [p: string]: string }> {
+	this._setAuthHeaderOnMatchPlayerService();
+	return this.matchPlayerService.declineMatch(matchId, userId);
   }
 }
 

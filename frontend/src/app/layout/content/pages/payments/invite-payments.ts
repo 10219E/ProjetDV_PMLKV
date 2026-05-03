@@ -30,6 +30,10 @@ export class InvitePaymentsPage implements OnInit {
   payAmount = 0;
   selectedPayment: InvitesDto | null = null;
 
+  // decline confirmation state
+  showDeclineConfirm = false;
+  paymentToDecline: InvitesDto | null = null;
+
   constructor(
 	private route: ActivatedRoute,
 	private router: Router,
@@ -91,9 +95,68 @@ export class InvitePaymentsPage implements OnInit {
 	this.cd.detectChanges();
   }
 
-  decline(_payment: InvitesDto) {
-	// no-op for now
-	console.log('Decline (not implemented)');
+  decline(payment: InvitesDto) {
+	this.paymentToDecline = payment;
+	this.showDeclineConfirm = true;
+	this.cd.detectChanges();
+  }
+
+  confirmDecline() {
+	if (!this.paymentToDecline) return;
+
+	const payment = this.paymentToDecline;
+	const matchId = payment.match?.matchId;
+	const userId = this.route.snapshot.paramMap.get('userId');
+
+	if (!matchId || !userId) {
+	  this.error = 'Impossible de décliner cette invitation.';
+	  this.showDeclineConfirm = false;
+	  this.cd.detectChanges();
+	  return;
+	}
+
+	// First, cancel the payment if it exists
+	if (payment.payment?.tr) {
+	  this.payService.cancelPayment(payment.payment.tr).subscribe({
+		next: () => {
+		  // Payment cancelled, now decline the match
+		  this.declineMatchInvitation(matchId, userId, payment);
+		},
+		error: (err) => {
+		  console.error('Failed to cancel payment', err);
+		  this.error = 'Erreur lors de l\'annulation du paiement.';
+		  this.showDeclineConfirm = false;
+		  this.cd.detectChanges();
+		}
+	  });
+	} else {
+	  // No payment to cancel, just decline the match
+	  this.declineMatchInvitation(matchId, userId, payment);
+	}
+  }
+
+  private declineMatchInvitation(matchId: number, userId: string, payment: InvitesDto) {
+	this.inviteService.declineMatch(matchId, userId).subscribe({
+	  next: () => {
+		// Successfully declined, remove from list
+		this.payments = this.payments.filter(p => p !== payment);
+		this.showDeclineConfirm = false;
+		this.paymentToDecline = null;
+		this.cd.detectChanges();
+	  },
+	  error: (err) => {
+		console.error('Failed to decline match', err);
+		this.error = err?.message || 'Erreur lors du refus de l\'invitation.';
+		this.showDeclineConfirm = false;
+		this.cd.detectChanges();
+	  }
+	});
+  }
+
+  cancelDecline() {
+	this.showDeclineConfirm = false;
+	this.paymentToDecline = null;
+	this.cd.detectChanges();
   }
 
   onPaymentCompleted(evt: { amount: number; cardLast4?: string }) {

@@ -6,6 +6,7 @@ import {MatchPlayerControllerService, MatchPlayerDto, MatchPlayerSiteFieldDto} f
 import { MatchDto } from '../api/model/matchDto';
 import { MatchSiteFieldDto} from '../api/model/matchSiteFieldDto';
 import { MatchCreationDto } from '../api/model/matchCreationDto';
+import { DeclinedPlayersDto } from '../api/model/declinedPlayersDto';
 import { AuthService } from './auth.service';
 import {catchError, map} from 'rxjs/operators';
 
@@ -102,12 +103,30 @@ export class MatchService {
     );
   }
 
-  // Ensure Authorization header is set on the generated client from AuthService token
+  // Check if user is organiser of any matches with declined players
+  getOrganiserMatchesWithDeclinedPlayers(organiserId: string): Observable<DeclinedPlayersDto[]> {
+    this.setAuthHeader();
+    return this.matchPlayerControllerService.hasDeclinedMatches(organiserId).pipe(
+      map((data: DeclinedPlayersDto[]) => Array.isArray(data) ? data : []),
+      catchError((error) => {
+        if (error.status === 404) return of([]);
+        throw error;
+      })
+    );
+  }
+
+  // Normalized setAuthHeader method
   private setAuthHeader(): void {
-    const token = this.authService.getToken();
-    if (token) {
-      this.matchControllerService.defaultHeaders = this.matchControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-      this.matchPlayerControllerService.defaultHeaders = this.matchPlayerControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+    try {
+      const token = this.authService.getToken();
+      if (token && this.matchControllerService && this.matchControllerService.defaultHeaders && this.matchControllerService.defaultHeaders.set) {
+        this.matchControllerService.defaultHeaders = this.matchControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      }
+      if (token && this.matchPlayerControllerService && this.matchPlayerControllerService.defaultHeaders && this.matchPlayerControllerService.defaultHeaders.set) {
+        this.matchPlayerControllerService.defaultHeaders = this.matchPlayerControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      }
+    } catch (e) {
+      // ignore
     }
   }
 }

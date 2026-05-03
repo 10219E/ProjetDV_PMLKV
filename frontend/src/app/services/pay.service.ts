@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 // HttpHeaders removed — not used in this service
 import { Observable, forkJoin, of, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { MatchPaymentControllerService } from '../api/api/matchPaymentController.service';
 import { MatchPaymentDto } from '../api/model/matchPaymentDto';
@@ -16,11 +15,7 @@ export class PayService {
 	try {
 	  this.sessionService.setAuthHeader(this.matchPaymentService);
 	} catch (e) {
-	  // fallback: also try direct set
-	  const token = this.auth.getToken();
-	  if (token && this.matchPaymentService && this.matchPaymentService.defaultHeaders && this.matchPaymentService.defaultHeaders.set) {
-		this.matchPaymentService.defaultHeaders = this.matchPaymentService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-	  }
+	  // ignore
 	}
   }
 
@@ -110,6 +105,15 @@ export class PayService {
 	}
 
 	return null;
+  }
+
+  // Cancel a payment by setting its status to 'cancelled'
+  cancelPayment(paymentId: number): Observable<any> {
+	this._setAuthHeaderOnApiService();
+	const paymentDto: MatchPaymentDto = {
+	  status: 'cancelled'
+	};
+	return this.updatePayment(paymentId, paymentDto);
   }
 }
 

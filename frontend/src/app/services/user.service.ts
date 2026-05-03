@@ -48,11 +48,15 @@ export class UserService {
     return this.userControllerService.getAllUsers();
   }
 
-  // Ensures Authorization header is set from AuthService token before calling the generated client.
+  // Normalized setAuthHeader method
   private setAuthHeader(): void {
-    const token = this.authService.getToken();
-    if (token) {
-      this.userControllerService.defaultHeaders = this.userControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+    try {
+      const token = this.authService.getToken();
+      if (token && this.userControllerService && this.userControllerService.defaultHeaders && this.userControllerService.defaultHeaders.set) {
+        this.userControllerService.defaultHeaders = this.userControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      }
+    } catch (e) {
+      // ignore
     }
   }
 
