@@ -4,14 +4,23 @@ import { catchError, map } from 'rxjs/operators';
 import { FieldControllerService } from '../api/api/fieldController.service';
 import { SiteControllerService } from '../api/api/siteController.service';
 import { AuthService } from './auth.service';
-import {FieldDto} from '../api';
+import { AvailabilityControllerService } from '../api/api/availabilityController.service';
+import { AvailabilityDto, SessionDto } from '../api';
 
 @Injectable({ providedIn: 'root' })
 export class SessionService {
   // Cache per-site: store original normalized sessions so we can hide/restore them when date is cleared/set
   private siteCache = new Map<number, { original: any[] | null }>();
 
-  constructor(private fieldService: FieldControllerService, private siteService: SiteControllerService, private authService: AuthService) {}
+  // Cache for available dates to avoid repeated API calls
+  private datesCache = new Map<string, { dates: string[] | null, timestamp: number }>();
+
+  constructor(
+    private fieldService: FieldControllerService,
+    private siteService: SiteControllerService,
+    private authService: AuthService,
+    private availabilityService: AvailabilityControllerService
+  ) {}
 
   // Public helper to set Authorization header on generated API services when needed
   public setAuthHeader(service: any): void {
@@ -25,28 +34,36 @@ export class SessionService {
     }
   }
 
-  // Load sessions for a site, normalize them for UI and apply the "hide when no date" behavior.
-  public loadSessionsForSite(siteId: number, matchDate?: string | null): Observable<any[]> {
-    try { this.setAuthHeader(this.siteService); } catch (e) { }
-    return this.siteService.getSiteById(siteId).pipe(
-      map((site: any) => (site && site.sessions) ? (site.sessions as any[]) : []),
-      map((rawSessions: any[]) => rawSessions.map(s => this.normalizeSessionForUi(s))),
+  // Load sessions for a field, normalize them for UI and apply the "hide when no date" behavior.
+  public loadSessionsForField(siteId: number, fieldId: number, matchDate?: string | null): Observable<any[]> {
+    try { this.setAuthHeader(this.availabilityService); } catch (e) { }
+
+    if (!matchDate) {
+      // If no date is provided, hide sessions by returning empty array
+      const cached = this.siteCache.get(siteId);
+      if (!cached) {
+        // If not cached, we'll need to fetch sessions when date is set
+        this.siteCache.set(siteId, { original: null });
+      }
+      return of([]);
+    }
+
+    // When date is provided, check if we have cached sessions
+    const cached = this.siteCache.get(siteId);
+    if (cached && cached.original) {
+      // If we have cached sessions, return them and clear the cache
+      const orig = cached.original;
+      this.siteCache.delete(siteId);
+      return of([...orig]);
+    }
+
+    // Otherwise, fetch fresh sessions from the availability service
+    return this.availabilityService.getAvailableSessions(siteId, fieldId, matchDate).pipe(
+      map((availability: AvailabilityDto) => availability.availableSessions || []),
+      map((sessions: SessionDto[]) => sessions.map(s => this.normalizeSessionForUi(s))),
       map((normalized: any[]) => {
-        const cached = this.siteCache.get(siteId);
-        if (!matchDate) {
-          // hide sessions: cache original if not cached and return empty
-          if (!cached) {
-            this.siteCache.set(siteId, { original: normalized });
-          }
-          return [];
-        }
-        // matchDate provided: if we have cached original sessions, restore and clear cache (to mirror previous behavior)
-        if (cached && cached.original && cached.original.length > 0) {
-          const orig = cached.original;
-          this.siteCache.delete(siteId);
-          return [...orig];
-        }
-        // otherwise return freshly fetched normalized sessions
+        // Cache the normalized sessions for potential future use
+        this.siteCache.set(siteId, { original: normalized });
         return normalized;
       }),
       catchError((err) => {
@@ -56,60 +73,51 @@ export class SessionService {
     );
   }
 
-  // Use a provided site object (for cases where the user profile included site.sessions)
-  public loadSessionsFromSiteObject(site: any, matchDate?: string | null): Observable<any[]> {
-    if (!site) return of([]);
-    const siteId = Number(site.siteId);
-    const raw = site.sessions || [];
-    const normalized = (raw as any[]).map(s => this.normalizeSessionForUi(s));
-    const cached = this.siteCache.get(siteId);
-    if (!matchDate) {
-      if (!cached) this.siteCache.set(siteId, { original: normalized });
-      return of([]);
+  // Get available dates for a site and field based on user role
+  public getAvailableDates(siteId: number, fieldId: number, startDate: string, roleId: number): Observable<string[]> {
+    try { this.setAuthHeader(this.availabilityService); } catch (e) { }
+
+    // Create a cache key based on the parameters
+    const cacheKey = `${siteId}-${fieldId}-${startDate}-${roleId}`;
+
+    // Check if we have a valid cached response (less than 5 minutes old)
+    const cached = this.datesCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < 300000) {
+      return of(cached.dates || []);
     }
-    if (cached && cached.original && cached.original.length > 0) {
-      const orig = cached.original;
-      this.siteCache.delete(siteId);
-      return of([...orig]);
-    }
-    return of(normalized);
+
+    return this.availabilityService.getAvailableDates(siteId, fieldId, startDate, roleId).pipe(
+      map((dates: string[]) => {
+        // Cache the response with a timestamp
+        this.datesCache.set(cacheKey, { dates, timestamp: Date.now() });
+        return dates;
+      }),
+      catchError((err) => {
+        console.error('SessionService.getAvailableDates error', err);
+        return of([]);
+      })
+    );
   }
 
   // Convenience wrapper used when date input changes
-  public onDateChange(siteId: number, matchDate?: string | null): Observable<any[]> {
-    if (!siteId) return of([]);
-    return this.loadSessionsForSite(siteId, matchDate);
-  }
-
-  // Find a session by its _start label in an array of normalized sessions
-  public findSessionInArray(sessions: any[] | undefined | null, startHHMM: string): any | null {
-    if (!sessions || !startHHMM) return null;
-    return (sessions || []).find(s => s && s._start === startHHMM) || null;
+  public onDateChange(siteId: number, fieldId: number, matchDate?: string | null): Observable<any[]> {
+    if (!siteId || !fieldId) return of([]);
+    return this.loadSessionsForField(siteId, fieldId, matchDate);
   }
 
   // Convert raw session object into UI-friendly shape (_start/_end/label)
-  private normalizeSessionForUi(s: any): any {
+  private normalizeSessionForUi(s: SessionDto): any {
     const out: any = { ...s };
-    let startTimeStr = s.start_time || null;
-    let endTimeStr = s.end_time || null;
-    if (s.startedAt && !startTimeStr) {
-      const startDate = new Date(s.startedAt);
-      if (!isNaN(startDate.getTime())) {
-        startTimeStr = this.formatTimeHHMM(startDate);
-      }
-    }
-    if (s.endedAt && !endTimeStr) {
-      const endDate = new Date(s.endedAt);
-      if (!isNaN(endDate.getTime())) {
-        endTimeStr = this.formatTimeHHMM(endDate);
-      }
-    }
+    let startTimeStr = s.startTime?.toString() || null;
+    let endTimeStr = s.endTime?.toString() || null;
+
     if (startTimeStr && startTimeStr.includes(':')) {
       startTimeStr = startTimeStr.split(':').slice(0, 2).join(':');
     }
     if (endTimeStr && endTimeStr.includes(':')) {
       endTimeStr = endTimeStr.split(':').slice(0, 2).join(':');
     }
+
     out._start = startTimeStr;
     out._end = endTimeStr;
     out.label = out._start ? `${out._start}` : `Slot ${out.match_set_id ?? out.sessionId ?? ''}`;

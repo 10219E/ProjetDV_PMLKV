@@ -26,15 +26,7 @@ public class AvailabilityController {
         this.availabilityService = availabilityService;
     }
 
-    /**
-     * Get available sessions for a field on a specific date
-     *
-     * @param siteId The ID of the site
-     * @param fieldId The ID of the field
-     * @param date The date to check availability (format: yyyy-MM-dd)
-     * @return ResponseEntity containing the availability information
-     */
-
+   //Get available sessions for a field on a specific date, it checks which sessions are already booked
     @GetMapping(value = "/{siteId}/{fieldId}", produces = "application/json")
     public ResponseEntity<AvailabilityDto> getAvailableSessions(
             @Parameter(description = "ID of the site", required = true)
@@ -81,16 +73,7 @@ public class AvailabilityController {
         }
     }
 
-    /**
-     * Get available dates for a field within a date range
-     *
-     * @param siteId The ID of the site
-     * @param fieldId The ID of the field
-     * @param startDate The start date of the range (format: yyyy-MM-dd)
-     * @param range (in days) from startDate
-     * @return ResponseEntity containing a list of available dates
-     */
-
+  //Get available dates based on role (to avoid over loading the system with too many requests for availability sessions when users want to book far in advance)
     @GetMapping(value = "/dates/{siteId}/{fieldId}", produces = "application/json")
     public ResponseEntity<List<LocalDate>> getAvailableDates(
             @Parameter(description = "ID of the site", required = true)
@@ -103,17 +86,19 @@ public class AvailabilityController {
                     schema = @Schema(type = "string", format = "date", example = "2023-12-25"))
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
 
-            @Parameter(description = "Number of days from start date", required = true)
+            @Parameter(description = "User roleId to calculate reservation", required = true)
             @RequestParam Integer roledId
     ){
 
         try {
              if (roledId != null) {
-                logger.warn("Role ID has been provided.");
+                logger.info("Role ID has been provided.");
         }} catch (Exception e) {
             logger.error("Error validating role ID: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
         }
+
+        startDate = startDate.plusDays(2); //we need to allow 2 days buffer to not mess with scheduler logic
 
         // 0 = invite (Membre externe invité) -> max 5 days
         // 1 = subscribed (Membre with subscription to at least one site) -> max 14 days
@@ -127,6 +112,7 @@ public class AvailabilityController {
         if (roledId == 2) {range = 21;}
         if (roledId == 7 || roledId == 9) {range = 90;}
 
+        range = range -1; //to account for binary logic - counting from 0
         LocalDate endDate = startDate.plusDays(range);
 
         try {
@@ -141,7 +127,7 @@ public class AvailabilityController {
 
 
             // Calculate the number of days in the range
-            long days = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate) + 1;
+            long days = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate) + 1; // +1 to include endDate
             logger.debug("Checking {} days in range", days);
 
             // Check each date in the range for availability

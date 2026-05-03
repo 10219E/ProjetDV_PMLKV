@@ -8,7 +8,7 @@ import { SiteControllerService } from '../../../api/api/siteController.service';
 import { AuthService } from '../../../services/auth.service';
 import { UserService } from '../../../services/user.service';
 import { SessionService } from '../../../services/session.service';
-import { AvailabilityService } from '../../../services/availability.service';
+import { AvailabilityControllerService } from '../../../api/api/availabilityController.service';
 import { Router } from '@angular/router';
 import { MatchCal } from '../match-cal/match-cal';
 import { UserFormComponent } from '../user-form/user-form';
@@ -71,11 +71,9 @@ export class MatchForm implements OnInit {
   tempSelectedDate: Date | null = null;
   dateReadOnly = false;
 
-  // sessions for the currently selected site (normalized for UI: _start/_end labels)
-  sessionsForSite: any[] = [];
+  // sessions for the currently selected Field (normalized for UI: _start/_end labels)
+  sessionsForField: any[] = [];
   private updatingFromSession = false;
-  // Fully booked dates for the calendar (Set of YYYY-MM-DD)
-  fullyBookedDates: Set<string> = new Set();
 
   // per-invite validation state (idle, checking, found, not_found, error)
   inviteStates: Array<{ status: 'idle' | 'checking' | 'found' | 'not_found' | 'error', user?: any }> = [
@@ -101,7 +99,7 @@ export class MatchForm implements OnInit {
   // DTO stored while waiting for payment
   private pendingDto: any | null = null;
 
-  constructor(private fieldService: FieldService, private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService, private inviteService: InviteService) {}
+  constructor(private fieldService: FieldService, private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityControllerService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService, private inviteService: InviteService) {}
   // keep a direct reference to PayFormComponent to satisfy analyzers that the imported component is used
   // (template uses <app-pay-form> conditionally with @if which some static analyzers may not detect)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -225,7 +223,7 @@ export class MatchForm implements OnInit {
         // disable invite inputs when no site selected
         invitesArray.controls.forEach(control => { control.disable(); control.updateValueAndValidity(); });
         this.fields = [];
-        this.sessionsForSite = [];
+        this.sessionsForField = [];
         // clear date and times when site is deselected
         this.form.get('matchDate')?.setValue(null);
         this.form.get('startTime')?.setValue(null);
@@ -241,7 +239,7 @@ export class MatchForm implements OnInit {
       this.form.get('endTime')?.setValue(null);
       // clear selected field and sessions so user picks a field for the new site
       this.form.get('fieldId')?.setValue(null);
-      this.sessionsForSite = [];
+      this.sessionsForField = [];
       this.tempSelectedDate = null;
       this.dateReadOnly = false;
       // fetch fields only; sessions will be loaded when a field is selected
@@ -249,8 +247,6 @@ export class MatchForm implements OnInit {
         next: (data: any[]) => {
           this.fields = data || [];
           this.cd.detectChanges();
-          // recompute fully booked dates for newly selected site (no specific field)
-          this.updateFullyBookedDates(null);
           // enable invite inputs now that a site is selected
           invitesArray.controls.forEach(control => { control.enable(); control.updateValueAndValidity(); });
         },
@@ -270,7 +266,7 @@ export class MatchForm implements OnInit {
         this.form.get('endTime')?.disable();
         return;
       }
-      const session = (this.sessionsForSite || []).find(s => s._start === val);
+      const session = (this.sessionsForField || []).find(s => s._start === val);
       if (!session) {
         this.form.get('endTime')?.setValue(null);
         this.form.get('endTime')?.disable();
@@ -315,40 +311,18 @@ export class MatchForm implements OnInit {
       }
 
       if (!fid) {
-        this.sessionsForSite = [];
-        // recompute fully booked dates for site-level (no specific field)
-        this.updateFullyBookedDates(null);
+        this.sessionsForField = [];
         return;
       }
+
+      // When a field is selected, we don't immediately load sessions.
+      // Sessions will be loaded when a date is selected via updateSessionsBasedOnDate()
+      this.sessionsForField = [];
+
       // try to find the field in the currently loaded fields to get its siteId
       const fld = (this.fields || []).find((f: any) => Number(f.fieldId) === Number(fid));
       const siteId = fld?.siteId ? Number(fld.siteId) : Number(this.form.get('siteId')?.value) || null;
-      if (!siteId) {
-        this.sessionsForSite = [];
-        return;
-      }
-      this.sessionService.loadSessionsForSite(siteId, this.form.get('matchDate')?.value).subscribe((sessions) => {
-        // filter sessions to the selected field when possible
-        let filtered = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
-        const matchDate = this.form.get('matchDate')?.value;
-        if (matchDate) {
-          this.availabilityService.filterSessionsByAvailability(siteId, filtered, matchDate, fid).subscribe({
-            next: (res) => {
-              this.sessionsForSite = res;
-              this.cd.detectChanges();
-            },
-            error: () => {
-              this.sessionsForSite = filtered;
-              this.cd.detectChanges();
-            }
-          });
-        } else {
-          this.sessionsForSite = filtered;
-          this.cd.detectChanges();
-        }
-        // recompute fully booked dates for the selected field
-        this.updateFullyBookedDates(fid);
-      });
+
     });
 
     // React to date changes - do NOT clear the selected field when the user changes the date.
@@ -429,8 +403,9 @@ export class MatchForm implements OnInit {
                 const onlySite = this.sites[0];
                 this.form.get('siteId')?.setValue(onlySite.siteId);
                 this.form.get('siteId')?.disable();
-                // Simulate site selection to load start times for normal users
-                this.loadSessionsForPreselectedSite(onlySite);
+                // No need to call loadSessionsForPreselectedSite here since
+                // loadFieldsForAllowedSites will trigger the valueChanges handler
+                // which will load fields via getFieldsBySite
               } else {
                 this.form.get('siteId')?.enable();
               }
@@ -464,33 +439,16 @@ export class MatchForm implements OnInit {
     // if multiple allowed sites, do not load fields until the user selects a site (valueChanges will handle it)
   }
 
-  // Load sessions for a preselected site (used when site is prefilled and disabled for normal users)
-  private loadSessionsForPreselectedSite(site: any): void {
-    const siteId = site?.siteId;
-    if (!siteId) return;
 
-    this.fieldService.fetchFieldsBySite(siteId).subscribe({
-      next: (data: any[]) => {
-        // only fetch fields for the preselected site; do not load sessions until a field is selected
-        this.fields = data || [];
-        this.cd.detectChanges();
-        // compute fully booked dates for preselected site (no field selected yet)
-        this.updateFullyBookedDates(null);
-      },
-      error: (err) => {
-        console.error('Failed to load fields for preselected site', siteId, err);
-        this.fields = [];
-      }
-    });
-  }
 
-  // Update sessionsForSite based on whether a date is selected
+  // Update sessionsForField based on whether a date is selected
   private updateSessionsBasedOnDate(): void {
     const matchDate = this.form.get('matchDate')?.value;
     const fid = Number(this.form.get('fieldId')?.value) || null;
+
     // If no field selected, clear sessions (we load sessions when a field is selected)
     if (!fid) {
-      this.sessionsForSite = [];
+      this.sessionsForField = [];
       if (!matchDate) {
         this.form.get('startTime')?.setValue(null);
         this.form.get('endTime')?.setValue(null);
@@ -498,82 +456,38 @@ export class MatchForm implements OnInit {
       this.cd.detectChanges();
       return;
     }
+
+    // If no date selected, clear sessions but don't fetch
+    if (!matchDate) {
+      this.sessionsForField = [];
+      this.form.get('startTime')?.setValue(null);
+      this.form.get('endTime')?.setValue(null);
+      this.cd.detectChanges();
+      return;
+    }
+
     // find site's id from loaded fields if possible
     const fld = (this.fields || []).find((f: any) => Number(f.fieldId) === Number(fid));
     const siteId = fld?.siteId ? Number(fld.siteId) : Number(this.form.get('siteId')?.value) || null;
     if (!siteId) {
-      this.sessionsForSite = [];
+      this.sessionsForField = [];
       this.cd.detectChanges();
       return;
     }
-    this.sessionService.onDateChange(siteId, matchDate).subscribe((sessions) => {
-      let filtered = (sessions || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fid));
-      if (matchDate) {
-        this.availabilityService.filterSessionsByAvailability(siteId, filtered, matchDate, fid).subscribe({
-          next: (res) => {
-            this.sessionsForSite = res;
-            if (!matchDate) {
-              this.form.get('startTime')?.setValue(null);
-              this.form.get('endTime')?.setValue(null);
-            }
-            this.cd.detectChanges();
-          },
-          error: () => {
-            this.sessionsForSite = filtered;
-            if (!matchDate) {
-              this.form.get('startTime')?.setValue(null);
-              this.form.get('endTime')?.setValue(null);
-            }
-            this.cd.detectChanges();
-          }
-        });
-      } else {
-        this.sessionsForSite = filtered;
-        if (!matchDate) {
-          this.form.get('startTime')?.setValue(null);
-          this.form.get('endTime')?.setValue(null);
-        }
+
+    // Use the new API endpoint to get available sessions for the specific field and date
+    this.sessionService.loadSessionsForField(siteId, fid, matchDate).subscribe({
+      next: (sessions) => {
+        this.sessionsForField = sessions || [];
+        this.cd.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load sessions for field', fid, 'on date', matchDate, err);
+        this.sessionsForField = [];
         this.cd.detectChanges();
       }
     });
   }
-
-  /**
-   * Compute fully booked dates for the calendar. For the next N days, load sessions for the site
-   * and use AvailabilityService to determine if any session slots remain for the selected field.
-   * This is async and updates `fullyBookedDates` when complete.
-   */
-  private async updateFullyBookedDates(fieldId: number | null): Promise<void> {
-    this.fullyBookedDates = new Set();
-    const siteId = Number(this.form.get('siteId')?.value) || null;
-    if (!siteId) {
-      this.cd.detectChanges();
-      return;
-    }
-
-    const days = 14; // check next 14 days
-    const today = new Date();
-    for (let i = 0; i < days; i++) {
-      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-      const iso = this.formatDateForInput(d);
-      try {
-        // load normalized sessions for this site/date
-        const sessions: any[] = await firstValueFrom(this.sessionService.loadSessionsForSite(siteId, iso));
-        let sessionsForField = sessions || [];
-        if (fieldId) sessionsForField = (sessionsForField || []).filter(s => !s.fieldId || Number(s.fieldId) === Number(fieldId));
-        const available: any[] = await firstValueFrom(this.availabilityService.filterSessionsByAvailability(siteId, sessionsForField, iso, fieldId ?? null));
-        if (!available || available.length === 0) {
-          this.fullyBookedDates.add(iso);
-        }
-      } catch (e) {
-        // ignore single-day failures; do not block overall computation
-        console.warn('updateFullyBookedDates error for', iso, e);
-      }
-    }
-    this.cd.detectChanges();
-  }
-
-  // ...existing code...
 
   onDateSelected(date: Date | null): void {
     this.tempSelectedDate = date;

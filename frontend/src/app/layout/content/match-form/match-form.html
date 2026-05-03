@@ -1,7 +1,7 @@
 <div class="max-w-xl mx-auto">
   <!-- calendar component overlay shown before the form if enabled -->
     @if (showCalendarOverlay) {
-    <app-match-cal [selected]="tempSelectedDate" [fullyBooked]="fullyBookedDates" [role]="currentUserRoleId ?? 'subscribed'" [siteId]="form.get('siteId')?.value" [fieldId]="form.get('fieldId')?.value" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
+    <app-match-cal [selected]="tempSelectedDate" [role]="currentUserRoleId ?? 'subscribed'" [siteId]="form.get('siteId')?.value" [fieldId]="form.get('fieldId')?.value" (dateChange)="onDateSelected($event)" (confirm)="onCalendarConfirm($event)" (cancel)="onCalendarCancel()"></app-match-cal>
   }
   <form [formGroup]="form" (ngSubmit)="submit()" class="bg-white p-6 rounded shadow">
     <h2 class="text-xl font-bold mb-4">Créer un Match</h2>
@@ -50,7 +50,7 @@
         <label class="block text-sm font-medium">Heure du début</label>
         <select formControlName="startTime" class="w-full border rounded p-2" [class.border-red-500]="form.get('startTime')?.invalid && form.get('startTime')?.touched">
           <option value="">-- Sélectionner l'heure du début --</option>
-          @for (ss of sessionsForSite; track ss.match_set_id ?? ss.sessionId ?? $index) {
+          @for (ss of sessionsForField; track ss.match_set_id ?? ss.sessionId ?? $index) {
             <option [value]="ss._start">{{ ss.label }}</option>
           }
         </select>

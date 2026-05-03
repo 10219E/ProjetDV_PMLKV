@@ -1,9 +1,11 @@
 import { Injectable } from '@angular/core';
 import {Observable, of} from 'rxjs';
 import { MatchControllerService } from '../api/api/matchController.service';
+import {MatchCreationControllerService} from '../api';
 import {MatchPlayerControllerService, MatchPlayerDto, MatchPlayerSiteFieldDto} from '../api';
 import { MatchDto } from '../api/model/matchDto';
-import { MatchSiteFieldDto } from '../api/model/matchSiteFieldDto';
+import { MatchSiteFieldDto} from '../api/model/matchSiteFieldDto';
+import { MatchCreationDto } from '../api/model/matchCreationDto';
 import { AuthService } from './auth.service';
 import {catchError, map} from 'rxjs/operators';
 
@@ -11,6 +13,7 @@ import {catchError, map} from 'rxjs/operators';
 export class MatchService {
   constructor(
     private matchControllerService: MatchControllerService,
+    private matchCreationControllerService: MatchCreationControllerService,
     private authService: AuthService,
     private matchPlayerControllerService: MatchPlayerControllerService
   ) {}
@@ -83,6 +86,17 @@ export class MatchService {
       map((data: MatchPlayerSiteFieldDto[]) => Array.isArray(data) ? data : []),
       catchError((error) => {
         if (error.status === 404) return of([]);
+        throw error;
+      })
+    );
+  }
+
+  // Add this method to the MatchService class
+  createMatch(matchCreationDto: MatchCreationDto): Observable<{ [key: string]: object; }> {
+    this.setAuthHeader();
+    return this.matchCreationControllerService.create(matchCreationDto).pipe(
+      catchError((error) => {
+        console.error('Error creating match:', error);
         throw error;
       })
     );
