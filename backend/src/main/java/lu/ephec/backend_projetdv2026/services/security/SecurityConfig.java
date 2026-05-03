@@ -25,7 +25,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
         logger.info("Configuring SecurityFilterChain");
         http
                 .cors(org.springframework.security.config.Customizer.withDefaults())
@@ -37,7 +37,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/fscount").permitAll()
                         .requestMatchers("/api/sitelist").permitAll()
                         .requestMatchers("/api/identify").permitAll() //get user matricule by email for FE
-                        .requestMatchers("/api/match-players/**").permitAll()
 
                         // OpenAPI / Swagger (permit in dev)
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**").permitAll()
@@ -57,7 +56,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) {
         return config.getAuthenticationManager();
     }
 

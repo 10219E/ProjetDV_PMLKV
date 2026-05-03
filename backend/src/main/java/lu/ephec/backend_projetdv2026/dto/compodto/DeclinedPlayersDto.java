@@ -35,45 +35,25 @@ public class DeclinedPlayersDto implements Serializable {
     }
 
     // Getters and setters
-    public String getPlayerId() {
-        return playerId;
-    }
+    public String getPlayerId() {return playerId;}
 
-    public void setPlayerId(String playerId) {
-        this.playerId = playerId;
-    }
+    public void setPlayerId(String playerId) {this.playerId = playerId;}
 
-    public String getPlayerName() {
-        return playerName;
-    }
+    public String getPlayerName() {return playerName;}
 
-    public void setPlayerName(String playerName) {
-        this.playerName = playerName;
-    }
+    public void setPlayerName(String playerName) {this.playerName = playerName;}
 
-    public String getPlayerRole() {
-        return playerRole;
-    }
+    public String getPlayerRole() {return playerRole;}
 
-    public void setPlayerRole(String playerRole) {
-        this.playerRole = playerRole;
-    }
+    public void setPlayerRole(String playerRole) {this.playerRole = playerRole;}
 
-    public String getPlayerStatus() {
-        return playerStatus;
-    }
+    public String getPlayerStatus() {return playerStatus;}
 
-    public void setPlayerStatus(String playerStatus) {
-        this.playerStatus = playerStatus;
-    }
+    public void setPlayerStatus(String playerStatus) {this.playerStatus = playerStatus;}
 
-    public Integer getMatchId() {
-        return matchId;
-    }
+    public Integer getMatchId() {return matchId;}
 
-    public void setMatchId(Integer matchId) {
-        this.matchId = matchId;
-    }
+    public void setMatchId(Integer matchId) {this.matchId = matchId;}
 
     @Override
     public String toString() {

@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 // HttpHeaders removed — not used in this service
 import { Observable, forkJoin, of, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { MatchPaymentControllerService } from '../api/api/matchPaymentController.service';
 import { MatchPaymentDto } from '../api/model/matchPaymentDto';

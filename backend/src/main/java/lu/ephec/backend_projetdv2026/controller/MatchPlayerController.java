@@ -1,6 +1,5 @@
 package lu.ephec.backend_projetdv2026.controller;
 
-import com.fasterxml.jackson.databind.deser.DataFormatReaders;
 import lu.ephec.backend_projetdv2026.dto.FieldDto;
 import lu.ephec.backend_projetdv2026.dto.SiteDto;
 import lu.ephec.backend_projetdv2026.dto.compodto.MatchPlayerSiteFieldDto;
@@ -12,7 +11,6 @@ import lu.ephec.backend_projetdv2026.models.MatchPlayers;
 import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.services.MatchService;
-import lu.ephec.backend_projetdv2026.services.SiteService;
 import lu.ephec.backend_projetdv2026.services.sitefieldbymatch.SiteFieldsByMatchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +35,7 @@ public class MatchPlayerController {
     private final SiteFieldsByMatchService siteFieldsByMatchService;
 
     @Autowired
-    public MatchPlayerController(MatchService matchService, SiteFieldsByMatchService siteFieldsByMatchService, SiteService siteService) {
+    public MatchPlayerController(MatchService matchService, SiteFieldsByMatchService siteFieldsByMatchService) {
         this.matchService = matchService;
         this.siteFieldsByMatchService = siteFieldsByMatchService;
     }
@@ -116,7 +114,7 @@ public class MatchPlayerController {
                                 mp.getPlayerRole(),
                                 mp.getStatus(),
                                 match.getMatchId()))
-                        .collect(Collectors.toList());
+                        .toList();
                 
                 allDeclinedPlayers.addAll(declinedPlayers);
             }
@@ -165,7 +163,7 @@ public class MatchPlayerController {
                 .collect(Collectors.toMap(
                         mp -> mp.getMatch().getMatchId(),
                         mp -> mp,
-                        (existing, replacement) -> existing // In case of duplicates, keep the first one
+                        (existing, _) -> existing // In case of duplicates, keep the first one
                 ));
 
         // Get all unique sites and fields for these matches

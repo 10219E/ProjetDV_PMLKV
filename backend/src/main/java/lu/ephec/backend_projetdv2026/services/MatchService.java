@@ -67,13 +67,13 @@ public class MatchService {
                 .filter(match ->
                         !"cancelled".equals(match.getPubStatus()) &&
                         !"completed".equals(match.getPubStatus()))
-                .collect(Collectors.toList());
+                .toList();
 
         List<Match> privateMatches = jpaMatchRepo.findByType("private").stream()
                 .filter(match ->
                         !"cancelled".equals(match.getPrivStatus()) &&
                         !"completed".equals(match.getPrivStatus()))
-                .collect(Collectors.toList());
+                .toList();
 
         matchList.addAll(publicMatches);
         matchList.addAll(privateMatches);
@@ -218,20 +218,18 @@ public class MatchService {
             }
 
             // Check all invited users
-            if (usersToInvite != null) {
-                for (String userId : usersToInvite) {
-                    if (userId != null) {
+            for (String userId : usersToInvite) {
+                if (userId != null) {
 
-                        boolean hasActivePenalties = jpaUserPenaltiesRepo.existsActivePenaltyAt(userId, LocalDateTime.now());
-                        ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, userId);
+                    boolean hasActivePenalties = jpaUserPenaltiesRepo.existsActivePenaltyAt(userId, LocalDateTime.now());
+                    ValidationBoiler.verifyNoActivePenalties(hasActivePenalties, userId);
 
-                        List<MatchPayments> userPayments = jpaMatchPaymentsRepo.findByUser_Matricule(userId);
-                        ValidationBoiler.verifyNoOutstandingFinancialObligations(
-                                jpaUserAccountsRepo.hasDebt(userId),
-                                userPayments,
-                                userId
-                        );
-                    }
+                    List<MatchPayments> userPayments = jpaMatchPaymentsRepo.findByUser_Matricule(userId);
+                    ValidationBoiler.verifyNoOutstandingFinancialObligations(
+                            jpaUserAccountsRepo.hasDebt(userId),
+                            userPayments,
+                            userId
+                    );
                 }
             }
         }
@@ -557,12 +555,8 @@ public class MatchService {
     public MatchPlayers declineMatchPlayer(Integer matchId, String userId) {
         ValidationBoiler.verifyNotNull(matchId, "Match ID");
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
-        //ValidationBoiler.verifyExists(jpaMatchRepo.existsById(matchId), "Match", matchId);
-        //ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
-
-        //assign required variables
-        var user = jpaUserRepo.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found with id: " + userId));
-        var match = jpaMatchRepo.findById(matchId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found with id: " + matchId));
+        ValidationBoiler.verifyExists(jpaMatchRepo.existsById(matchId), "Match", matchId);
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
 
         // Check user is in this match
         Optional<MatchPlayers> existingUserInMatch = jpaMatchPlayersRepo
@@ -624,7 +618,7 @@ public class MatchService {
         Optional<MatchPlayers> existingUserInMatch = jpaMatchPlayersRepo
                 .findByMatch_MatchIdAndUser_Matricule(matchId, userId);
         
-        MatchPlayers slotToFill = null;
+        MatchPlayers slotToFill;
 
         if (existingUserInMatch.isPresent()) {
             // Allow updating if the user has declined status
