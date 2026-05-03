@@ -6,6 +6,7 @@ import {MatchPlayerControllerService, MatchPlayerDto, MatchPlayerSiteFieldDto} f
 import { MatchDto } from '../api/model/matchDto';
 import { MatchSiteFieldDto} from '../api/model/matchSiteFieldDto';
 import { MatchCreationDto } from '../api/model/matchCreationDto';
+import { DeclinedPlayersDto } from '../api/model/declinedPlayersDto';
 import { AuthService } from './auth.service';
 import {catchError, map} from 'rxjs/operators';
 
@@ -97,6 +98,18 @@ export class MatchService {
     return this.matchCreationControllerService.create(matchCreationDto).pipe(
       catchError((error) => {
         console.error('Error creating match:', error);
+        throw error;
+      })
+    );
+  }
+
+  // Check if user is organiser of any matches with declined players
+  getOrganiserMatchesWithDeclinedPlayers(organiserId: string): Observable<DeclinedPlayersDto[]> {
+    this.setAuthHeader();
+    return this.matchPlayerControllerService.hasDeclinedMatches(organiserId).pipe(
+      map((data: DeclinedPlayersDto[]) => Array.isArray(data) ? data : []),
+      catchError((error) => {
+        if (error.status === 404) return of([]);
         throw error;
       })
     );

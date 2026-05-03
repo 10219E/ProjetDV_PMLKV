@@ -10,6 +10,7 @@ public class DeclinedPlayersDto implements Serializable {
     private String playerName;
     private String playerRole;
     private String playerStatus;
+    private Integer matchId;
 
     /**
      * Default constructor
@@ -23,12 +24,14 @@ public class DeclinedPlayersDto implements Serializable {
      * @param playerName The full name of the player
      * @param playerRole The role of the player in the match
      * @param playerStatus The status of the player
+     * @param matchId The ID of the match
      */
-    public DeclinedPlayersDto(String playerId, String playerName, String playerRole, String playerStatus) {
+    public DeclinedPlayersDto(String playerId, String playerName, String playerRole, String playerStatus, Integer matchId) {
         this.playerId = playerId;
         this.playerName = playerName;
         this.playerRole = playerRole;
         this.playerStatus = playerStatus;
+        this.matchId = matchId;
     }
 
     // Getters and setters
@@ -64,6 +67,14 @@ public class DeclinedPlayersDto implements Serializable {
         this.playerStatus = playerStatus;
     }
 
+    public Integer getMatchId() {
+        return matchId;
+    }
+
+    public void setMatchId(Integer matchId) {
+        this.matchId = matchId;
+    }
+
     @Override
     public String toString() {
         return "DeclinedPlayersDto{" +
@@ -71,6 +82,7 @@ public class DeclinedPlayersDto implements Serializable {
                 ", playerName='" + playerName + '\'' +
                 ", playerRole='" + playerRole + '\'' +
                 ", playerStatus='" + playerStatus + '\'' +
+                ", matchId=" + matchId +
                 '}';
     }
 }

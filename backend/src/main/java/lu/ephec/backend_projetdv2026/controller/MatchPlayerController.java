@@ -102,7 +102,7 @@ public class MatchPlayerController {
             
             for (Match match : organiserMatches) {
                 if (match.getMatchDate().isBefore(LocalDate.now())) {
-                    logger.info("[MatchPlayerController] Skipping match {} as it is in the future", match.getMatchId());
+                    logger.info("[MatchPlayerController] Skipping match {} as it is in the past", match.getMatchId());
                     continue; // Skip past matches
                 }
                 List<MatchPlayers> players = matchService.fetchAllForMatch(match.getMatchId());
@@ -114,7 +114,8 @@ public class MatchPlayerController {
                                 mp.getUser().getMatricule(),
                                 mp.getUser().getFirstName() + " " + mp.getUser().getLastName(),
                                 mp.getPlayerRole(),
-                                mp.getStatus()))
+                                mp.getStatus(),
+                                match.getMatchId()))
                         .collect(Collectors.toList());
                 
                 allDeclinedPlayers.addAll(declinedPlayers);
