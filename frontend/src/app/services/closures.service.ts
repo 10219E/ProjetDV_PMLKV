@@ -143,12 +143,18 @@ export class ClosuresService {
     return `${y}-${m}-${dd}`;
   }
 
-  // copy pattern from other services to set Authorization header on generated clients
+  // Normalized setAuthHeader method
   private setAuthHeader(): void {
-    const token = this.authService.getToken();
-    if (token) {
-      this.siteController.defaultHeaders = this.siteController.defaultHeaders.set('Authorization', `Bearer ${token}`);
-      this.fieldController.defaultHeaders = this.fieldController.defaultHeaders.set('Authorization', `Bearer ${token}`);
+    try {
+      const token = this.authService.getToken();
+      if (token && this.siteController && this.siteController.defaultHeaders && this.siteController.defaultHeaders.set) {
+        this.siteController.defaultHeaders = this.siteController.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      }
+      if (token && this.fieldController && this.fieldController.defaultHeaders && this.fieldController.defaultHeaders.set) {
+        this.fieldController.defaultHeaders = this.fieldController.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      }
+    } catch (e) {
+      // ignore
     }
   }
 }

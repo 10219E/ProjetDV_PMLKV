@@ -16,11 +16,7 @@ export class PayService {
 	try {
 	  this.sessionService.setAuthHeader(this.matchPaymentService);
 	} catch (e) {
-	  // fallback: also try direct set
-	  const token = this.auth.getToken();
-	  if (token && this.matchPaymentService && this.matchPaymentService.defaultHeaders && this.matchPaymentService.defaultHeaders.set) {
-		this.matchPaymentService.defaultHeaders = this.matchPaymentService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-	  }
+	  // ignore
 	}
   }
 

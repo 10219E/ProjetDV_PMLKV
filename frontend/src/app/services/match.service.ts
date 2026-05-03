@@ -102,12 +102,18 @@ export class MatchService {
     );
   }
 
-  // Ensure Authorization header is set on the generated client from AuthService token
+  // Normalized setAuthHeader method
   private setAuthHeader(): void {
-    const token = this.authService.getToken();
-    if (token) {
-      this.matchControllerService.defaultHeaders = this.matchControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-      this.matchPlayerControllerService.defaultHeaders = this.matchPlayerControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+    try {
+      const token = this.authService.getToken();
+      if (token && this.matchControllerService && this.matchControllerService.defaultHeaders && this.matchControllerService.defaultHeaders.set) {
+        this.matchControllerService.defaultHeaders = this.matchControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      }
+      if (token && this.matchPlayerControllerService && this.matchPlayerControllerService.defaultHeaders && this.matchPlayerControllerService.defaultHeaders.set) {
+        this.matchPlayerControllerService.defaultHeaders = this.matchPlayerControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      }
+    } catch (e) {
+      // ignore
     }
   }
 }

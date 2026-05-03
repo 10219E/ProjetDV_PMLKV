@@ -16,10 +16,7 @@ export class InviteService {
 	try {
 	  this.sessionService.setAuthHeader(this.matchPaymentService);
 	} catch (e) {
-	  const token = this.auth.getToken();
-	  if (token && this.matchPaymentService && this.matchPaymentService.defaultHeaders && this.matchPaymentService.defaultHeaders.set) {
-		this.matchPaymentService.defaultHeaders = this.matchPaymentService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-	  }
+	  // ignore
 	}
   }
 
@@ -27,10 +24,7 @@ export class InviteService {
 	try {
 	  this.sessionService.setAuthHeader(this.matchPlayerService);
 	} catch (e) {
-	  const token = this.auth.getToken();
-	  if (token && this.matchPlayerService && this.matchPlayerService.defaultHeaders && this.matchPlayerService.defaultHeaders.set) {
-		this.matchPlayerService.defaultHeaders = this.matchPlayerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-	  }
+	  // ignore
 	}
   }
 
