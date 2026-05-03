@@ -104,15 +104,30 @@ public class AvailabilityController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
 
             @Parameter(description = "Number of days from start date", required = true)
-            @RequestParam Integer range
+            @RequestParam Integer roledId
     ){
 
+        try {
+             if (roledId != null) {
+                logger.warn("Role ID has been provided.");
+        }} catch (Exception e) {
+            logger.error("Error validating role ID: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
+
+        // 0 = invite (Membre externe invité) -> max 5 days
+        // 1 = subscribed (Membre with subscription to at least one site) -> max 14 days
+        // 2 = all_site (Membre VIP multi-sites) -> max 21 days
+        // 7 = site_admin (site administrator) -> admin: 3 months (~90 days)
+        // 9 = as_admin (super administrator) -> admin: 3 months (~90 days)
+
+        int range = 0;
+        if (roledId == 0) {range = 5;}
+        if (roledId == 1) {range = 14;}
+        if (roledId == 2) {range = 21;}
+        if (roledId == 7 || roledId == 9) {range = 90;}
+
         LocalDate endDate = startDate.plusDays(range);
-
-        logger.info("Starting getAvailableDates for siteId: {}, fieldId: {}, startDate: {}, endDate: {}",
-                siteId, fieldId, startDate, endDate);
-
-
 
         try {
             // Validate date range
@@ -120,6 +135,10 @@ public class AvailabilityController {
                 logger.warn("Invalid date range: startDate {} is after endDate {}", startDate, endDate);
                 return ResponseEntity.badRequest().build();
             }
+
+        logger.info("Starting getAvailableDates for siteId: {}, fieldId: {}, startDate: {}, endDate: {}",
+                siteId, fieldId, startDate, endDate);
+
 
             // Calculate the number of days in the range
             long days = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate) + 1;
