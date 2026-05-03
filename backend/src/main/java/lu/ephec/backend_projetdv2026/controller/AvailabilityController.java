@@ -1,10 +1,7 @@
 package lu.ephec.backend_projetdv2026.controller;
 
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lu.ephec.backend_projetdv2026.dto.compodto.AvailabilityDto;
 import lu.ephec.backend_projetdv2026.services.availability.AvailabilityService;
 import org.slf4j.Logger;
@@ -106,14 +103,16 @@ public class AvailabilityController {
                     schema = @Schema(type = "string", format = "date", example = "2023-12-25"))
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
 
-            @Parameter(description = "Number of days from start date", required = true,
-                    schema = @Schema(type = "number", example = "7"))
-            @PathVariable Integer range) {
-
-        logger.info("Starting getAvailableDates for siteId: {}, fieldId: {}, startDate: {}, endDate: {}",
-                siteId, fieldId, startDate, range);
+            @Parameter(description = "Number of days from start date", required = true)
+            @RequestParam Integer range
+    ){
 
         LocalDate endDate = startDate.plusDays(range);
+
+        logger.info("Starting getAvailableDates for siteId: {}, fieldId: {}, startDate: {}, endDate: {}",
+                siteId, fieldId, startDate, endDate);
+
+
 
         try {
             // Validate date range
