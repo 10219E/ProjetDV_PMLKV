@@ -101,6 +101,10 @@ public class MatchPlayerController {
             List<DeclinedPlayersDto> allDeclinedPlayers = new ArrayList<>();
             
             for (Match match : organiserMatches) {
+                if (match.getMatchDate().isBefore(LocalDate.now())) {
+                    logger.info("[MatchPlayerController] Skipping match {} as it is in the future", match.getMatchId());
+                    continue; // Skip past matches
+                }
                 List<MatchPlayers> players = matchService.fetchAllForMatch(match.getMatchId());
                 
                 // Find declined players and add them to the result list
