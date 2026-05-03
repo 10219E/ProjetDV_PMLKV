@@ -1,13 +1,25 @@
 package lu.ephec.backend_projetdv2026.controller;
 
+import lu.ephec.backend_projetdv2026.dto.FieldDto;
+import lu.ephec.backend_projetdv2026.dto.SiteDto;
+import lu.ephec.backend_projetdv2026.dto.compodto.MatchPlayerSiteFieldDto;
 import lu.ephec.backend_projetdv2026.dto.MatchPlayerDto;
 import lu.ephec.backend_projetdv2026.dto.MatchDto;
-import lu.ephec.backend_projetdv2026.dto.UserProfileDto;
+import lu.ephec.backend_projetdv2026.models.Match;
+import lu.ephec.backend_projetdv2026.models.MatchPlayers;
+import lu.ephec.backend_projetdv2026.models.Site;
+import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.services.MatchService;
+import lu.ephec.backend_projetdv2026.services.SiteService;
+import lu.ephec.backend_projetdv2026.services.sitefieldbymatch.SiteFieldsByMatchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -15,14 +27,19 @@ import java.util.stream.Collectors;
 public class MatchPlayerController {
 
     private final MatchService matchService;
+    private static final Logger logger = LoggerFactory.getLogger(MatchPlayerController.class);
+    private final SiteFieldsByMatchService siteFieldsByMatchService;
+    private final SiteService siteService;
 
     @Autowired
-    public MatchPlayerController(MatchService matchService) {
+    public MatchPlayerController(MatchService matchService, SiteFieldsByMatchService siteFieldsByMatchService, SiteService siteService) {
         this.matchService = matchService;
+        this.siteFieldsByMatchService = siteFieldsByMatchService;
+        this.siteService = siteService;
     }
 
-    @PutMapping(value= "/{id}", produces = "application/json")
-    public MatchPlayerDetails updateMatchPlayer(@PathVariable Integer id, @RequestBody MatchPlayerDto matchPlayerDto) {
+    @PutMapping(value = "/{id}", produces = "application/json")
+    public MatchPlayerSiteFieldDto updateMatchPlayer(@PathVariable Integer id, @RequestBody MatchPlayerDto matchPlayerDto) {
         if (!id.equals(matchPlayerDto.getMatch().getMatchId())) {
             throw new IllegalArgumentException("Match ID in path must match matchId in request body");
         }
@@ -35,7 +52,7 @@ public class MatchPlayerController {
                 .orElseThrow(() -> new RuntimeException("MatchPlayer not found for match " + id));
 
         // Create and return composite DTO
-        MatchPlayerDetails details = new MatchPlayerDetails();
+        MatchPlayerSiteFieldDto details = new MatchPlayerSiteFieldDto();
         details.setPlayer(updatedPlayer);
 
         // Add additional match information if needed
@@ -48,33 +65,78 @@ public class MatchPlayerController {
     }
 
     @GetMapping(value = "/mymatches/{userMatricule}", produces = "application/json")
-    public List<MatchPlayerDetails> getMyMatches(@PathVariable String userMatricule) {
-        return matchService.fetchMatchesByUserMatricule(userMatricule).stream()
-                .map(matchPlayer -> {
-                    MatchPlayerDetails details = new MatchPlayerDetails();
-                    details.setPlayer(MatchPlayerDto.fromEntity(matchPlayer));
+    public ResponseEntity<List<MatchPlayerSiteFieldDto>> getMyMatches(@PathVariable String userMatricule) {
+        // Validate the userMatricule parameter
+        if (userMatricule == null || userMatricule.trim().isEmpty()) {
+            throw new IllegalArgumentException("User matricule cannot be null or empty");
+        }
 
-                    // Add additional match information if needed
-                    if (matchPlayer.getMatch() != null) {
-                        details.setMatch(MatchDto.from(matchPlayer.getMatch()));
-                        // Add more match-related data as needed
+        logger.info("[MatchPlayerController] Fetching matches for user: {}", userMatricule);
+
+        // Get the list of matches from the service
+        List<Match> matches = matchService.fetchMyUpcomingMatches(userMatricule);
+        logger.info("[MatchPlayerController] Found {} matches for user: {}", matches.size(), userMatricule);
+
+        // Get the list of match players from the service
+        List<MatchPlayers> matchPlayers = matchService.fetchMatchesByUserMatricule(userMatricule);
+        logger.info("[MatchPlayerController] Found {} MatchPlayers entries for user: {}", matchPlayers.size(), userMatricule);
+
+        // Create a map of match players by match ID for quick lookup
+        Map<Integer, MatchPlayers> matchPlayersMap = matchPlayers.stream()
+                .collect(Collectors.toMap(
+                        mp -> mp.getMatch().getMatchId(),
+                        mp -> mp,
+                        (existing, replacement) -> existing // In case of duplicates, keep the first one
+                ));
+
+        // Get all unique sites and fields for these matches
+        Map<Site, List<Field>> sitesAndFields = siteFieldsByMatchService.findSitesAndFieldsForMatches(matches);
+
+        // Convert to MatchPlayerSiteFieldDto
+        return ResponseEntity.ok(matches.stream()
+                .map(match -> {
+                    MatchPlayerSiteFieldDto details = new MatchPlayerSiteFieldDto();
+
+                    // Set the match information
+                    details.setMatch(MatchDto.from(match));
+
+                    // Get the corresponding match player information
+                    MatchPlayers matchPlayer = matchPlayersMap.get(match.getMatchId());
+
+                    if (matchPlayer != null) {
+                        // Create and set the player information
+                        MatchPlayerDto playerDto = MatchPlayerDto.fromEntity(matchPlayer);
+                        details.setPlayer(playerDto);
+                    } else {
+                        // If no match player found, create a default player DTO
+                        MatchPlayerDto playerDto = new MatchPlayerDto();
+                        playerDto.setMatch(MatchDto.from(match));
+                        playerDto.setUserMatricule(userMatricule);
+                        playerDto.setStatus("not_registered");
+                        details.setPlayer(playerDto);
+                    }
+
+                    // Set the site and field information
+                    if (match.getField() != null && match.getField().getSite() != null) {
+                        Site site = match.getField().getSite();
+                        details.setSite(SiteDto.from(site));
+
+                        // Find the corresponding field in the sitesAndFields map
+                        List<Field> fields = sitesAndFields.get(site);
+                        if (fields != null) {
+                            Field field = fields.stream()
+                                    .filter(f -> f.getFieldId().equals(match.getField().getFieldId()))
+                                    .findFirst()
+                                    .orElse(null);
+
+                            if (field != null) {
+                                details.setField(FieldDto.from(field));
+                            }
+                        }
                     }
 
                     return details;
                 })
-                .collect(Collectors.toList());
-    }
-
-    // Composite DTO for match player details
-    public static class MatchPlayerDetails {
-        private MatchPlayerDto player;
-        private MatchDto match;
-        // Add other related DTOs as needed
-
-        public MatchPlayerDto getPlayer() { return player; }
-        public void setPlayer(MatchPlayerDto player) { this.player = player; }
-        public MatchDto getMatch() { return match; }
-        public void setMatch(MatchDto match) { this.match = match; }
-        // Add getters and setters for other fields
+                .collect(Collectors.toList()));
     }
 }

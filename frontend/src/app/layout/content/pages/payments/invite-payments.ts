@@ -11,7 +11,7 @@ import { AuthService } from '../../../../services/auth.service';
 import { UserService } from '../../../../services/user.service';
 import { take } from 'rxjs/operators';
 import { MatchPaymentDto } from '../../../../api/model/matchPaymentDto';
-import { PendingInviteDetails } from '../../../../api/model/pendingInviteDetails';
+import { InvitesDto } from '../../../../api/model/invitesDto';
 
 @Component({
   selector: 'app-invite-payments',
@@ -21,14 +21,14 @@ import { PendingInviteDetails } from '../../../../api/model/pendingInviteDetails
   styleUrls: ['./invite-payments.css']
 })
 export class InvitePaymentsPage implements OnInit {
-  payments: PendingInviteDetails[] = [];
+  payments: InvitesDto[] = [];
   loading = false;
   error: string | null = null;
 
   // payment UI state
   showPayForm = false;
   payAmount = 0;
-  selectedPayment: PendingInviteDetails | null = null;
+  selectedPayment: InvitesDto | null = null;
 
   constructor(
 	private route: ActivatedRoute,
@@ -68,7 +68,7 @@ export class InvitePaymentsPage implements OnInit {
 	this.error = null;
 	this.inviteService.fetchPendingInvitesForUser(matricule).subscribe({
 	  next: (data: any) => {
-		// API returns an array of PendingInviteDetails
+		// API returns an array of InvitesDto
 		this.payments = Array.isArray(data) ? data : [];
 		this.loading = false;
 		this.cd.detectChanges();
@@ -83,7 +83,7 @@ export class InvitePaymentsPage implements OnInit {
 	});
   }
 
-  accept(payment: PendingInviteDetails) {
+  accept(payment: InvitesDto) {
 	// Show the payment form with the amount expected for this invite
 	this.selectedPayment = payment;
 	this.payAmount = payment?.payment?.amount || 0;
@@ -91,7 +91,7 @@ export class InvitePaymentsPage implements OnInit {
 	this.cd.detectChanges();
   }
 
-  decline(_payment: PendingInviteDetails) {
+  decline(_payment: InvitesDto) {
 	// no-op for now
 	console.log('Decline (not implemented)');
   }

@@ -7,13 +7,18 @@ import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.MatchPlayers;
 import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class MatchService {
@@ -26,6 +31,7 @@ public class MatchService {
     private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
+    private final Logger logger = LoggerFactory.getLogger(MatchService.class);
 
     // Dependency Injection
     public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo, JPASiteClosureDaysRepo jpaSiteClosureDaysRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
@@ -47,6 +53,75 @@ public class MatchService {
         return jpaMatchRepo.existsById(matchId);
     }
 
+    //GET MY MATCHES (part of removing business logic of frontend branch 72)
+    @Transactional
+    public List<Match> fetchMyUpcomingMatches(String userId) {
+        // Input validation
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        // Get all public and private matches
+        List<Match> matchList = new ArrayList<>();
+
+        List<Match> publicMatches = jpaMatchRepo.findByType("public").stream()
+                .filter(match ->
+                        !"cancelled".equals(match.getPubStatus()) &&
+                        !"completed".equals(match.getPubStatus()))
+                .collect(Collectors.toList());
+
+        List<Match> privateMatches = jpaMatchRepo.findByType("private").stream()
+                .filter(match ->
+                        !"cancelled".equals(match.getPrivStatus()) &&
+                        !"completed".equals(match.getPrivStatus()))
+                .collect(Collectors.toList());
+
+        matchList.addAll(publicMatches);
+        matchList.addAll(privateMatches);
+
+        // Get matches where user is registered
+        List<MatchPlayers> myregistered = jpaMatchPlayersRepo.findByUser_Matricule(userId);
+
+        logger.info("Fetching matches where user is registered: " + myregistered.size());
+
+        // Find matches that are both in matchList and in myregistered
+        List<Match> mymatches = matchList.stream()
+                .filter(match -> myregistered.stream()
+                        .anyMatch(mp -> mp.getMatch().getMatchId().equals(match.getMatchId())))
+                .toList();
+
+        logger.info("Found matches where user is registered: " + mymatches.size());
+
+        return mymatches;
+    }
+
+    //GET AVAILABLE PUBLIC MATCHES FOR USER (part of removing business logic of frontend branch 72)
+    public List<Match> fetchAvailablePublicMatches(String userId) {
+        // Input validation
+        ValidationBoiler.verifyNotEmpty(userId, "User ID");
+        ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        // Get all public matches that are open or pending
+        List<Match> publicMatches = jpaMatchRepo.findByTypeAndPubStatus("public", "open");
+
+        logger.info("Total public matches found: {}", publicMatches.size());
+
+        // Get matches where user is registered
+        List<MatchPlayers> myregistered = jpaMatchPlayersRepo.findByUser_Matricule(userId);
+
+        // Create a set of match IDs the user is already registered for
+        Set<Integer> registeredMatchIds = myregistered.stream()
+                .map(mp -> mp.getMatch().getMatchId())
+                .collect(Collectors.toSet());
+
+        // Filter public matches to exclude those the user is already registered for
+        List<Match> availableMatches = publicMatches.stream()
+                .filter(match -> !registeredMatchIds.contains(match.getMatchId()))
+                .collect(Collectors.toList());
+
+        logger.info("Found {} available public matches for user {}", availableMatches.size(), userId);
+
+        return availableMatches;
+    }
 
     //SET MATCH
     //FOR PUB MATCHES LIST WILL NOT BE PASSED //OVERCHARGE

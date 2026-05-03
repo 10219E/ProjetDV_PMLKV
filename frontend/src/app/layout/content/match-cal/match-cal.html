@@ -1,40 +1,40 @@
 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" (click)="onCancel()">
   <div class="bg-white p-4 rounded shadow-2xl ring-1 ring-black/10 max-w-md w-full pointer-events-auto" (click)="$event.stopPropagation()">
 
-		<div class="flex flex-col items-center">
-		  <div class="flex justify-between w-full mb-2">
-		    <button (click)="prevMonth()" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300">&lt;</button>
-		    <div class="font-bold">{{ monthNames[viewDate.getMonth()] }} {{ viewDate.getFullYear() }}</div>
-		    <button (click)="nextMonth()" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300">&gt;</button>
-		  </div>
-		  <div class="grid grid-cols-7 gap-1 w-full">
-			@for (day of weekDays; track $index) {
-			  <div class="text-center font-semibold text-gray-500">{{ day }}</div>
-			}
+    <div class="flex flex-col items-center">
+      <div class="flex justify-between w-full mb-2">
+        <button (click)="prevMonth()" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300">&lt;</button>
+        <div class="font-bold">{{ monthNames[viewDate.getMonth()] }} {{ viewDate.getFullYear() }}</div>
+        <button (click)="nextMonth()" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300">&gt;</button>
+      </div>
+      <div class="grid grid-cols-7 gap-1 w-full">
+        @for (day of weekDays; track $index) {
+          <div class="text-center font-semibold text-gray-500">{{ day }}</div>
+        }
 
-			@for (d of calendarDays; track d.date.getTime()) {
-			  <button
-				[disabled]="!!(d.isPast || d.isFullyBooked || d.isBeyondWindow)"
-				(click)="selectDate(d.date)"
-				[ngClass]="{
-				  'bg-blue-600 text-white font-bold': isSelected(d.date),
-				  'text-gray-400 pointer-events-none': d.isPast,
-				  'text-red-600 bg-red-50': d.isFullyBooked && !isSelected(d.date),
-				  'text-gray-300': d.isBeyondWindow && !isSelected(d.date),
-				  'rounded-full': true,
-				  'w-8 h-8 flex items-center justify-center mx-auto': true
-				}"
-				class="transition-colors duration-150"
-				[attr.title]="d.isFullyBooked ? 'Complet' : (d.isBeyondWindow ? 'Hors délai de réservation' : null)"
-			  >
-				{{ d.date.getDate() }}
-			  </button>
-			}
-		  </div>
-		</div>
-	<div class="flex justify-end mt-3">
-	  <button type="button" (click)="onCancel()" class="mr-2 px-3 py-1 rounded text-gray-700 bg-gray-100">Annuler</button>
-	  <button type="button" [disabled]="!selected" (click)="onConfirm()" class="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50">OK</button>
-	</div>
+        @for (d of calendarDays; track d.date.getTime()) {
+          <button
+            [disabled]="!!(d.isPast || d.isFullyBooked || !d.isAvailable)"
+            (click)="selectDate(d.date)"
+            [ngClass]="{
+              'bg-blue-600 text-white font-bold': isSelected(d.date),
+              'text-gray-400 pointer-events-none': d.isPast,
+              'text-red-600 bg-red-50': d.isFullyBooked && !isSelected(d.date),
+              'text-gray-300': !d.isAvailable && !isSelected(d.date),
+              'rounded-full': true,
+              'w-8 h-8 flex items-center justify-center mx-auto': true
+            }"
+            class="transition-colors duration-150"
+            [attr.title]="d.isFullyBooked ? 'Complet' : (!d.isAvailable ? 'Non disponible' : null)"
+          >
+            {{ d.date.getDate() }}
+          </button>
+        }
+      </div>
+    </div>
+    <div class="flex justify-end mt-3">
+      <button type="button" (click)="onCancel()" class="mr-2 px-3 py-1 rounded text-gray-700 bg-gray-100">Annuler</button>
+      <button type="button" [disabled]="!selected" (click)="onConfirm()" class="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50">OK</button>
+    </div>
   </div>
 </div>

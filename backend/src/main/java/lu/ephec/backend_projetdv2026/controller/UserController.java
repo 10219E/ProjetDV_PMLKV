@@ -1,5 +1,6 @@
 package lu.ephec.backend_projetdv2026.controller;
 
+import lu.ephec.backend_projetdv2026.dto.SimpleInviteDto;
 import lu.ephec.backend_projetdv2026.dto.UserProfileDto;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserAccounts;
@@ -10,6 +11,7 @@ import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserSiteRepo;
 import lu.ephec.backend_projetdv2026.services.UserSiteSubService;
+import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -124,6 +126,35 @@ public class UserController {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
             }
         }
+    }
+
+    @GetMapping(value = "/invite/{email}", produces = "application/json")
+    public ResponseEntity<SimpleInviteDto> getUserByEmail(@PathVariable String email) {
+        if (email == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Fetch user by email
+        Optional<User> userOptional = userService.fetchByMail(email);
+
+        if (userOptional.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User user = userOptional.get();
+
+        // Check if user has active penalties
+        boolean hasActivePenalties = userService.hasActivePenalty(user.getMatricule());
+
+        // Create the DTO with only the required information
+        SimpleInviteDto dto = new SimpleInviteDto(
+                user.getEmail(),
+                user.getMatricule(),
+                user.getRole().getId(),
+                hasActivePenalties
+        );
+
+        return ResponseEntity.ok(dto);
     }
 
     private UserProfileDto fetchUserProfile(User u) {
