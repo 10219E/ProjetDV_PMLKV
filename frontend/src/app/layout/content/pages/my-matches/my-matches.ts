@@ -1,17 +1,23 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, firstValueFrom } from 'rxjs';
+import { finalize } from 'rxjs/operators';
+import { ReactiveFormsModule, FormGroup, FormControl, Validators, FormArray } from '@angular/forms';
 import { NavMenu } from '../../nav-menu/nav-menu';
 import { HomeAccountHeader } from '../../header/header';
 import { MatchService } from '../../../../services/match.service';
+import { InviteService } from '../../../../services/invite.service';
+import { UserService } from '../../../../services/user.service';
 import { MatchPlayerSiteFieldDto } from '../../../../api/model/matchPlayerSiteFieldDto';
 import { DeclinedPlayersDto } from '../../../../api/model/declinedPlayersDto';
+import { SimpleInviteDto } from '../../../../api/model/simpleInviteDto';
+import { UserFormComponent } from '../../user-form/user-form';
 
 @Component({
   selector: 'app-my-matches',
   standalone: true,
-  imports: [CommonModule, NavMenu, HomeAccountHeader],
+  imports: [CommonModule, NavMenu, HomeAccountHeader, ReactiveFormsModule, UserFormComponent],
   templateUrl: './my-matches.html'
 })
 export class MyMatches implements OnInit {
@@ -22,6 +28,18 @@ export class MyMatches implements OnInit {
   userId: string | null = null;
   showInviteForm = false;
   selectedMatchId: number | null = null;
+
+  // Form handling
+  inviteForm = new FormGroup({
+    invites: new FormArray<FormControl<string | null>>([])
+  });
+  inviteStates: Array<{ status: 'idle' | 'checking' | 'found' | 'not_found' | 'error', user?: any }> = [];
+  private inviteTimeouts: Array<any> = [];
+  currentUserEmail?: string | null;
+
+  showUserForm = false;
+  userFormPrefillEmail?: string | null = null;
+  userFormInviteIndex: number | null = null;
 
   // Status translations
   private statusTranslations: Record<string, string> = {
@@ -35,6 +53,8 @@ export class MyMatches implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private matchService: MatchService,
+    private inviteService: InviteService,
+    private userService: UserService,
     private cd: ChangeDetectorRef
   ) {}
 
@@ -67,6 +87,12 @@ export class MyMatches implements OnInit {
 
         // Process declined players data
         this.declinedPlayers = Array.isArray(declinedData) ? declinedData : [];
+
+        this.userService.getCurrentUser().subscribe({
+          next: (profile) => {
+            this.currentUserEmail = profile?.email;
+          }
+        });
 
         this.loading = false;
         this.cd.detectChanges();
@@ -120,6 +146,33 @@ export class MyMatches implements OnInit {
   // Show invite form for replacing declined players
   showReplaceInviteForm(matchId: number): void {
     this.selectedMatchId = matchId;
+    const declinedCount = this.getDeclinedCount(matchId);
+
+    // Setup form array based on declined count
+    const invitesArray = this.inviteForm.get('invites') as FormArray;
+    invitesArray.clear();
+    this.inviteStates = [];
+    this.inviteTimeouts = [];
+
+    const emailPattern = Validators.pattern(/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,6}$/);
+    for (let i = 0; i < declinedCount; i++) {
+      const control = new FormControl<string | null>(null, [Validators.required, Validators.email, emailPattern]);
+      invitesArray.push(control);
+      this.inviteStates.push({ status: 'idle' });
+      this.inviteTimeouts.push(null);
+
+      control.valueChanges.subscribe(() => {
+        if (this.inviteStates[i]?.status !== 'checking') {
+          this.inviteStates[i] = { status: 'idle' };
+        }
+        if (!control.value) {
+          control.markAsUntouched();
+        }
+        this.runInviteCrossValidation();
+        this.cd.detectChanges();
+      });
+    }
+
     this.showInviteForm = true;
   }
 
@@ -129,17 +182,237 @@ export class MyMatches implements OnInit {
     this.selectedMatchId = null;
   }
 
+  get invitesControls(): any[] {
+    return (this.inviteForm.get('invites') as FormArray).controls;
+  }
+
+  getInviteControl(index: number): any {
+    return (this.inviteForm.get('invites') as FormArray).at(index);
+  }
+
+  private runInviteCrossValidation(): void {
+    const arr = this.inviteForm.get('invites') as FormArray;
+    if (!arr || !arr.controls) return;
+    const seen = new Map<string, number[]>();
+    arr.controls.forEach((c: any, idx: number) => {
+      const v = (c.value || '').toString().trim().toLowerCase();
+      if (!v) return;
+      if (!seen.has(v)) seen.set(v, []);
+      seen.get(v)!.push(idx);
+    });
+
+    arr.controls.forEach((c: any) => {
+      if (!c) return;
+      const errors = c.errors || {};
+      delete errors['duplicate'];
+      delete errors['selfInvite'];
+      delete errors['adminNotAllowed'];
+      delete errors['inviteNotAllowed'];
+      delete errors['userDeclined'];
+      delete errors['timeout'];
+      if (Object.keys(errors).length === 0) c.setErrors(null, { emitEvent: false });
+      else c.setErrors(errors, { emitEvent: false });
+    });
+
+    seen.forEach((indices, email) => {
+      if (indices.length > 1) {
+        indices.forEach(i => {
+          const c = arr.at(i);
+          const err = c.errors || {};
+          err['duplicate'] = true;
+          c.setErrors(err, { emitEvent: false });
+        });
+      }
+    });
+
+    if (this.currentUserEmail) {
+      const norm = this.currentUserEmail.toString().trim().toLowerCase();
+      const matches = seen.get(norm);
+      if (matches && matches.length > 0) {
+        matches.forEach(i => {
+          const c = arr.at(i);
+          const err = c.errors || {};
+          err['selfInvite'] = true;
+          c.setErrors(err, { emitEvent: false });
+        });
+      }
+    }
+  }
+
+  validateInvite(index: number): void {
+    const control = this.getInviteControl(index);
+    if (!control) return;
+    const email = control.value ? String(control.value).trim() : '';
+    control.markAsTouched();
+    if (control.disabled || !email || control.invalid) return;
+
+    this.inviteStates[index] = { status: 'checking' };
+    this.cd.detectChanges();
+
+    try {
+      if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+      let sub: any = null;
+      const watchdog = () => setTimeout(() => {
+        if (this.inviteStates[index]?.status === 'checking') {
+          this.inviteStates[index] = { status: 'not_found' };
+          const c = this.getInviteControl(index);
+          if (c) {
+            const errs = c.errors || {};
+            errs['timeout'] = true;
+            c.setErrors(errs, { emitEvent: false });
+          }
+          try { sub?.unsubscribe?.(); } catch {}
+          this.cd.detectChanges();
+        }
+      }, 3000);
+      this.inviteTimeouts[index] = watchdog();
+
+      sub = this.inviteService.getInviteByEmail(email).pipe(finalize(() => {
+        if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+        if (this.inviteStates[index]?.status === 'checking') {
+          this.inviteStates[index] = { status: 'not_found' };
+          const c = this.getInviteControl(index);
+          if (c) { const errs = c.errors || {}; errs['timeout'] = true; c.setErrors(errs, { emitEvent: false }); }
+          this.cd.detectChanges();
+        }
+      })).subscribe({
+        next: (user: SimpleInviteDto) => {
+          const roleId = user?.roleId ?? null;
+          if (roleId === 7 || roleId === 9) {
+            const c = this.getInviteControl(index);
+            if (c) { const err = c.errors || {}; err['adminNotAllowed'] = true; c.setErrors(err, { emitEvent: false }); }
+            this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
+            if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+            this.cd.detectChanges();
+            return;
+          }
+
+          if ((user as any).hasActivePenalties) {
+            const c = this.getInviteControl(index);
+            if (c) { const err = c.errors || {}; err['inviteNotAllowed'] = true; c.setErrors(err, { emitEvent: false }); }
+            this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
+            if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+            this.cd.detectChanges();
+            return;
+          }
+
+          const hasDeclined = this.declinedPlayers.some(dp => dp.matchId === this.selectedMatchId && dp.playerId === user.matricule);
+          if (hasDeclined) {
+            const c = this.getInviteControl(index);
+            if (c) { const err = c.errors || {}; err['userDeclined'] = true; c.setErrors(err, { emitEvent: false }); }
+            this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
+            if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+            this.cd.detectChanges();
+            return;
+          }
+
+          const c = this.getInviteControl(index);
+          if (c) {
+            const errs = c.errors || {};
+            delete errs['adminNotAllowed']; delete errs['inviteNotAllowed']; delete errs['userDeclined'];
+            if (Object.keys(errs).length === 0) c.setErrors(null, { emitEvent: false }); else c.setErrors(errs, { emitEvent: false });
+          }
+          this.inviteStates[index] = { status: 'found', user: { matricule: user.matricule, email: user.email } };
+          this.runInviteCrossValidation();
+          if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+          this.cd.detectChanges();
+        },
+        error: (err) => {
+          this.inviteStates[index] = { status: 'not_found' };
+          if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+          this.cd.detectChanges();
+        }
+      });
+    } catch (e) {
+      this.inviteStates[index] = { status: 'error' };
+      this.cd.detectChanges();
+    }
+  }
+
+  clearInvite(index: number): void {
+    const control = this.getInviteControl(index);
+    if (!control) return;
+    control.setValue(null);
+    this.inviteStates[index] = { status: 'idle' };
+    control.markAsUntouched();
+    this.cd.detectChanges();
+  }
+
+  inviteUser(index: number): void {
+    const control = this.getInviteControl(index);
+    if (!control) return;
+    const email = control.value ? String(control.value).trim() : '';
+    this.userFormPrefillEmail = email || undefined;
+    this.userFormInviteIndex = index;
+    this.showUserForm = true;
+    this.cd.detectChanges();
+  }
+
+  onUserFormClose(): void {
+    this.showUserForm = false;
+    this.userFormPrefillEmail = null;
+    this.userFormInviteIndex = null;
+    this.cd.detectChanges();
+  }
+
+  onSignupCompleted(createdUser: any): void {
+    const idx = this.userFormInviteIndex;
+    if (idx === null || idx === undefined) {
+      this.onUserFormClose();
+      return;
+    }
+    const control = this.getInviteControl(idx);
+    if (control) {
+      control.setValue(createdUser?.email || control.value);
+      control.markAsTouched();
+    }
+    this.inviteStates[idx] = { status: 'found', user: createdUser };
+    this.runInviteCrossValidation();
+    this.onUserFormClose();
+    this.cd.detectChanges();
+  }
+
+  async submitReinvites(): Promise<void> {
+    if (this.inviteForm.invalid || !this.selectedMatchId) return;
+    const controls = (this.inviteForm.get('invites') as FormArray).controls;
+    const invitesMat: string[] = [];
+    this.loading = true;
+
+    for (let i = 0; i < controls.length; i++) {
+        const raw = controls[i].value;
+        if (!raw) continue;
+        const v = String(raw).trim();
+        if (!v) continue;
+        const state = this.inviteStates[i];
+        if (state && state.status === 'found' && state.user && state.user.matricule) {
+          invitesMat.push(state.user.matricule);
+          continue;
+        }
+        if (v.includes('@')) {
+          try {
+            const user = await firstValueFrom(this.userService.getUserByEmail(v));
+            if (user && user.matricule) {
+              invitesMat.push(user.matricule);
+              continue;
+            }
+          } catch(e) {}
+        }
+        invitesMat.push(v);
+    }
+    this.loading = false;
+    this.inviteReplacementPlayers(invitesMat);
+  }
+
   // Handle inviting replacement players
   inviteReplacementPlayers(newPlayerIds: string[]): void {
     if (!this.selectedMatchId || !this.userId) return;
 
     // For each new player, update the match player status
     newPlayerIds.forEach((newPlayerId, index) => {
-      const playerRole = index === 0 ? 'p2' : index === 1 ? 'p3' : 'p4';
-
-      this.matchService.joinPublicMatch(this.selectedMatchId!, newPlayerId, playerRole).subscribe({
+      // Pass 'pending' so the invited player has to accept and pay (or simply accept)
+      this.matchService.joinPublicMatchOrUpdatePrivate(this.selectedMatchId!, newPlayerId, 'pending').subscribe({
         next: () => {
-          console.log(`Successfully invited replacement player ${newPlayerId} for role ${playerRole}`);
+          console.log(`Successfully invited replacement player ${newPlayerId}`);
         },
         error: (err) => {
           console.error(`Error inviting replacement player ${newPlayerId}:`, err);
@@ -223,3 +496,4 @@ export class MyMatches implements OnInit {
     return this.declinedPlayers.filter(dp => dp.matchId === matchId).length;
   }
 }
+

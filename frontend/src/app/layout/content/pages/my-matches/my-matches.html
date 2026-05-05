@@ -87,3 +87,102 @@
     <app-nav-menu></app-nav-menu>
   </div>
 </div>
+
+@if (showInviteForm) {
+  <div class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-6 py-4 border-b flex items-center justify-between">
+        <h2 class="text-xl font-bold">Inviter des remplaçants</h2>
+        <button (click)="hideInviteForm()" class="text-gray-400 hover:text-gray-800">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="p-6 overflow-y-auto" [formGroup]="inviteForm">
+        <div formArrayName="invites">
+          <p class="text-sm text-gray-600 mb-4">Veuillez renseigner les emails des remplaçants pour les joueurs ayant décliné.</p>
+          @for (c of invitesControls; track i; let i = $index) {
+            <div class="mb-4">
+              <div class="flex items-center gap-2">
+                <input [formControlName]="i" placeholder="Email de l'invité" class="flex-1 border rounded p-2" [class.border-red-500]="getInviteControl(i)?.invalid && getInviteControl(i)?.touched" />
+
+                <!-- Confirm / validate button -->
+                <button type="button" (click)="validateInvite(i)" class="flex-none inline-flex items-center justify-center h-8 w-8 rounded border bg-white hover:bg-gray-50" [disabled]="getInviteControl(i)?.invalid || inviteStates[i]?.status === 'checking'" aria-label="Vérifier l'email">
+                  @if (inviteStates[i]?.status === 'checking') {
+                    <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                  }
+                  @if (inviteStates[i]?.status === 'found') {
+                    <svg class="h-4 w-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  }
+                  @if (!inviteStates[i] || inviteStates[i]?.status === 'idle' || inviteStates[i]?.status === 'not_found' || inviteStates[i]?.status === 'error') {
+                    <svg class="h-4 w-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  }
+                </button>
+
+                <!-- Clear button -->
+                @if (inviteStates[i]?.status === 'found' || getInviteControl(i)?.value) {
+                  <button type="button" (click)="clearInvite(i)" class="flex-none inline-flex items-center justify-center h-8 w-8 rounded bg-gray-100 hover:bg-gray-200">
+                    <svg class="h-4 w-4 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                }
+
+                <!-- Invite (not found) button -->
+                 @if (inviteStates[i]?.status === 'not_found') {
+                   <button type="button" (click)="inviteUser(i)" class="flex-none bg-orange-500 hover:bg-orange-600 text-white text-xs px-3 py-1 rounded">INVITER ?</button>
+                 }
+              </div>
+
+              @if (getInviteControl(i)?.touched) {
+                @if (getInviteControl(i)?.errors?.required) {
+                  <p class="text-red-500 text-xs mt-1">L'email est obligatoire</p>
+                }
+                @if (getInviteControl(i)?.errors?.email || getInviteControl(i)?.errors?.pattern) {
+                  <p class="text-red-500 text-xs mt-1">Format d'email invalide.</p>
+                }
+                @if (getInviteControl(i)?.errors?.timeout) {
+                  <p class="text-yellow-600 text-xs mt-1">Recherche expirée, veuillez réessayer</p>
+                }
+                @if (getInviteControl(i)?.errors?.duplicate) {
+                  <p class="text-red-500 text-xs mt-1">Les adresses doivent être différentes</p>
+                }
+                @if (getInviteControl(i)?.errors?.selfInvite) {
+                  <p class="text-red-500 text-xs mt-1">Vous ne pouvez pas vous inviter vous-même</p>
+                }
+                @if (getInviteControl(i)?.errors?.adminNotAllowed) {
+                  <p class="text-red-500 text-xs mt-1">Impossible d'inviter un administrateur</p>
+                }
+                @if (getInviteControl(i)?.errors?.inviteNotAllowed) {
+                  <p class="text-red-500 text-xs mt-1">Vous ne pouvez pas inviter cet utilisateur.</p>
+                }
+                @if (getInviteControl(i)?.errors?.userDeclined) {
+                  <p class="text-red-500 text-xs mt-1">Ce joueur a déjà décliné ce match.</p>
+                }
+              }
+
+              @if (inviteStates[i]?.status === 'found') {
+                <p class="text-green-600 text-xs mt-1">Utilisateur trouvé: {{ inviteStates[i].user?.firstName || '' }} {{ inviteStates[i].user?.lastName || '' }}</p>
+              }
+
+              @if (inviteStates[i]?.status === 'not_found') {
+                <p class="text-yellow-600 text-xs mt-1">Aucun utilisateur trouvé pour cet email.</p>
+              }
+
+              @if (inviteStates[i]?.status === 'error') {
+                <p class="text-red-600 text-xs mt-1">Erreur lors de la vérification.</p>
+              }
+            </div>
+          }
+        </div>
+        <div class="mt-6 flex justify-end gap-3 border-t pt-4">
+          <button type="button" (click)="hideInviteForm()" class="px-4 py-2 border rounded hover:bg-gray-50">Annuler</button>
+          <button type="button" (click)="submitReinvites()" [disabled]="inviteForm.invalid || loading" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
+            {{ loading ? 'Chargement...' : 'Conclure' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showUserForm) {
+  <app-user-form [sites]="[]" [prefillEmail]="userFormPrefillEmail" [inviteMode]="true" (close)="onUserFormClose()" (signupCompleted)="onSignupCompleted($event)"></app-user-form>
+}

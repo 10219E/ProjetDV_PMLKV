@@ -59,17 +59,15 @@ export class MatchService {
     );
   }
 
-  // Join Public match and update player status
-  /**WATCHOUT HERE, PRIVATE MATCHES PLAYERS ARE INSERTED BY THE SERVICE, SO THIS FUNCTION IS ONLY FOR PUBLIC MATCHES (EXCEPT IF I HAVE TIME TO IMPLEMENT DECLINE ON PRIVATE INVITES)*/
-  joinPublicMatch(matchId: number, userMatricule: string, playerRoleId?: string): Observable<MatchPlayerDto> {
+  // Join Public or Update private match : update player status
+  joinPublicMatchOrUpdatePrivate(matchId: number, userMatricule: string, status: string = 'approved'): Observable<MatchPlayerDto> {
     this.setAuthHeader();
 
     // Create a MatchPlayerDto to update the player status
     const matchPlayerDto: MatchPlayerDto = {
       match: { matchId: matchId },
       userMatricule: userMatricule,
-      status: 'approved',
-      playerRole: playerRoleId ? playerRoleId : undefined
+      status: status
     };
 
     // Update the match player status and return the Observable
@@ -130,5 +128,3 @@ export class MatchService {
     }
   }
 }
-
-
