@@ -156,7 +156,7 @@ export class JoinPublicMatch implements OnInit {
               return;
             }
 
-            this.matchService.joinPublicMatch(this.selectedMatch!.matchId!, currentMat).subscribe({
+            this.matchService.joinPublicMatchOrUpdatePrivate(this.selectedMatch!.matchId!, currentMat).subscribe({
               next: () => {
                 const matchDate = this.selectedMatch!.matchDate ? new Date(this.selectedMatch!.matchDate) : null;
                 const formattedDate = matchDate ? matchDate.toLocaleDateString('fr-FR') : '—';

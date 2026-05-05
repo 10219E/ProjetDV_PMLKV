@@ -314,7 +314,7 @@ public class SchedulerService {
 				if ("p1".equalsIgnoreCase(p.getPlayerRole())) continue;
 
 				if (p.getUser() == null) {
-					totalDebt += amountPerInvite;
+					totalDebt -= amountPerInvite;
 					continue;
 				}
 
@@ -324,10 +324,10 @@ public class SchedulerService {
 					MatchPayments pay = payOpt.get();
 					String status = pay.getStatus();
 					if (status == null || !(status.equals("clear") || status.equals("cancelled"))) {
-						totalDebt += amountPerInvite;
+						totalDebt -= amountPerInvite;
 					}
 				} else {
-					totalDebt += amountPerInvite;
+					totalDebt -= amountPerInvite;
 				}
 			}
 
