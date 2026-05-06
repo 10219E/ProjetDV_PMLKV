@@ -8,6 +8,8 @@ import { UserProfileDto } from '../../../../api/model/userProfileDto';
 import { NavMenu } from '../../nav-menu/nav-menu';
 import { HomeAccountHeader } from '../../header/header';
 import { take } from 'rxjs/operators';
+import { MigrationService} from '../../../../services/migration.service';
+import { PayFormComponent } from '../../pay-form/pay-form';
 
 export function passwordsMatchValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
@@ -32,7 +34,7 @@ export function passwordStrengthValidator(): ValidatorFn {
 @Component({
   selector: 'app-my-profile',
   standalone: true,
-  imports: [CommonModule, RouterModule, NavMenu, HomeAccountHeader, ReactiveFormsModule],
+  imports: [CommonModule, RouterModule, NavMenu, HomeAccountHeader, ReactiveFormsModule, PayFormComponent],
   templateUrl: './my-profile.html',
   styleUrl: './my-profile.css'
 })
@@ -57,12 +59,20 @@ export class MyProfile implements OnInit {
   passwordChangeError: string | null = null;
   showPasswordSuccess = false;
 
+  // VIP Migration
+  showVipTerms = false;
+  showPayForm = false;
+  showVipSuccess = false;
+  vipExpirationDate: Date | null = null;
+  paymentDetails: any = null;
+
   constructor(
     private userService: UserService,
     private authService: AuthService,
     private router: Router,
     private route: ActivatedRoute,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private migrationService: MigrationService
   ) {}
 
   ngOnInit(): void {
@@ -171,14 +181,58 @@ export class MyProfile implements OnInit {
   }
 
   onUpgrade(): void {
-    // Further implementations later (the actual backend logic)
-    // For now, redirect to settings or show a message, or simply log.
-    // Triggering "pay form" as requested.
-    console.log('Upgrade membership triggered');
-    // Navigation to settings where upgrade might be handled or specifically to a pay route if exists.
-    if (this.user?.matricule) {
-       this.router.navigate(['/home', this.user.matricule, 'settings']);
-    }
+    this.showVipTerms = true;
+    this.cdr.detectChanges();
+  }
+
+  cancelVipUpgrade(): void {
+    this.showVipTerms = false;
+    this.cdr.detectChanges();
+  }
+
+  acceptVipTerms(): void {
+    this.showVipTerms = false;
+    this.showPayForm = true;
+    this.cdr.detectChanges();
+  }
+
+  onPaymentPaid(event: any): void {
+    if (!this.user?.matricule) return;
+
+    this.showPayForm = false;
+    const now = new Date();
+    this.vipExpirationDate = new Date(now.setFullYear(now.getFullYear() + 1));
+
+    this.paymentDetails = {
+      amount: 99.00,
+      description: `abonnement annuel ${this.user.matricule}`,
+      expiration: this.vipExpirationDate,
+      cardLast4: event.cardLast4
+    };
+
+    // Trigger backend migration
+    this.migrationService.migrateToVip(this.user.matricule).subscribe({
+      next: () => {
+        this.showVipSuccess = true;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Migration failed', err);
+        this.error = "La migration vers le statut VIP a échoué. Veuillez contacter le support.";
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  onPaymentCancelled(): void {
+    this.showPayForm = false;
+    this.cdr.detectChanges();
+  }
+
+  closeVipSuccessAndLogout(): void {
+    this.showVipSuccess = false;
+    this.authService.logout();
+    this.router.navigate(['/']).then(() => window.location.reload());
   }
 
   gotoSettings(): void {

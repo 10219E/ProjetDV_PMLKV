@@ -235,3 +235,78 @@
     </div>
   </div>
 }
+
+<!-- VIP Migration Terms Modal -->
+@if (showVipTerms) {
+  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+      <div class="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
+        <h3 class="text-xl font-bold text-gray-800 tracking-tight">Conditions du statut VIP</h3>
+        <button (click)="cancelVipUpgrade()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-8 overflow-y-auto max-h-[70vh] bg-white">
+        <div class="prose prose-sm text-gray-700 leading-relaxed text-justify space-y-4">
+          <p>En acceptant les présentes conditions, vous reconnaissez et acceptez d’être migré(e) vers un statut d’utilisateur VIP, vous donnant accès à l’ensemble de nos sites et services partenaires.</p>
+
+          <p>Cette migration est soumise au paiement d’une redevance annuelle de <span class="font-bold underline text-blue-700">99 euros (99,00 €)</span>. Le paiement sera requis après acceptation des présentes conditions.</p>
+
+          <p>Vous disposez d’un droit de rétractation de 14 jours à compter de la date de souscription, sous réserve que vous n’ayez pas accédé ou visité nos autres plateformes ou services durant cette période.</p>
+
+          <p>Dans le cas où vous auriez accédé à l’un de nos services ou sites partenaires avant la fin du délai de rétractation, vous reconnaissez que ce droit est annulé et que les frais engagés ne sont ni remboursables ni annulables.</p>
+
+          <p class="font-semibold italic border-l-4 border-orange-500 pl-4 py-2 bg-orange-50">En acceptant ces conditions, vous consentez expressément à procéder au paiement de la redevance annuelle mentionnée ci-dessus.</p>
+        </div>
+      </div>
+
+      <div class="p-6 border-t bg-gray-50 flex gap-4">
+        <button (click)="cancelVipUpgrade()" class="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-md">
+          Refuser (Décliner)
+        </button>
+        <button (click)="acceptVipTerms()" class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md">
+          Accepter
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Pay Form integration -->
+@if (showPayForm) {
+  <app-pay-form [amount]="99" (paid)="onPaymentPaid($event)" (cancelled)="onPaymentCancelled()"></app-pay-form>
+}
+
+<!-- VIP Success Popup -->
+@if (showVipSuccess) {
+  <div class="fixed inset-0 z-[60] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-10 max-w-md w-full text-center shadow-2xl transform transition-all border border-blue-100">
+      <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-blue-50 animate-bounce">
+        <span class="text-4xl">👑</span>
+      </div>
+      <h3 class="text-3xl font-extrabold text-gray-900 mb-4">Migration Confirmée!</h3>
+
+      <div class="text-gray-600 mb-8 space-y-4">
+        <p class="font-medium">Votre abonnement expirant le <span class="text-blue-700 font-bold">{{ vipExpirationDate | date:'dd/MM/yyyy' }}</span> est confirmé et vos données sont en cours de mise à jour.</p>
+        <p class="text-sm border-t pt-4">Nous allons vous déconnecter pour finaliser la procédure.</p>
+      </div>
+
+      <!-- Payment Log Console Style -->
+      @if (paymentDetails) {
+        <div class="bg-slate-900 text-green-400 font-mono text-left p-4 rounded-lg text-[10px] mb-8 shadow-inner overflow-hidden">
+          <p>> payment.status: completed</p>
+          <p>> amount: {{ paymentDetails.amount | number:'1.2-2' }} EUR</p>
+          <p>> description: {{ paymentDetails.description }}</p>
+          <p>> card: **** **** **** {{ paymentDetails.cardLast4 }}</p>
+          <p>> subscription.end: {{ paymentDetails.expiration | date:'dd/MM/yyyy HH:mm' }}</p>
+          <p>> system.sync: pending_logout...</p>
+        </div>
+      }
+
+      <button (click)="closeVipSuccessAndLogout()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl transition-all shadow-lg hover:shadow-blue-200 hover:-translate-y-1">
+        DÉCONNEXION & FINALISATION
+      </button>
+    </div>
+  </div>
+}
