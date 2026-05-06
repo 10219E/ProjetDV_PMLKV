@@ -12,6 +12,7 @@ import { InvitePaymentsPage } from './layout/content/pages/invites/invite-paymen
 import { JoinPublicMatch } from './layout/content/pages/join-public-match/join-public-match';
 import { MyMatches } from './layout/content/pages/my-matches/my-matches';
 import { SettingsComponent } from './layout/content/pages/settings/settings';
+import { MyProfile } from './layout/content/pages/my-profile/my-profile';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
@@ -94,6 +95,7 @@ export const routes: Routes = [
   { path: 'home/:userId/join_public', component: JoinPublicMatch, canActivate: [authGuard] },
   { path: 'home/:userId/my_matches', component: MyMatches, canActivate: [authGuard] },
   { path: 'home/:userId/settings', component: SettingsComponent, canActivate: [authGuard] },
+  { path: 'home/:userId/me', component: MyProfile, canActivate: [authGuard] },
   { path: 'home/:userId', component: HomeAccount, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];

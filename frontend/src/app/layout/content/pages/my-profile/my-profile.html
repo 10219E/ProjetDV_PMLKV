@@ -1,0 +1,147 @@
+<div class="relative flex flex-col min-h-screen px-4 md:px-8">
+  <app-home-account-header></app-home-account-header>
+
+  <div class="flex flex-1 mid:flex-row relative">
+    <main class="flex-1 p-6 relative flex flex-col items-stretch z-10">
+      <div class="max-w-4xl mx-auto w-full bg-white/60 backdrop-blur-sm border border-gray-200 p-8 rounded-2xl mt-6 shadow-sm">
+        <h2 class="font-bold text-3xl mb-8 border-b pb-4 text-gray-800">Mon Profil</h2>
+
+        @if (loading) {
+          <div class="flex items-center gap-2 text-gray-600 animate-pulse">
+            <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+            <span>Chargement de vos informations...</span>
+          </div>
+        }
+
+        @if (error) {
+          <div class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-6">
+            {{ error }}
+          </div>
+        }
+
+        @if (!loading && user) {
+          <div class="space-y-8">
+            <!-- Basic Info Section -->
+            <section>
+              <h3 class="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                <span class="bg-blue-100 p-1.5 rounded-lg">👤</span> Informations Personnelles
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/40 p-5 rounded-xl border border-white/60">
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Matricule</label>
+                  <p class="text-gray-900 font-medium">{{ user.matricule }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Nom Complet</label>
+                  <p class="text-gray-900 font-medium">{{ user.firstName }} {{ user.lastName }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Email</label>
+                  <p class="text-gray-900 font-medium">{{ user.email }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Date de Naissance</label>
+                  <p class="text-gray-900 font-medium">{{ user.birthDate | date:'dd/MM/yyyy' }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Niveau</label>
+                  <p class="text-gray-900 font-medium">Niveau {{ user.level || 'Non défini' }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Statut</label>
+                  <p class="flex items-center gap-1.5 font-medium">
+                    @if (user.isActive) {
+                      <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                      <span class="text-green-700">Actif</span>
+                    } @else {
+                      <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                      <span class="text-red-700">Inactif</span>
+                    }
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Account Section -->
+            <section>
+              <h3 class="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                <span class="bg-blue-100 p-1.5 rounded-lg">💳</span> Mon Compte
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/40 p-5 rounded-xl border border-white/60">
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Dette</label>
+                  <p class="text-xl font-bold" [class.text-red-600]="(user.account?.balance ?? 0) < 0" [class.text-green-600]="(user.account?.balance ?? 0) >= 0">
+                    {{ user.account?.balance | number:'1.2-2' }} €
+                  </p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Statut du Compte</label>
+                  <p class="font-medium capitalize">{{ user.account?.status || 'N/A' }}</p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Penalties Section -->
+            @if (user.penalties && user.penalties.length > 0) {
+              <section>
+                <h3 class="text-lg font-semibold text-red-800 mb-4 flex items-center gap-2">
+                  <span class="bg-red-100 p-1.5 rounded-lg">⚠️</span> Pénalités
+                </h3>
+                <div class="space-y-3">
+                  @for (p of user.penalties; track p.tr ?? $index) {
+                    <div class="p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4" [class.bg-red-50]="p.isActive" [class.border-red-200]="p.isActive" [class.bg-gray-50]="!p.isActive" [class.border-gray-200]="!p.isActive">
+                      <div>
+                        <p class="font-bold text-gray-900">{{ translatePenaltyReason(p.reason) }}</p>
+                        <p class="text-xs text-gray-500">Du {{ p.startDate | date:'dd/MM/yyyy' }} au {{ p.endDate | date:'dd/MM/yyyy' }}</p>
+                      </div>
+                      <span class="px-3 py-1 rounded-full text-xs font-bold self-start md:self-center" [class.bg-red-100]="p.isActive" [class.text-red-700]="p.isActive" [class.bg-gray-200]="!p.isActive" [class.text-gray-600]="!p.isActive">
+                        {{ p.isActive ? 'ACTIVE' : 'EXPIRÉE' }}
+                      </span>
+                    </div>
+                  }
+                </div>
+              </section>
+            }
+
+            <!-- Sites Section -->
+            @if (user.sites && user.sites.length > 0) {
+              <section>
+                <h3 class="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                  <span class="bg-blue-100 p-1.5 rounded-lg">🏟️</span> Mes Sites Favoris
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                  @for (site of user.sites; track site.siteId ?? $index) {
+                    <span class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 shadow-sm">
+                      {{ site.siteName || site.siteId }}
+                    </span>
+                  }
+                </div>
+              </section>
+            }
+
+            <!-- Actions Section -->
+            <div class="pt-8 border-t flex flex-wrap gap-4">
+              <button (click)="gotoSettings()" class="flex-1 min-w-[200px] bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+                <span>🔑</span> Changer le mot de passe
+              </button>
+
+              @if (canUpgrade()) {
+                <button (click)="onUpgrade()" class="flex-1 min-w-[200px] bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+                  <span>⭐</span>
+                  <div class="flex flex-col items-center">
+                    <span>Devenir Membre VIP</span>
+                    <span class="text-xs font-normal opacity-90">*Accès à tous nos sites!</span>
+                  </div>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </main>
+
+    <app-nav-menu></app-nav-menu>
+  </div>
+</div>
+
+
