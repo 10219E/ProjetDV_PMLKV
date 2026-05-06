@@ -8,9 +8,10 @@ import { UserService } from './services/user.service';
 import { map, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { NewPrivMatch } from './layout/content/pages/new-priv-match/new-priv-match';
-import { InvitePaymentsPage } from './layout/content/pages/payments/invite-payments';
+import { InvitePaymentsPage } from './layout/content/pages/invites/invite-payments';
 import { JoinPublicMatch } from './layout/content/pages/join-public-match/join-public-match';
 import { MyMatches } from './layout/content/pages/my-matches/my-matches';
+import { SettingsComponent } from './layout/content/pages/settings/settings';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
@@ -92,6 +93,7 @@ export const routes: Routes = [
   { path: 'home/:userId/invites', component: InvitePaymentsPage, canActivate: [authGuard] },
   { path: 'home/:userId/join_public', component: JoinPublicMatch, canActivate: [authGuard] },
   { path: 'home/:userId/my_matches', component: MyMatches, canActivate: [authGuard] },
+  { path: 'home/:userId/settings', component: SettingsComponent, canActivate: [authGuard] },
   { path: 'home/:userId', component: HomeAccount, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];

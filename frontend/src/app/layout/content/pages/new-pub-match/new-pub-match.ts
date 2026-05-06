@@ -14,7 +14,6 @@ import { NavMenu } from '../../nav-menu/nav-menu';
   templateUrl: './new-pub-match.html',
 })
 export class NewPubMatch implements OnInit {
-  today = new Date();
   userId: string | null = null;
   userName: string = 'Utilisateur';
 
@@ -69,4 +68,3 @@ export class NewPubMatch implements OnInit {
     });
   }
 }
-
