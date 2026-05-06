@@ -43,6 +43,7 @@ export class MyProfile implements OnInit {
   user: UserProfileDto | null = null;
   loading = true;
   error: string | null = null;
+  isAdmin = false;
 
   showDebtPayment = false;
   debtAmount = 0;
@@ -101,6 +102,8 @@ export class MyProfile implements OnInit {
     this.userService.getUserById(userId).pipe(take(1)).subscribe({
       next: (u) => {
         this.user = u;
+        const rid = Number(u?.roleId ?? -1);
+        this.isAdmin = [7, 9].includes(rid);
         this.loading = false;
         this.cdr.detectChanges();
       },

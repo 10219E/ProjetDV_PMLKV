@@ -58,6 +58,11 @@ export const authGuard: CanActivateFn = (route, state) => {
           return router.createUrlTree(['/home', currentMatricule]);
         }
 
+        // Protect my_matches and invites from admins
+        if ((url.includes('my_matches') || url.includes('invites')) && isAdmin) {
+          return router.createUrlTree(['/home', currentMatricule]);
+        }
+
         // Protect public match creation from non-admin users
         if (url.includes('create_public') && !isAdmin) {
           return router.createUrlTree(['/home', currentMatricule]);
