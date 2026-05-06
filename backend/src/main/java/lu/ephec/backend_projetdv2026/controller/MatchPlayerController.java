@@ -131,15 +131,15 @@ public class MatchPlayerController {
         }
     }
     
-    /*@GetMapping(value = "/players/{matchid}", produces = "application/json")
-    public ResponseEntity<List<MatchPlayerDto>> getPlayersForMatch(@PathVariable Integer matchid) {
-        logger.info("[MatchPlayerController] Fetching players for match with ID {}", matchid);
-        List<MatchPlayerDto> players = matchService.fetchAllForMatch(matchid).stream()
-                .map(MatchPlayerDto::fromEntity)
+    @GetMapping(value = "/players/{matchid}", produces = "application/json")
+    public ResponseEntity<List<String>> getPlayersForMatch(@PathVariable Integer matchid) {
+        logger.info("[MatchPlayerController] Fetching player emails for match with ID {}", matchid);
+        List<String> playerEmails = matchService.fetchAllForMatch(matchid).stream()
+                .map(mp -> mp.getUser().getEmail())
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(players);
-    }*/
-    
+        return ResponseEntity.ok(playerEmails);
+    }
+
 
     @GetMapping(value = "/mymatches/{userMatricule}", produces = "application/json")
     public ResponseEntity<List<MatchPlayerSiteFieldDto>> getMyMatches(@PathVariable String userMatricule) {
