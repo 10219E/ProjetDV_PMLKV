@@ -121,7 +121,7 @@
 
             <!-- Actions Section -->
             <div class="pt-8 border-t flex flex-wrap gap-4">
-              <button (click)="gotoSettings()" class="flex-1 min-w-[200px] bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+              <button (click)="openPasswordForm()" class="flex-1 min-w-[200px] bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
                 <span>🔑</span> Changer le mot de passe
               </button>
 
@@ -144,4 +144,94 @@
   </div>
 </div>
 
+<!-- Password Change Modal -->
+@if (showPasswordForm) {
+  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+      <div class="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
+        <h3 class="text-xl font-bold text-gray-800">Changer le mot de passe</h3>
+        <button (click)="closePasswordForm()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
 
+      <form [formGroup]="passwordForm" (ngSubmit)="submitPasswordChange()" class="p-6 space-y-4">
+        @if (passwordChangeError) {
+          <div class="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            {{ passwordChangeError }}
+          </div>
+        }
+
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-gray-700">Mot de passe actuel</label>
+          <div class="relative">
+            <input [type]="showCurrentPassword ? 'text' : 'password'" formControlName="currentPassword" class="w-full border rounded-lg p-2.5 pr-10 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+            <button type="button" (click)="toggleCurrentPassword()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+              <span class="material-icons text-xl">{{ showCurrentPassword ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+          @if (passwordForm.get('currentPassword')?.touched && passwordForm.get('currentPassword')?.errors?.['required']) {
+            <p class="text-red-500 text-xs mt-1">Le mot de passe actuel est requis.</p>
+          }
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-gray-700">Nouveau mot de passe</label>
+          <div class="relative">
+            <input [type]="showNewPassword ? 'text' : 'password'" formControlName="newPassword" class="w-full border rounded-lg p-2.5 pr-10 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+            <button type="button" (click)="toggleNewPassword()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+              <span class="material-icons text-xl">{{ showNewPassword ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+          @if (passwordForm.get('newPassword')?.touched) {
+            @if (passwordForm.get('newPassword')?.errors?.['required']) {
+              <p class="text-red-500 text-xs mt-1">Le nouveau mot de passe est requis.</p>
+            } @else if (passwordForm.get('newPassword')?.errors?.['minlength']) {
+              <p class="text-red-500 text-xs mt-1">Minimum 8 caractères.</p>
+            } @else if (passwordForm.get('newPassword')?.errors?.['weakPassword']) {
+              <p class="text-red-500 text-xs mt-1">Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial (@!-+&$€).</p>
+            }
+          }
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-gray-700">Confirmer le nouveau mot de passe</label>
+          <div class="relative">
+            <input [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" class="w-full border rounded-lg p-2.5 pr-10 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+            <button type="button" (click)="toggleConfirmPassword()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+              <span class="material-icons text-xl">{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+          @if (passwordForm.get('confirmPassword')?.touched && passwordForm.errors?.['passwordsMismatch']) {
+            <p class="text-red-500 text-xs mt-1">Les mots de passe ne correspondent pas.</p>
+          }
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <button type="button" (click)="closePasswordForm()" class="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg transition-colors">
+            Annuler
+          </button>
+          <button type="submit" [disabled]="passwordForm.invalid" class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50">
+            Valider
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- Success Popup -->
+@if (showPasswordSuccess) {
+  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+      <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-800 mb-2">Succès</h3>
+      <p class="text-gray-600 mb-8">Votre mot de passe a été changé! Vous allez être déconnecté.</p>
+      <button (click)="closeSuccessAndLogout()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-md">
+        OK
+      </button>
+    </div>
+  </div>
+}
