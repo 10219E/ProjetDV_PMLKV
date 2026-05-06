@@ -41,6 +41,23 @@ export class UserService {
     );
   }
 
+  // Update user details in the backend using the new PATCH endpoint
+  updateUserInBackend(userId: string, updates: any): Observable<UserProfileDto> {
+    if (!userId) throw new Error('userId is required');
+    this.setAuthHeader();
+    // Using the generated client method which should now support the PATCH endpoint
+    return this.userControllerService.updateUser(userId, updates).pipe(
+      map((updated: any) => this.mapUserProfile(updated))
+    );
+  }
+
+  // Update user penalty and account information -- ONLY FOR USERS WITH DEBT
+  updateUserPenaltyAndAccount(userId: string, penaltyId: number, amount: number): Observable<void> {
+    const body = { penaltyId, amount };
+    this.setAuthHeader();
+    return this.userControllerService.updateUserPenaltyAndAccount(userId, body);
+  }
+
   // Fetch all users. Returns the generated controller model type so callers get a typed array.
   // Ensures an Authorization header is set from the AuthService token before calling the generated client.
   getAllUsers(): Observable<Array<UserProfileDto>> {

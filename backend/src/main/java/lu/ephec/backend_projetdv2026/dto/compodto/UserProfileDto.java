@@ -1,5 +1,8 @@
-package lu.ephec.backend_projetdv2026.dto;
+package lu.ephec.backend_projetdv2026.dto.compodto;
 
+import lu.ephec.backend_projetdv2026.dto.UserAccountDto;
+import lu.ephec.backend_projetdv2026.dto.UserPenaltyDto;
+import lu.ephec.backend_projetdv2026.dto.UserSiteDto;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserAccounts;
 import lu.ephec.backend_projetdv2026.models.UsersSites;

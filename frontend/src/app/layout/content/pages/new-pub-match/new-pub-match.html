@@ -1,4 +1,4 @@
-<app-home-account-header [todayDate]="today"></app-home-account-header>
+<app-home-account-header></app-home-account-header>
 
 <div class="flex flex-1 flex-col mid:flex-row relative p-8">
   <main class="flex-1 p-6 relative flex flex-col items-stretch z-10">
@@ -8,13 +8,10 @@
 	</div>
 
 	<div class="max-w-3xl mx-auto">
-	  <app-match-form [defaultType]="'public'" [hideOrganiser]="true" [hideInvites]="true"></app-match-form>
+	  <app-match-form [defaultType]="'public'" [hideOrganiser]="true" [hideInvites]="true" [stayOnPageAfterSuccess]="true"></app-match-form>
 	</div>
   </main>
 
   <!-- Page-level NavMenu placed here so desktop aside aligns to the right -->
   <app-nav-menu></app-nav-menu>
 </div>
-
-
-

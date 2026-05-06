@@ -6,7 +6,7 @@ import { MatchPlayerControllerService } from '../api/api/matchPlayerController.s
 import { InvitesDto } from '../api/model/invitesDto';
 import { AuthService } from './auth.service';
 import { SessionService } from './session.service';
-import {SimpleInviteDto, UserControllerService} from '../api';
+import {SimpleInviteDto, UserControllerService, MatchPlayerDto} from '../api';
 
 @Injectable({ providedIn: 'root' })
 export class InviteService {
@@ -51,6 +51,9 @@ export class InviteService {
 	this._setAuthHeaderOnMatchPlayerService();
 	return this.matchPlayerService.declineMatch(matchId, userId);
   }
+
+  getPlayersForMatch(matchId: number): Observable<string[]> {
+    this._setAuthHeaderOnMatchPlayerService();
+    return this.matchPlayerService.getPlayersForMatch(matchId) as unknown as Observable<string[]>;
+  }
 }
-
-

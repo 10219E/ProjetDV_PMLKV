@@ -11,6 +11,7 @@ api/matchController.service.ts
 api/matchCreationController.service.ts
 api/matchPaymentController.service.ts
 api/matchPlayerController.service.ts
+api/migrateUserController.service.ts
 api/siteController.service.ts
 api/testLoginController.service.ts
 api/userController.service.ts
@@ -47,6 +48,7 @@ model/user.ts
 model/userAccountDto.ts
 model/userPenalties.ts
 model/userPenaltyDto.ts
+model/userPenaltyUpdateDto.ts
 model/userProfileDto.ts
 model/userRegistrationDto.ts
 model/userRoles.ts

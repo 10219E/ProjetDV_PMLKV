@@ -34,6 +34,10 @@ export class InvitePaymentsPage implements OnInit {
   showDeclineConfirm = false;
   paymentToDecline: InvitesDto | null = null;
 
+  // success popup state
+  showSuccessDialog = false;
+  popupMessage: string | null = null;
+
   constructor(
 	private route: ActivatedRoute,
 	private router: Router,
@@ -159,56 +163,87 @@ export class InvitePaymentsPage implements OnInit {
 	this.cd.detectChanges();
   }
 
+  acknowledgeSuccess(): void {
+    this.showSuccessDialog = false;
+    this.popupMessage = null;
+    const userId = this.route.snapshot.paramMap.get('userId');
+    if (userId) {
+      this.router.navigate(['/home', userId]).catch(() => {});
+    } else {
+      this.router.navigate(['/home']).catch(() => {});
+    }
+    this.cd.detectChanges();
+  }
+
+  formatTime(t?: any): string {
+    if (!t) return '';
+    const hour = (t && (t.hour ?? t.Hour)) ?? null;
+    const minute = (t && (t.minute ?? t.Minute)) ?? 0;
+    if (hour == null) {
+      try { return String(t); } catch { return ''; }
+    }
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  }
+
   onPaymentCompleted(evt: { amount: number; cardLast4?: string }) {
-	// Close the form and attempt to update the payment on the backend using the current user as payer
-	console.log('Payment completed', evt, 'for', this.selectedPayment);
-	this.showPayForm = false;
+    // Close the form and attempt to update the payment on the backend using the current user as payer
+    console.log('Payment completed', evt, 'for', this.selectedPayment);
+    this.showPayForm = false;
 
-	if (!this.selectedPayment || !this.selectedPayment.payment || !this.selectedPayment.payment.tr) {
-	  this.error = 'Internal error: no selected payment to complete.';
-	  this.cd.detectChanges();
-	  return;
-	}
+    if (!this.selectedPayment || !this.selectedPayment.payment || !this.selectedPayment.payment.tr) {
+      this.error = 'Internal error: no selected payment to complete.';
+      this.cd.detectChanges();
+      return;
+    }
 
-	// Resolve current authenticated user's matricule and call update endpoint
-	this.userService.getCurrentUser().pipe(take(1)).subscribe({
-	  next: (u: any) => {
-		const currentMat = u?.matricule;
-		if (!currentMat) {
-		  this.error = 'Unable to determine current user.';
-		  this.cd.detectChanges();
-		  return;
-		}
+    // Resolve current authenticated user's matricule and call update endpoint
+    this.userService.getCurrentUser().pipe(take(1)).subscribe({
+      next: (u: any) => {
+        const currentMat = u?.matricule;
+        if (!currentMat) {
+          this.error = 'Unable to determine current user.';
+          this.cd.detectChanges();
+          return;
+        }
 
-		const dto: MatchPaymentDto = {
-		  tr: this.selectedPayment!.payment!.tr,
-		  userMatricule: currentMat,
-		  status: 'clear',
-		  paymentMethod: 'CARD'
-		};
+        const dto: MatchPaymentDto = {
+          tr: this.selectedPayment!.payment!.tr,
+          userMatricule: currentMat,
+          status: 'clear',
+          paymentMethod: 'CARD'
+        };
 
-		this.payService.updatePayment(this.selectedPayment!.payment!.tr!, dto).subscribe({
-		  next: (_res) => {
-			// remove locally and clear selection
-			this.payments = this.payments.filter(p => p.payment?.tr !== this.selectedPayment?.payment?.tr);
-			this.selectedPayment = null;
-			this.cd.detectChanges();
-		  },
-		  error: (err: any) => {
-			console.error('Failed to update payment', err);
-			this.error = err?.message || 'Erreur lors du traitement du paiement.';
-			// keep the payment in the list so user can retry
-			this.selectedPayment = null;
-			this.cd.detectChanges();
-		  }
-		});
-	  },
-	  error: (err: any) => {
-		console.error('Failed to resolve current user', err);
-		this.error = 'Impossible de récupérer l’utilisateur courant.';
-		this.cd.detectChanges();
-	  }
-	});
+        this.payService.updatePayment(this.selectedPayment!.payment!.tr!, dto).subscribe({
+          next: (_res) => {
+            const m = this.selectedPayment?.match;
+            const matchDate = m?.matchDate ? new Date(m.matchDate) : null;
+            const formattedDate = matchDate ? matchDate.toLocaleDateString('fr-FR') : '—';
+            const startTime = this.formatTime(m?.startTime);
+            const endTime = this.formatTime(m?.endTime);
+
+            this.popupMessage = `Votre paiement a été accepté. Vous êtes inscrit pour ce match le ${formattedDate} de ${startTime} à ${endTime}.`;
+
+            // remove locally and clear selection
+            this.payments = this.payments.filter(p => p.payment?.tr !== this.selectedPayment?.payment?.tr);
+            this.selectedPayment = null;
+            this.showSuccessDialog = true;
+            this.cd.detectChanges();
+          },
+          error: (err: any) => {
+            console.error('Failed to update payment', err);
+            this.error = err?.message || 'Erreur lors du traitement du paiement.';
+            // keep the payment in the list so user can retry
+            this.selectedPayment = null;
+            this.cd.detectChanges();
+          }
+        });
+      },
+      error: (err: any) => {
+        console.error('Failed to resolve current user', err);
+        this.error = 'Impossible de récupérer l’utilisateur courant.';
+        this.cd.detectChanges();
+      }
+    });
   }
 
   onPaymentCancelled() {
@@ -217,6 +252,3 @@ export class InvitePaymentsPage implements OnInit {
 	this.cd.detectChanges();
   }
 }
-
-
-

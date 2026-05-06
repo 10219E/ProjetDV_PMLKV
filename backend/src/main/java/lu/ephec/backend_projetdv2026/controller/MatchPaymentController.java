@@ -1,6 +1,7 @@
 package lu.ephec.backend_projetdv2026.controller;
 
 import lu.ephec.backend_projetdv2026.dto.*;
+import lu.ephec.backend_projetdv2026.dto.compodto.UserProfileDto;
 import lu.ephec.backend_projetdv2026.models.MatchPayments;
 
 import java.util.List;

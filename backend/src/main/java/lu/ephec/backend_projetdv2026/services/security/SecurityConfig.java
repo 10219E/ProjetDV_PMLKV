@@ -39,8 +39,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/identify").permitAll() //get user matricule by email for FE
 
                         // OpenAPI / Swagger (permit in dev)
-                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/swagger-ui/**").permitAll()
+                        //.requestMatchers("/v3/api-docs", "/v3/api-docs/**").permitAll()
+                        //.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/swagger-ui/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

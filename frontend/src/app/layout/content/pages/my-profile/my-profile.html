@@ -1,0 +1,334 @@
+<div class="relative flex flex-col min-h-screen px-4 md:px-8">
+  <app-home-account-header></app-home-account-header>
+
+  <div class="flex flex-1 mid:flex-row relative">
+    <main class="flex-1 p-6 relative flex flex-col items-stretch z-10">
+      <div class="max-w-4xl mx-auto w-full bg-white/60 backdrop-blur-sm border border-gray-200 p-8 rounded-2xl mt-6 shadow-sm">
+        <h2 class="font-bold text-3xl mb-8 border-b pb-4 text-gray-800">Mon Profil</h2>
+
+        @if (loading) {
+          <div class="flex items-center gap-2 text-gray-600 animate-pulse">
+            <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+            <span>Chargement de vos informations...</span>
+          </div>
+        }
+
+        @if (error) {
+          <div class="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-6">
+            {{ error }}
+          </div>
+        }
+
+        @if (!loading && user) {
+          <div class="space-y-8">
+            <!-- Basic Info Section -->
+            <section>
+              <h3 class="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                <span class="bg-blue-100 p-1.5 rounded-lg">👤</span> Informations Personnelles
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/40 p-5 rounded-xl border border-white/60">
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Matricule</label>
+                  <p class="text-gray-900 font-medium">{{ user.matricule }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Nom Complet</label>
+                  <p class="text-gray-900 font-medium">{{ user.firstName }} {{ user.lastName }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Email</label>
+                  <p class="text-gray-900 font-medium">{{ user.email }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Date de Naissance</label>
+                  <p class="text-gray-900 font-medium">{{ user.birthDate | date:'dd/MM/yyyy' }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Niveau</label>
+                  <p class="text-gray-900 font-medium">Niveau {{ user.level || 'Non défini' }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Statut</label>
+                  <p class="flex items-center gap-1.5 font-medium">
+                    @if (user.isActive) {
+                      <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                      <span class="text-green-700">Actif</span>
+                    } @else {
+                      <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                      <span class="text-red-700">Inactif</span>
+                    }
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Account Section -->
+            <section>
+              <h3 class="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                <span class="bg-blue-100 p-1.5 rounded-lg">💳</span> Mon Compte
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/40 p-5 rounded-xl border border-white/60">
+                @if (user.account) {
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Dette</label>
+                  <p class="text-xl font-bold" [class.text-red-600]="(user.account.balance ?? 0) < 0" [class.text-green-600]="(user.account.balance ?? 0) >= 0">
+                    {{ user.account.balance | number:'1.2-2' }} €
+                  </p>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Statut du Compte</label>
+                  <p class="font-medium capitalize">{{ translateAccountStatus(user.account.status) }}</p>
+                </div>
+                @if (user.account.status === 'debt' && user.account.balance) {
+                  <div class="col-span-2">
+                    <button (click)="payDebt(user.penalties![0])" class="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                      Apurer
+                    </button>
+                  </div>
+                }
+                }
+              </div>
+            </section>
+
+            <!-- Penalties Section -->
+            @if (hasActivePenalties()) {
+              <section>
+                <h3 class="text-lg font-semibold text-red-800 mb-4 flex items-center gap-2">
+                  <span class="bg-red-100 p-1.5 rounded-lg">⚠️</span> Pénalités
+                </h3>
+                <div class="space-y-3">
+                  @for (p of getActivePenalties(); track p.tr ?? $index) {
+                    <div class="p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4" [class.bg-red-50]="p.isActive" [class.border-red-200]="p.isActive" [class.bg-gray-50]="!p.isActive" [class.border-gray-200]="!p.isActive">
+                      <div>
+                        <p class="font-bold text-gray-900">{{ translatePenaltyReason(p.reason) }}</p>
+                        <p class="text-xs text-gray-500">Du {{ p.startDate | date:'dd/MM/yyyy' }} au {{ p.endDate | date:'dd/MM/yyyy' }}</p>
+                      </div>
+                      <span class="px-3 py-1 rounded-full text-xs font-bold self-start md:self-center" [class.bg-red-100]="p.isActive" [class.text-red-700]="p.isActive" [class.bg-gray-200]="!p.isActive" [class.text-gray-600]="!p.isActive">
+                        {{ p.isActive ? 'ACTIVE' : 'EXPIRÉE' }}
+                      </span>
+                    </div>
+                  }
+                </div>
+              </section>
+            }
+
+            <!-- Sites Section -->
+            @if (user.sites && user.sites.length > 0) {
+              <section>
+                <h3 class="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                  <span class="bg-blue-100 p-1.5 rounded-lg">🏟️</span> Mes Sites Favoris
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                  @for (site of user.sites; track site.siteId ?? $index) {
+                    <span class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 shadow-sm">
+                      {{ site.siteName || site.siteId }}
+                    </span>
+                  }
+                </div>
+              </section>
+            }
+
+            <!-- Actions Section -->
+            <div class="pt-8 border-t flex flex-wrap gap-4">
+              <button (click)="openPasswordForm()" class="flex-1 min-w-[200px] bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+                <span>🔑</span> Changer le mot de passe
+              </button>
+
+              @if (canUpgrade()) {
+                <button (click)="onUpgrade()" class="flex-1 min-w-[200px] bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2">
+                  <span>⭐</span>
+                  <div class="flex flex-col items-center">
+                    <span>Devenir Membre VIP</span>
+                    <span class="text-xs font-normal opacity-90">*Accès à tous nos sites!</span>
+                  </div>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </main>
+
+    <app-nav-menu></app-nav-menu>
+  </div>
+</div>
+
+@if (showPayForm) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <app-pay-form [amount]="showDebtPayment ? debtAmount : 99.00" (paid)="onPaymentPaid($event)" (cancelled)="onPaymentCancelled()"></app-pay-form>
+  </div>
+}
+
+@if (showDebtPaymentSuccess) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-8 rounded-lg shadow-lg text-center">
+      <h3 class="text-2xl font-bold text-green-600 mb-4">Paiement de la dette réussi!</h3>
+      <p class="text-gray-700">Votre compte est maintenant apuré.</p>
+      <button (click)="closeDebtSuccess()" class="mt-6 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        Fermer
+      </button>
+    </div>
+  </div>
+}
+
+<!-- Password Change Modal -->
+@if (showPasswordForm) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+      <div class="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
+        <h3 class="text-xl font-bold text-gray-800">Changer le mot de passe</h3>
+        <button (click)="closePasswordForm()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form [formGroup]="passwordForm" (ngSubmit)="submitPasswordChange()" class="p-6 space-y-4">
+        @if (passwordChangeError) {
+          <div class="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
+            {{ passwordChangeError }}
+          </div>
+        }
+
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-gray-700">Mot de passe actuel</label>
+          <div class="relative">
+            <input [type]="showCurrentPassword ? 'text' : 'password'" formControlName="currentPassword" class="w-full border rounded-lg p-2.5 pr-10 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+            <button type="button" (click)="toggleCurrentPassword()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+              <span class="material-icons text-xl">{{ showCurrentPassword ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+          @if (passwordForm.get('currentPassword')?.touched && passwordForm.get('currentPassword')?.errors?.['required']) {
+            <p class="text-red-500 text-xs mt-1">Le mot de passe actuel est requis.</p>
+          }
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-gray-700">Nouveau mot de passe</label>
+          <div class="relative">
+            <input [type]="showNewPassword ? 'text' : 'password'" formControlName="newPassword" class="w-full border rounded-lg p-2.5 pr-10 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+            <button type="button" (click)="toggleNewPassword()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+              <span class="material-icons text-xl">{{ showNewPassword ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+          @if (passwordForm.get('newPassword')?.touched) {
+            @if (passwordForm.get('newPassword')?.errors?.['required']) {
+              <p class="text-red-500 text-xs mt-1">Le nouveau mot de passe est requis.</p>
+            } @else if (passwordForm.get('newPassword')?.errors?.['minlength']) {
+              <p class="text-red-500 text-xs mt-1">Minimum 8 caractères.</p>
+            } @else if (passwordForm.get('newPassword')?.errors?.['weakPassword']) {
+              <p class="text-red-500 text-xs mt-1">Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial (@!-+&$€).</p>
+            }
+          }
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-gray-700">Confirmer le nouveau mot de passe</label>
+          <div class="relative">
+            <input [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" class="w-full border rounded-lg p-2.5 pr-10 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+            <button type="button" (click)="toggleConfirmPassword()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+              <span class="material-icons text-xl">{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</span>
+            </button>
+          </div>
+          @if (passwordForm.get('confirmPassword')?.touched && passwordForm.errors?.['passwordsMismatch']) {
+            <p class="text-red-500 text-xs mt-1">Les mots de passe ne correspondent pas.</p>
+          }
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <button type="button" (click)="closePasswordForm()" class="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg transition-colors">
+            Annuler
+          </button>
+          <button type="submit" [disabled]="passwordForm.invalid" class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50">
+            Valider
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- Success Popup -->
+@if (showPasswordSuccess) {
+  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+      <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-800 mb-2">Succès</h3>
+      <p class="text-gray-600 mb-8">Votre mot de passe a été changé! Vous allez être déconnecté.</p>
+      <button (click)="closeSuccessAndLogout()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors shadow-md">
+        OK
+      </button>
+    </div>
+  </div>
+}
+
+<!-- VIP Migration Terms Modal -->
+@if (showVipTerms) {
+  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+      <div class="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
+        <h3 class="text-xl font-bold text-gray-800 tracking-tight">Conditions du statut VIP</h3>
+        <button (click)="cancelVipUpgrade()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-8 overflow-y-auto max-h-[70vh] bg-white">
+        <div class="prose prose-sm text-gray-700 leading-relaxed text-justify space-y-4">
+          <p>En acceptant les présentes conditions, vous reconnaissez et acceptez d’être migré(e) vers un statut d’utilisateur VIP, vous donnant accès à l’ensemble de nos sites et services partenaires.</p>
+
+          <p>Cette migration est soumise au paiement d’une redevance annuelle de <span class="font-bold underline text-blue-700">99 euros (99,00 €)</span>. Le paiement sera requis après acceptation des présentes conditions.</p>
+
+          <p>Vous disposez d’un droit de rétractation de 14 jours à compter de la date de souscription, sous réserve que vous n’ayez pas accédé ou visité nos autres plateformes ou services durant cette période.</p>
+
+          <p>Dans le cas où vous auriez accédé à l’un de nos services ou sites partenaires avant la fin du délai de rétractation, vous reconnaissez que ce droit est annulé et que les frais engagés ne sont ni remboursables ni annulables.</p>
+
+          <p class="font-semibold italic border-l-4 border-orange-500 pl-4 py-2 bg-orange-50">En acceptant ces conditions, vous consentez expressément à procéder au paiement de la redevance annuelle mentionnée ci-dessus.</p>
+        </div>
+      </div>
+
+      <div class="p-6 border-t bg-gray-50 flex gap-4">
+        <button (click)="cancelVipUpgrade()" class="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-md">
+          Refuser (Décliner)
+        </button>
+        <button (click)="acceptVipTerms()" class="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md">
+          Accepter
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- VIP Success Popup -->
+@if (showVipSuccess) {
+  <div class="fixed inset-0 z-[60] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl p-10 max-w-md w-full text-center shadow-2xl transform transition-all border border-blue-100">
+      <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-blue-50 animate-bounce">
+        <span class="text-4xl">👑</span>
+      </div>
+      <h3 class="text-3xl font-extrabold text-gray-900 mb-4">Migration Confirmée!</h3>
+
+      <div class="text-gray-600 mb-8 space-y-4">
+        <p class="font-medium">Votre abonnement expirant le <span class="text-blue-700 font-bold">{{ vipExpirationDate | date:'dd/MM/yyyy' }}</span> est confirmé et vos données sont en cours de mise à jour.</p>
+        <p class="text-sm border-t pt-4">Nous allons vous déconnecter pour finaliser la procédure.</p>
+      </div>
+
+      <!-- Payment Log Console Style -->
+      @if (paymentDetails) {
+        <div class="bg-slate-900 text-green-400 font-mono text-left p-4 rounded-lg text-[10px] mb-8 shadow-inner overflow-hidden">
+          <p>> payment.status: completed</p>
+          <p>> amount: {{ paymentDetails.amount | number:'1.2-2' }} EUR</p>
+          <p>> description: {{ paymentDetails.description }}</p>
+          <p>> card: **** **** **** {{ paymentDetails.cardLast4 }}</p>
+          <p>> subscription.end: {{ paymentDetails.expiration | date:'dd/MM/yyyy HH:mm' }}</p>
+          <p>> system.sync: pending_logout...</p>
+        </div>
+      }
+
+      <button (click)="closeVipSuccessAndLogout()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl transition-all shadow-lg hover:shadow-blue-200 hover:-translate-y-1">
+        DÉCONNEXION & FINALISATION
+      </button>
+    </div>
+  </div>
+}

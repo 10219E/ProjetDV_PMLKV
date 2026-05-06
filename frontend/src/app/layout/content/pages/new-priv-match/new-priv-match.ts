@@ -14,7 +14,6 @@ import { NavMenu } from '../../nav-menu/nav-menu';
   templateUrl: './new-priv-match.html',
 })
 export class NewPrivMatch implements OnInit {
-  today = new Date();
   userId: string | null = null;
   userName: string = 'Utilisateur';
 

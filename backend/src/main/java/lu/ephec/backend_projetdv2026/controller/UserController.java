@@ -1,17 +1,18 @@
 package lu.ephec.backend_projetdv2026.controller;
 
 import lu.ephec.backend_projetdv2026.dto.SimpleInviteDto;
-import lu.ephec.backend_projetdv2026.dto.UserProfileDto;
+import lu.ephec.backend_projetdv2026.dto.compodto.UserProfileDto;
+import lu.ephec.backend_projetdv2026.dto.compodto.UserPenaltyUpdateDto;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserAccounts;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
 import lu.ephec.backend_projetdv2026.models.UsersSites;
+import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.services.PaymentService;
 import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserSiteRepo;
 import lu.ephec.backend_projetdv2026.services.UserSiteSubService;
-import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -20,10 +21,13 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/users")
@@ -32,15 +36,17 @@ public class UserController {
     private final UserService userService;
     private final PaymentService paymentService;
     private final UserSiteSubService userSiteSubService;
+    private final PasswordEncoder passwordEncoder;
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
     // Prefer checking role IDs (stable) instead of string names which can vary/case issues
     private static final short ROLE_ADMIN_ID = 9;
     private static final short ROLE_SITE_ADMIN_ID = 7;
 
-    public UserController(UserService userService, JPAUserAccountsRepo userAccountsRepo, PaymentService paymentService, JPAUserSiteRepo userSiteRepo, UserSiteSubService userSiteSubService) {
+    public UserController(UserService userService, JPAUserAccountsRepo userAccountsRepo, PaymentService paymentService, JPAUserSiteRepo userSiteRepo, UserSiteSubService userSiteSubService, PasswordEncoder passwordEncoder) {
         this.userService = userService;
         this.paymentService = paymentService;
         this.userSiteSubService = userSiteSubService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping(value = "/me", produces = "application/json")
@@ -155,6 +161,75 @@ public class UserController {
         );
 
         return ResponseEntity.ok(dto);
+    }
+
+    @PatchMapping(value = "/{userId}", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<UserProfileDto> updateUser(@PathVariable String userId, @RequestBody Map<String, Object> updates) {
+        logger.info("[USER CONTROLLER] Update request for user {}", userId);
+
+        Optional<User> userOpt = userService.fetchById(userId);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User existingUser = userOpt.get();
+
+        // Map updates to a partial User object for the service
+        User updateData = new User();
+
+        if (updates.containsKey("firstName")) {
+            updateData.setFirstName((String) updates.get("firstName"));
+        }
+        if (updates.containsKey("lastName")) {
+            updateData.setLastName((String) updates.get("lastName"));
+        }
+        if (updates.containsKey("email")) {
+            updateData.setEmail((String) updates.get("email"));
+        }
+        if (updates.containsKey("birthDate")) {
+            String bdate = (String) updates.get("birthDate");
+            if (bdate != null) updateData.setBirthDate(LocalDate.parse(bdate));
+        }
+        if (updates.containsKey("level")) {
+            updateData.setLevel((String) updates.get("level"));
+        }
+        if (updates.containsKey("isActive")) {
+            updateData.setIsActive((Boolean) updates.get("isActive"));
+        }
+
+        // Handle Password Update (Mirroring UserRegistrationController logic)
+        if (updates.containsKey("password")) {
+            String rawPassword = (String) updates.get("password");
+            if (rawPassword != null && !rawPassword.isBlank()) {
+                updateData.setAuth(passwordEncoder.encode(rawPassword));
+                logger.info("[USER CONTROLLER] User {} requested a password change", userId);
+            }
+        }
+
+        return userService.updateUser(userId, updateData)
+                .map(updated -> ResponseEntity.ok(fetchUserProfile(updated)))
+                .orElse(ResponseEntity.badRequest().build());
+    }
+
+    @PatchMapping(value = "/pen/{userId}", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<Void> updateUserPenaltyAndAccount(@PathVariable String userId, @RequestBody UserPenaltyUpdateDto dto) {
+        logger.info("[USER CONTROLLER] Update penalty and account for user {}", userId);
+
+        // 1. Update user's account balance
+        UserAccounts account = paymentService.fetchUserAccount(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User account not found"));
+
+        double previousBalance = account.getBalance() != null ? account.getBalance() : 0.0;
+        double newBalance = previousBalance + dto.getAmount();
+        paymentService.updateAccountStatus(userId, "clear", dto.getAmount());
+        logger.info("[USER CONTROLLER] Updated user {} balance from {} EUR to {} EUR", userId, previousBalance, newBalance);
+
+        // 2. Deactivate the penalty
+        UserPenalties penaltyUpdate = new UserPenalties();
+        penaltyUpdate.setIsActive(false);
+        userService.updatePenalty(dto.getPenaltyId(), penaltyUpdate);
+        logger.info("[USER CONTROLLER] Deactivated penalty {} for user {}", dto.getPenaltyId(), userId);
+
+        return ResponseEntity.ok().build();
     }
 
     private UserProfileDto fetchUserProfile(User u) {

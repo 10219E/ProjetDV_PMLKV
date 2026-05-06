@@ -32,6 +32,7 @@ export class MatchForm implements OnInit {
   @Input() defaultType?: string | null; // e.g. 'private' or 'public'
   @Input() hideOrganiser?: boolean | null;
   @Input() hideInvites?: boolean | null;
+  @Input() stayOnPageAfterSuccess?: boolean | null;
 
   fields: any[] = [];
   // all fields loaded from server (unfiltered). `fields` is the currently displayed list after site filtering.
@@ -1019,6 +1020,35 @@ export class MatchForm implements OnInit {
   // Called when the user clicks OK on the confirmation popup
   acknowledgeSuccess(): void {
     this.showSuccessDialog = false;
+
+    if (this.stayOnPageAfterSuccess) {
+      // Clear form and reload sessions/fields as needed, but stay on page
+      this.form.reset({
+        siteId: this.form.get('siteId')?.value, // Keep the site if selected
+        type: this.defaultType ?? this.form.get('type')?.value,
+        organiserId: this.form.get('organiserId')?.value
+      });
+
+      // Clear internal state
+      this.sessionsForField = [];
+      this.tempSelectedDate = null;
+      this.dateReadOnly = false;
+      this.error = null;
+      this.popupMessage = null;
+      this.successMessage = null;
+
+      // Re-enable/disable controls based on state
+      const fid = this.form.get('fieldId')?.value;
+      if (!fid) {
+        this.form.get('matchDate')?.disable();
+        this.form.get('startTime')?.disable();
+        this.form.get('endTime')?.disable();
+      }
+
+      this.cd.detectChanges();
+      return;
+    }
+
     const organiser = this.organiserId;
     const navigateTo = organiser ? ['/home', organiser] : ['/home'];
     // clear popup message and legacy inline message, then navigate
@@ -1032,3 +1062,4 @@ export class MatchForm implements OnInit {
     this.cd.detectChanges();
   }
 }
+

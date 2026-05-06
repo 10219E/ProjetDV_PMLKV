@@ -56,28 +56,7 @@ export class NavMenu implements OnInit, OnDestroy {
     // determine if current user is an admin (roleId 7 or 9)
     // Avoid calling the protected endpoint when the user is not authenticated
     // (prevents noisy 403s on public pages like the root landing).
-    try {
-      if (this.authService.isAuthenticated()) {
-        this.userService.getCurrentUser().pipe(take(1)).subscribe({
-          next: (u: any) => {
-            const rid = Number(u?.roleId ?? -1);
-            this.isAdmin = [7, 9].includes(rid);
-            this.currentMatricule = u?.matricule ?? null;
-            this.cdr.detectChanges();
-          },
-          error: () => {
-            this.isAdmin = false;
-            this.currentMatricule = null;
-            this.cdr.detectChanges();
-          }
-        });
-      } else {
-        // not authenticated -> definitely not admin
-        this.isAdmin = false;
-      }
-    } catch (e) {
-      this.isAdmin = false;
-    }
+    this.checkAuthentication();
 
     // Listen for navigation end to show restriction popup when redirected by guard
     try {
@@ -135,6 +114,35 @@ export class NavMenu implements OnInit, OnDestroy {
       }
     } catch (e) {
       // ignore
+    }
+  }
+
+  private checkAuthentication(): void {
+    try {
+      if (this.authService.isAuthenticated()) {
+        this.userService.getCurrentUser().pipe(take(1)).subscribe({
+          next: (u: any) => {
+            const rid = Number(u?.roleId ?? -1);
+            this.isAdmin = [7, 9].includes(rid);
+            this.currentMatricule = u?.matricule ?? null;
+            this.cdr.detectChanges();
+          },
+          error: () => {
+            this.isAdmin = false;
+            this.currentMatricule = null;
+            this.cdr.detectChanges();
+          }
+        });
+      } else {
+        // not authenticated -> definitely not admin
+        this.isAdmin = false;
+        this.currentMatricule = null;
+        this.cdr.detectChanges();
+      }
+    } catch (e) {
+      this.isAdmin = false;
+      this.currentMatricule = null;
+      this.cdr.detectChanges();
     }
   }
 

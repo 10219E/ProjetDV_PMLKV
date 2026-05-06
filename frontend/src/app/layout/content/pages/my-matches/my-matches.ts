@@ -12,6 +12,7 @@ import { UserService } from '../../../../services/user.service';
 import { MatchPlayerSiteFieldDto } from '../../../../api/model/matchPlayerSiteFieldDto';
 import { DeclinedPlayersDto } from '../../../../api/model/declinedPlayersDto';
 import { SimpleInviteDto } from '../../../../api/model/simpleInviteDto';
+import { MatchPlayerDto } from '../../../../api/model/matchPlayerDto';
 import { UserFormComponent } from '../../user-form/user-form';
 
 @Component({
@@ -23,10 +24,12 @@ import { UserFormComponent } from '../../user-form/user-form';
 export class MyMatches implements OnInit {
   matchPlayers: MatchPlayerSiteFieldDto[] = [];
   declinedPlayers: DeclinedPlayersDto[] = [];
+  currentMatchEmails: string[] = [];
   loading = false;
   error: string | null = null;
   userId: string | null = null;
   showInviteForm = false;
+  showSuccessPopup = false;
   selectedMatchId: number | null = null;
 
   // Form handling
@@ -62,6 +65,12 @@ export class MyMatches implements OnInit {
     this.userId = this.route.snapshot.paramMap.get('userId');
     if (this.userId) {
       this.loadMatches(this.userId);
+    }
+
+    // Check if we should show success popup after refresh
+    if (sessionStorage.getItem('showSuccessInvite') === 'true') {
+      this.showSuccessPopup = true;
+      sessionStorage.removeItem('showSuccessInvite');
     }
   }
 
@@ -148,6 +157,14 @@ export class MyMatches implements OnInit {
     this.selectedMatchId = matchId;
     const declinedCount = this.getDeclinedCount(matchId);
 
+    // Fetch all players for this match to prevent inviting someone already in
+    this.inviteService.getPlayersForMatch(matchId).subscribe({
+      next: (emails) => {
+        this.currentMatchEmails = emails || [];
+      },
+      error: (err) => console.error('Error fetching match players', err)
+    });
+
     // Setup form array based on declined count
     const invitesArray = this.inviteForm.get('invites') as FormArray;
     invitesArray.clear();
@@ -209,6 +226,7 @@ export class MyMatches implements OnInit {
       delete errors['adminNotAllowed'];
       delete errors['inviteNotAllowed'];
       delete errors['userDeclined'];
+      delete errors['alreadyPlayer'];
       delete errors['timeout'];
       if (Object.keys(errors).length === 0) c.setErrors(null, { emitEvent: false });
       else c.setErrors(errors, { emitEvent: false });
@@ -300,6 +318,16 @@ export class MyMatches implements OnInit {
           if (hasDeclined) {
             const c = this.getInviteControl(index);
             if (c) { const err = c.errors || {}; err['userDeclined'] = true; c.setErrors(err, { emitEvent: false }); }
+            this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
+            if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+            this.cd.detectChanges();
+            return;
+          }
+
+          const isAlreadyPlayer = this.currentMatchEmails.includes(user.email!);
+          if (isAlreadyPlayer) {
+            const c = this.getInviteControl(index);
+            if (c) { const err = c.errors || {}; err['alreadyPlayer'] = true; c.setErrors(err, { emitEvent: false }); }
             this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
             if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
             this.cd.detectChanges();
@@ -406,29 +434,41 @@ export class MyMatches implements OnInit {
   // Handle inviting replacement players
   inviteReplacementPlayers(newPlayerIds: string[]): void {
     if (!this.selectedMatchId || !this.userId) return;
+    this.loading = true;
 
-    // For each new player, update the match player status
-    newPlayerIds.forEach((newPlayerId, index) => {
-      // Pass 'pending' so the invited player has to accept and pay (or simply accept)
-      this.matchService.joinPublicMatchOrUpdatePrivate(this.selectedMatchId!, newPlayerId, 'pending').subscribe({
-        next: () => {
-          console.log(`Successfully invited replacement player ${newPlayerId}`);
-        },
-        error: (err) => {
-          console.error(`Error inviting replacement player ${newPlayerId}:`, err);
-        }
-      });
+    const requests = newPlayerIds.map(newPlayerId =>
+      this.matchService.joinPublicMatchOrUpdatePrivate(this.selectedMatchId!, newPlayerId, 'pending')
+    );
+
+    if (requests.length === 0) {
+      this.loading = false;
+      this.hideInviteForm();
+      return;
+    }
+
+    forkJoin(requests).subscribe({
+      next: () => {
+        sessionStorage.setItem('showSuccessInvite', 'true');
+        window.location.reload();
+      },
+      error: (err) => {
+        console.error(`Error inviting replacement players:`, err);
+        this.error = 'Certaines invitations n\'ont pas pu être envoyées.';
+        this.loading = false;
+        this.cd.detectChanges();
+      }
     });
-
-    // Show success message
-    this.showSuccessPopup();
-    this.hideInviteForm();
   }
 
   // Show success popup
-  showSuccessPopup(): void {
-    // Implement popup logic here
-    alert('Nouveaux joueurs invités avec succès!');
+  displaySuccessPopup(): void {
+    this.showSuccessPopup = true;
+    this.cd.detectChanges();
+  }
+
+  closeSuccessPopup(): void {
+    this.showSuccessPopup = false;
+    this.cd.detectChanges();
   }
 
   formatTime(t?: any): string {

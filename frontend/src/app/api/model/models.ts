@@ -25,6 +25,7 @@ export * from './user';
 export * from './userAccountDto';
 export * from './userPenalties';
 export * from './userPenaltyDto';
+export * from './userPenaltyUpdateDto';
 export * from './userProfileDto';
 export * from './userRegistrationDto';
 export * from './userRoles';
