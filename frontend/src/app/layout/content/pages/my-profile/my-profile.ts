@@ -94,4 +94,12 @@ export class MyProfile implements OnInit {
     };
     return map[code] ?? code;
   }
+
+  translateAccountStatus(status: string | undefined | null): string {
+    if (!status) return 'N/A';
+    const s = status.toLowerCase();
+    if (s === 'clear') return 'Apuré';
+    if (s === 'debt') return 'Dette';
+    return status;
+  }
 }

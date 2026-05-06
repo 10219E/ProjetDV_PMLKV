@@ -76,7 +76,7 @@
                 </div>
                 <div>
                   <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Statut du Compte</label>
-                  <p class="font-medium capitalize">{{ user.account?.status || 'N/A' }}</p>
+                  <p class="font-medium capitalize">{{ translateAccountStatus(user.account?.status) }}</p>
                 </div>
               </div>
             </section>
