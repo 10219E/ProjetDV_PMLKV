@@ -68,27 +68,36 @@
                 <span class="bg-blue-100 p-1.5 rounded-lg">💳</span> Mon Compte
               </h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/40 p-5 rounded-xl border border-white/60">
+                @if (user.account) {
                 <div>
                   <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Dette</label>
-                  <p class="text-xl font-bold" [class.text-red-600]="(user.account?.balance ?? 0) < 0" [class.text-green-600]="(user.account?.balance ?? 0) >= 0">
-                    {{ user.account?.balance | number:'1.2-2' }} €
+                  <p class="text-xl font-bold" [class.text-red-600]="(user.account.balance ?? 0) < 0" [class.text-green-600]="(user.account.balance ?? 0) >= 0">
+                    {{ user.account.balance | number:'1.2-2' }} €
                   </p>
                 </div>
                 <div>
                   <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Statut du Compte</label>
-                  <p class="font-medium capitalize">{{ translateAccountStatus(user.account?.status) }}</p>
+                  <p class="font-medium capitalize">{{ translateAccountStatus(user.account.status) }}</p>
                 </div>
+                @if (user.account.status === 'debt' && user.account.balance) {
+                  <div class="col-span-2">
+                    <button (click)="payDebt(user.penalties![0])" class="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                      Apurer
+                    </button>
+                  </div>
+                }
+                }
               </div>
             </section>
 
             <!-- Penalties Section -->
-            @if (user.penalties && user.penalties.length > 0) {
+            @if (hasActivePenalties()) {
               <section>
                 <h3 class="text-lg font-semibold text-red-800 mb-4 flex items-center gap-2">
                   <span class="bg-red-100 p-1.5 rounded-lg">⚠️</span> Pénalités
                 </h3>
                 <div class="space-y-3">
-                  @for (p of user.penalties; track p.tr ?? $index) {
+                  @for (p of getActivePenalties(); track p.tr ?? $index) {
                     <div class="p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4" [class.bg-red-50]="p.isActive" [class.border-red-200]="p.isActive" [class.bg-gray-50]="!p.isActive" [class.border-gray-200]="!p.isActive">
                       <div>
                         <p class="font-bold text-gray-900">{{ translatePenaltyReason(p.reason) }}</p>
@@ -144,9 +153,27 @@
   </div>
 </div>
 
+@if (showPayForm) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <app-pay-form [amount]="showDebtPayment ? debtAmount : 99.00" (paid)="onPaymentPaid($event)" (cancelled)="onPaymentCancelled()"></app-pay-form>
+  </div>
+}
+
+@if (showDebtPaymentSuccess) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-8 rounded-lg shadow-lg text-center">
+      <h3 class="text-2xl font-bold text-green-600 mb-4">Paiement de la dette réussi!</h3>
+      <p class="text-gray-700">Votre compte est maintenant apuré.</p>
+      <button (click)="closeDebtSuccess()" class="mt-6 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        Fermer
+      </button>
+    </div>
+  </div>
+}
+
 <!-- Password Change Modal -->
 @if (showPasswordForm) {
-  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
       <div class="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
         <h3 class="text-xl font-bold text-gray-800">Changer le mot de passe</h3>
@@ -271,11 +298,6 @@
       </div>
     </div>
   </div>
-}
-
-<!-- Pay Form integration -->
-@if (showPayForm) {
-  <app-pay-form [amount]="99" (paid)="onPaymentPaid($event)" (cancelled)="onPaymentCancelled()"></app-pay-form>
 }
 
 <!-- VIP Success Popup -->

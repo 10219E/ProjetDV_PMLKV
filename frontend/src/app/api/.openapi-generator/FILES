@@ -48,6 +48,7 @@ model/user.ts
 model/userAccountDto.ts
 model/userPenalties.ts
 model/userPenaltyDto.ts
+model/userPenaltyUpdateDto.ts
 model/userProfileDto.ts
 model/userRegistrationDto.ts
 model/userRoles.ts

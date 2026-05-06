@@ -5,6 +5,7 @@ import { ReactiveFormsModule, FormGroup, FormControl, Validators, AbstractContro
 import { UserService } from '../../../../services/user.service';
 import { AuthService } from '../../../../services/auth.service';
 import { UserProfileDto } from '../../../../api/model/userProfileDto';
+import { UserPenaltyDto } from '../../../../api/model/userPenaltyDto';
 import { NavMenu } from '../../nav-menu/nav-menu';
 import { HomeAccountHeader } from '../../header/header';
 import { take } from 'rxjs/operators';
@@ -42,6 +43,11 @@ export class MyProfile implements OnInit {
   user: UserProfileDto | null = null;
   loading = true;
   error: string | null = null;
+
+  showDebtPayment = false;
+  debtAmount = 0;
+  penaltyToClear: number | null = null;
+  showDebtPaymentSuccess = false;
 
   // Toggle password visibility
   showCurrentPassword = false;
@@ -199,34 +205,66 @@ export class MyProfile implements OnInit {
   onPaymentPaid(event: any): void {
     if (!this.user?.matricule) return;
 
-    this.showPayForm = false;
-    const now = new Date();
-    this.vipExpirationDate = new Date(now.setFullYear(now.getFullYear() + 1));
+    this.showPayForm = false; // Close the form immediately
 
-    this.paymentDetails = {
-      amount: 99.00,
-      description: `abonnement annuel ${this.user.matricule}`,
-      expiration: this.vipExpirationDate,
-      cardLast4: event.cardLast4
-    };
+    if (this.showDebtPayment) {
+      // It's a debt payment
+      this.userService.updateUserPenaltyAndAccount(this.user.matricule, this.penaltyToClear!, event.amount).subscribe({
+        next: () => {
+          this.showDebtPaymentSuccess = true;
+          this.showDebtPayment = false; // Reset flag
+          this.cdr.detectChanges();
+          this.fetchUser(this.user!.matricule!); // Refresh user data
+        },
+        error: (err) => {
+          this.error = "Le paiement de la dette a échoué.";
+          console.error(err);
+          this.showDebtPayment = false; // Reset flag on error
+          this.cdr.detectChanges();
+        }
+      });
+    } else {
+      // It's a VIP payment
+      const now = new Date();
+      this.vipExpirationDate = new Date(now.setFullYear(now.getFullYear() + 1));
 
-    // Trigger backend migration
-    this.migrationService.migrateToVip(this.user.matricule).subscribe({
-      next: () => {
-        this.showVipSuccess = true;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error('Migration failed', err);
-        this.error = "La migration vers le statut VIP a échoué. Veuillez contacter le support.";
-        this.cdr.detectChanges();
-      }
-    });
+      this.paymentDetails = {
+        amount: 99.00,
+        description: `abonnement annuel ${this.user.matricule}`,
+        expiration: this.vipExpirationDate,
+        cardLast4: event.cardLast4
+      };
+
+      // Trigger backend migration
+      this.migrationService.migrateToVip(this.user.matricule).subscribe({
+        next: () => {
+          this.showVipSuccess = true;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          console.error('Migration failed', err);
+          this.error = "La migration vers le statut VIP a échoué. Veuillez contacter le support.";
+          this.cdr.detectChanges();
+        }
+      });
+    }
   }
 
   onPaymentCancelled(): void {
     this.showPayForm = false;
     this.cdr.detectChanges();
+  }
+
+  payDebt(penalty: any): void {
+    this.debtAmount = Math.abs(this.user?.account?.balance || 0);
+    this.penaltyToClear = penalty.tr;
+    this.showDebtPayment = true;
+    this.showPayForm = true;
+    this.cdr.detectChanges();
+  }
+
+  closeDebtSuccess(): void {
+    this.showDebtPaymentSuccess = false;
   }
 
   closeVipSuccessAndLogout(): void {
@@ -257,5 +295,13 @@ export class MyProfile implements OnInit {
     if (s === 'clear') return 'Apuré';
     if (s === 'debt') return 'Dette';
     return status;
+  }
+
+  getActivePenalties(): UserPenaltyDto[] {
+    return (this.user?.penalties ?? []).filter(p => !!p.isActive);
+  }
+
+  hasActivePenalties(): boolean {
+    return this.getActivePenalties().length > 0;
   }
 }

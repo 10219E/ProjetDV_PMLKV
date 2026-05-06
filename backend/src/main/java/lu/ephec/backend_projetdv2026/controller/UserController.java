@@ -2,10 +2,12 @@ package lu.ephec.backend_projetdv2026.controller;
 
 import lu.ephec.backend_projetdv2026.dto.SimpleInviteDto;
 import lu.ephec.backend_projetdv2026.dto.compodto.UserProfileDto;
+import lu.ephec.backend_projetdv2026.dto.compodto.UserPenaltyUpdateDto;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.models.UserAccounts;
 import lu.ephec.backend_projetdv2026.models.UserRoles;
 import lu.ephec.backend_projetdv2026.models.UsersSites;
+import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.services.PaymentService;
 import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
@@ -207,6 +209,27 @@ public class UserController {
         return userService.updateUser(userId, updateData)
                 .map(updated -> ResponseEntity.ok(fetchUserProfile(updated)))
                 .orElse(ResponseEntity.badRequest().build());
+    }
+
+    @PatchMapping(value = "/pen/{userId}", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<Void> updateUserPenaltyAndAccount(@PathVariable String userId, @RequestBody UserPenaltyUpdateDto dto) {
+        logger.info("[USER CONTROLLER] Update penalty and account for user {}", userId);
+
+        // 1. Update user's account balance
+        UserAccounts account = paymentService.fetchUserAccount(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User account not found"));
+
+        double previousBalance = account.getBalance() != null ? account.getBalance() : 0.0;
+        double newBalance = previousBalance + dto.getAmount();
+        paymentService.updateAccountStatus(userId, "clear", dto.getAmount());
+        logger.info("[USER CONTROLLER] Updated user {} balance from {} EUR to {} EUR", userId, previousBalance, newBalance);
+
+        // 2. Deactivate the penalty
+        UserPenalties penaltyUpdate = new UserPenalties();
+        penaltyUpdate.setIsActive(false);
+        userService.updatePenalty(dto.getPenaltyId(), penaltyUpdate);
+        logger.info("[USER CONTROLLER] Deactivated penalty {} for user {}", dto.getPenaltyId(), userId);
+
+        return ResponseEntity.ok().build();
     }
 
     private UserProfileDto fetchUserProfile(User u) {

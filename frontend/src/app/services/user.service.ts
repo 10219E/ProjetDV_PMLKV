@@ -51,6 +51,13 @@ export class UserService {
     );
   }
 
+  // Update user penalty and account information -- ONLY FOR USERS WITH DEBT
+  updateUserPenaltyAndAccount(userId: string, penaltyId: number, amount: number): Observable<void> {
+    const body = { penaltyId, amount };
+    this.setAuthHeader();
+    return this.userControllerService.updateUserPenaltyAndAccount(userId, body);
+  }
+
   // Fetch all users. Returns the generated controller model type so callers get a typed array.
   // Ensures an Authorization header is set from the AuthService token before calling the generated client.
   getAllUsers(): Observable<Array<UserProfileDto>> {
