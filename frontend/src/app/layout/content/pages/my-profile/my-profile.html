@@ -45,7 +45,13 @@
                 </div>
                 <div>
                   <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Niveau</label>
-                  <p class="text-gray-900 font-medium">Niveau {{ user.level || 'Non défini' }}</p>
+                  <p class="text-gray-900 font-medium">
+                    @if (isAdmin) {
+                      Administrateur
+                    } @else {
+                      Niveau {{ user.level || 'Non défini' }}
+                    }
+                  </p>
                 </div>
                 <div>
                   <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Statut</label>
@@ -63,35 +69,37 @@
             </section>
 
             <!-- Account Section -->
-            <section>
-              <h3 class="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
-                <span class="bg-blue-100 p-1.5 rounded-lg">💳</span> Mon Compte
-              </h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/40 p-5 rounded-xl border border-white/60">
-                @if (user.account) {
-                <div>
-                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Dette</label>
-                  <p class="text-xl font-bold" [class.text-red-600]="(user.account.balance ?? 0) < 0" [class.text-green-600]="(user.account.balance ?? 0) >= 0">
-                    {{ user.account.balance | number:'1.2-2' }} €
-                  </p>
-                </div>
-                <div>
-                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Statut du Compte</label>
-                  <p class="font-medium capitalize">{{ translateAccountStatus(user.account.status) }}</p>
-                </div>
-                @if (user.account.status === 'debt' && user.account.balance) {
-                  <div class="col-span-2">
-                    <button (click)="payDebt(user.penalties![0])" class="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                      Apurer
-                    </button>
+            @if (!isAdmin) {
+              <section>
+                <h3 class="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                  <span class="bg-blue-100 p-1.5 rounded-lg">💳</span> Mon Compte
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/40 p-5 rounded-xl border border-white/60">
+                  @if (user.account) {
+                  <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Dette</label>
+                    <p class="text-xl font-bold" [class.text-red-600]="(user.account.balance ?? 0) < 0" [class.text-green-600]="(user.account.balance ?? 0) >= 0">
+                      {{ user.account.balance | number:'1.2-2' }} €
+                    </p>
                   </div>
-                }
-                }
-              </div>
-            </section>
+                  <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Statut du Compte</label>
+                    <p class="font-medium capitalize">{{ translateAccountStatus(user.account.status) }}</p>
+                  </div>
+                  @if (user.account.status === 'debt' && user.account.balance) {
+                    <div class="col-span-2">
+                      <button (click)="payDebt(user.penalties![0])" class="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                        Apurer
+                      </button>
+                    </div>
+                  }
+                  }
+                </div>
+              </section>
+            }
 
             <!-- Penalties Section -->
-            @if (hasActivePenalties()) {
+            @if (hasActivePenalties() && !isAdmin) {
               <section>
                 <h3 class="text-lg font-semibold text-red-800 mb-4 flex items-center gap-2">
                   <span class="bg-red-100 p-1.5 rounded-lg">⚠️</span> Pénalités
@@ -216,7 +224,7 @@
             } @else if (passwordForm.get('newPassword')?.errors?.['minlength']) {
               <p class="text-red-500 text-xs mt-1">Minimum 8 caractères.</p>
             } @else if (passwordForm.get('newPassword')?.errors?.['weakPassword']) {
-              <p class="text-red-500 text-xs mt-1">Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial (@!-+&$€).</p>
+              <p class="text-red-500 text-xs mt-1">Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial (&#64;!-+&$€).</p>
             }
           }
         </div>

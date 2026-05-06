@@ -18,9 +18,12 @@
     <main class="flex-1 p-6 relative flex flex-col items-stretch z-10">
 
       <!-- Welcome block: no background behind text; styled similar to Padel Belgium (smaller) -->
-      <div class="w-full max-w-full mb-8 text-center">
+      <div class="w-full max-w-full text-center" [class.mb-8]="!isAdmin" [class.flex-1]="isAdmin" [class.flex]="isAdmin" [class.items-center]="isAdmin" [class.justify-center]="isAdmin">
         <div class="text-white text-4xl md:text-6xl font-extrabold tracking-wider drop-shadow-2xl leading-tight inline-block">
           Bienvenue
+          @if (isAdmin) {
+            <span class="mx-2 italic">Administrateur</span>
+          }
           <!-- first + last name always white -->
           <span class="ml-3 font-extrabold text-white">{{ userFullName }}</span>
           @if (isAdmin) {
@@ -45,16 +48,16 @@
       </div>
 
       <!-- Wrapper styled like popups in home.html (transparent so cards float on background) -->
-      <div class="relative bg-transparent w-full max-w-full mx-4 p-8 mid:p-10 rounded-3xl animate-fade-in-up flex flex-col items-stretch mid:items-start gap-8 z-10">
-
-        <!-- Three columns row -->
+      @if (!isAdmin) {
+        <div class="relative bg-transparent w-full max-w-full mx-4 p-8 mid:p-10 rounded-3xl animate-fade-in-up flex flex-col items-stretch mid:items-start gap-8 z-10">
+          <!-- Three columns row -->
           <div class="w-full grid grid-cols-1 mid:grid-cols-3 gap-8 auto-rows-fr items-stretch mid:justify-start">
 
             <!-- Box 1: Mes Matchs à Venir -->
-            @if (upcomingMatches.length > 0) {
-              <div class="bg-white/50 backdrop-blur-md border-2 border-orange-300 p-4 md:p-3 lg:p-2 flex flex-col relative min-h-[200px] overflow-hidden rounded-xl shadow-md w-full">
-                <h3 class="font-bold text-base md:text-sm mb-3 text-center">Mes Matchs à Venir</h3>
-                <div class="flex-1 flex flex-col overflow-y-auto pr-2 space-y-2 md:space-y-1 lg:space-y-1 pb-16">
+            <div class="bg-white/50 backdrop-blur-md border-2 border-orange-300 p-4 md:p-3 lg:p-2 flex flex-col relative min-h-[200px] overflow-hidden rounded-xl shadow-md w-full">
+              <h3 class="font-bold text-base md:text-sm mb-3 text-center">Mes Matchs à Venir</h3>
+              <div class="flex-1 flex flex-col overflow-y-auto pr-2 space-y-2 md:space-y-1 lg:space-y-1 pb-16">
+                @if (upcomingMatches.length > 0) {
                   @for (match of upcomingMatches; track match.id) {
                     <div class="bg-white/60 backdrop-blur-sm p-3 md:p-2 rounded-lg border border-orange-200 shadow-sm hover:shadow-md transition-all duration-200">
                       <div class="flex flex-col gap-1">
@@ -71,15 +74,17 @@
                       </div>
                     </div>
                   }
-                </div>
-                <!-- Floating button Mes Matchs -->
-                <div class="absolute bottom-4 right-4">
-                  <button (click)="goToMyMatches()" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-full shadow hover:bg-orange-600 transition">
-                    Mes Matchs
-                  </button>
-                </div>
+                } @else {
+                  <p class="text-xs italic text-gray-500 text-center">Aucun match à venir.</p>
+                }
               </div>
-            }
+              <!-- Floating button Mes Matchs -->
+              <div class="absolute bottom-4 right-4">
+                <button (click)="goToMyMatches()" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-full shadow hover:bg-orange-600 transition">
+                  Mes Matchs
+                </button>
+              </div>
+            </div>
 
             <!-- Box 2: Mes Invitations en Attente -->
             <div class="bg-white/50 backdrop-blur-md border-2 border-orange-300 p-4 md:p-3 lg:p-2 flex flex-col relative min-h-[200px] overflow-hidden rounded-xl shadow-md w-full">
@@ -116,35 +121,35 @@
               </div>
             </div>
 
-          <!-- Box 3: Mon Statut (card style, translucent, light orange edge) -->
-          <div class="bg-white/60 backdrop-blur-md border-2 border-orange-300 p-6 min-h-[200px] rounded-xl shadow-md w-full">
-            <h3 class="font-bold text-lg mb-6 text-center">Mon Statut</h3>
-            @if (userAccount) {
-              <div class="mb-4">
-                <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Dette</label>
-                <p class="text-xl font-bold" [class.text-red-600]="(userAccount.balance ?? 0) < 0" [class.text-black-800]="(userAccount.balance ?? 0) >= 0">
-                  {{ userAccount.balance | number:'1.2-2' }} €
-                </p>
-                <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mt-2 block">Statut du Compte</label>
-                <p class="font-medium capitalize" [class.text-black-800]="userAccount.status?.toLowerCase() === 'clear'" [class.text-red-600]="userAccount.status?.toLowerCase() === 'debt'">
-                  {{ translateAccountStatus(userAccount.status) }}
-                </p>
+            <!-- Box 3: Mon Statut (card style, translucent, light orange edge) -->
+            <div class="bg-white/60 backdrop-blur-md border-2 border-orange-300 p-6 min-h-[200px] rounded-xl shadow-md w-full">
+              <h3 class="font-bold text-lg mb-6 text-center">Mon Statut</h3>
+              @if (userAccount) {
+                <div class="mb-4">
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Dette</label>
+                  <p class="text-xl font-bold" [class.text-red-600]="(userAccount.balance ?? 0) < 0" [class.text-black-800]="(userAccount.balance ?? 0) >= 0">
+                    {{ userAccount.balance | number:'1.2-2' }} €
+                  </p>
+                  <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mt-2 block">Statut du Compte</label>
+                  <p class="font-medium capitalize" [class.text-black-800]="userAccount.status?.toLowerCase() === 'clear'" [class.text-red-600]="userAccount.status?.toLowerCase() === 'debt'">
+                    {{ translateAccountStatus(userAccount.status) }}
+                  </p>
+                </div>
+              }
+              <div class="flex flex-col gap-4 text-sm font-semibold">
+                <div><label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Pénalités actives :</label> {{ stats.actives }}</div>
               </div>
-            }
-            <div class="flex flex-col gap-4 text-sm font-semibold">
-              <div><label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Pénalités actives :</label> {{ stats.actives }}</div>
+              <!-- Floating button Mon Statut -->
+              <div class="absolute bottom-4 right-4"> <!-- added relative to ensure positioning inside the box -->
+                <button (click)="goToMyProfile()" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-full shadow hover:bg-orange-600 transition">
+                  Mon Profil
+                </button>
+              </div>
             </div>
-            <!-- Floating button Mon Statut -->
-            <div class="absolute bottom-4 right-4">
-              <button (click)="goToMyProfile()" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-full shadow hover:bg-orange-600 transition">
-                Mon Profil
-              </button>
-            </div>
+
           </div>
-
         </div>
-
-      </div>
+      }
 
     </main>
 
