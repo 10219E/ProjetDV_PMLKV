@@ -13,27 +13,39 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install dependencies
         run: npm ci
         working-directory: frontend
-
       - name: Build
         run: npm run build
         working-directory: frontend
 
-      # Frontend tests are temporarily disabled as there are no valid tests implemented yet.
-      # - name: Test
-      #   run: npx ng test --no-watch --no-progress --browsers=ChromeHeadless
-      #   working-directory: frontend
-
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: frontend
+          start: npm run start
+          wait-on: 'http://localhost:4200'
+          wait-on-timeout: 120
