@@ -33,7 +33,9 @@ jobs:
           cache: 'maven'
 
       - name: Build and Test with Maven
-        run: ./mvnw test
+        run: |
+          chmod +x mvnw
+          ./mvnw test
         working-directory: backend
 
       - name: Upload Test Reports (Surefire)
@@ -41,21 +43,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-results
-          path: backend/target/surefire-reports/TEST-*.xml
+          path: backend/target/surefire-reports/*.xml
 
       - name: Upload Coverage Report (JaCoCo)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage-report
-          path: backend/target/site/jacoco/
+          path: backend/target/site/jacoco/**
 
       - name: Publish Test Report to Checks UI
         if: always()
         uses: dorny/test-reporter@v1
         with:
           name: backend-tests
-          path: 'backend/target/surefire-reports/TEST-*.xml'
+          path: 'backend/target/surefire-reports/*.xml'
           reporter: java-junit
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
