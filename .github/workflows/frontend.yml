@@ -1,4 +1,4 @@
-name: Frontend CI
+name: Frontend - Padel Proj.
 
 on:
   push:
