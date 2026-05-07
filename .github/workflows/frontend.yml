@@ -59,7 +59,7 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           working-directory: frontend
-          command: npx cypress run --component --reporter junit --reporter-options "mochaFile=cypress/results/[hash].xml,testsuitesTitle=true"
+          command: npx cypress run --component --reporter junit --reporter-options '{"mochaFile":"cypress/results/[hash].xml","testsuitesTitle":true}'
           start: npm run start
           wait-on: 'http://localhost:4200'
           wait-on-timeout: 120
