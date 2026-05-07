@@ -1,6 +1,10 @@
-name: Padel Project (FE)
+name: Padel Project (Frontend)
 
 on:
+  workflow_run:
+    workflows: [ "Padel Project (Backend)" ]  # Wait for the backend workflow to complete
+    types:
+      - completed
   push:
     paths:
       - 'frontend/**'
@@ -79,6 +83,7 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: frontend-tests
+          check_name: Frontend Tests  # Explicit check suite name
           path: 'frontend/cypress/results/*.xml'
           reporter: java-junit
         env:

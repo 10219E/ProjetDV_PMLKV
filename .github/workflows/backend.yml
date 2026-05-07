@@ -1,4 +1,4 @@
-name:  Padel Project (BE)
+name: Padel Project (Backend)
 
 on:
   push:
@@ -58,6 +58,7 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: backend-tests
+          check_name: Backend Tests  # Explicit check suite name
           path: 'backend/target/surefire-reports/*.xml'
           reporter: java-junit
         env:
