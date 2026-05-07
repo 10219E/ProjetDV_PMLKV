@@ -81,15 +81,13 @@ public class MatchService {
         // Get matches where user is registered
         List<MatchPlayers> myregistered = jpaMatchPlayersRepo.findByUser_Matricule(userId);
 
-        logger.info("Fetching matches where user is registered: " + myregistered.size());
-
         // Find matches that are both in matchList and in myregistered
         List<Match> mymatches = matchList.stream()
                 .filter(match -> myregistered.stream()
                         .anyMatch(mp -> mp.getMatch().getMatchId().equals(match.getMatchId())))
                 .toList();
 
-        logger.info("Found matches where user is registered: " + mymatches.size());
+        logger.info("[Service - Match] Found matches where user is registered: " + mymatches.size());
 
         return mymatches;
     }
@@ -102,8 +100,6 @@ public class MatchService {
 
         // Get all public matches that are open or pending
         List<Match> publicMatches = jpaMatchRepo.findByTypeAndPubStatus("public", "open");
-
-        logger.info("Total public matches found: {}", publicMatches.size());
 
         // Get matches where user is registered
         List<MatchPlayers> myregistered = jpaMatchPlayersRepo.findByUser_Matricule(userId);
@@ -118,7 +114,7 @@ public class MatchService {
                 .filter(match -> !registeredMatchIds.contains(match.getMatchId()))
                 .collect(Collectors.toList());
 
-        logger.info("Found {} available public matches for user {}", availableMatches.size(), userId);
+        logger.info("[Service - Match] Found {} available public matches for user {}", availableMatches.size(), userId);
 
         return availableMatches;
     }
@@ -133,6 +129,7 @@ public class MatchService {
     //FOR PRIVATE MATCHES USING THIS
     @Transactional
     public Match newMatch(Match match, List <String> usersToInvite) {
+        logger.info("[Service - Match] Creating new match");
         //Validations
         ValidationBoiler.verifyNotNull(match, "Match");
         ValidationBoiler.verifyNotEmpty(match.getType(), "Match type");
@@ -181,11 +178,13 @@ public class MatchService {
 
         // VALIDATE ALL INVITED USERS EXIST BEFORE CREATING THE MATCH (PRIVATE) + SHOULD NOT BE ADMIN
         if (match.getType().equals("private")) {
+            logger.info("[Service - Match] Validating invited users for private match.");
             // Validate that we have exactly 3 invites (p2, p3, p4 - p1 is organiser)
             int requiredInvites = 3;
             int availableInvites = (usersToInvite != null) ? usersToInvite.size() : 0;
 
             if (availableInvites != requiredInvites) {
+                logger.warn("[Service - Match] Invalid number of invites for private match. Provided: {}, Required: {}", availableInvites, requiredInvites);
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Private match requires exactly 3 invited players (p2, p3, p4). " +
                                 "Provided: " + availableInvites + ", Required: " + requiredInvites);
@@ -237,9 +236,12 @@ public class MatchService {
         // SAVE THE MATCH FIRST (to get the auto-generated match_id)
         Match savedMatch = jpaMatchRepo.save(match);
 
+        logger.info("[Service - Match] Match saved with ID: {}", savedMatch.getMatchId());
+
         // NOW INITIALIZE MATCH PLAYERS WITH THE SAVED MATCH (which has an ID)
         initializeMatchPlayers(savedMatch, usersToInvite);
 
+        logger.info("[Service - Match] Match players initialized for match.");
         return savedMatch;
     }
 
@@ -325,6 +327,7 @@ public class MatchService {
         ValidationBoiler.verifyNotNull(matchId, "Match ID");
         ValidationBoiler.verifyExists(jpaMatchRepo.existsById(matchId), "Match", matchId);
 
+        logger.warn("[Service - Match] !!!Deleting match with ID: {} and its players", matchId);
         // Delete associated Match Players first (due to FK constraint)
         jpaMatchPlayersRepo.deleteByMatch_MatchId(matchId);
 
@@ -334,6 +337,7 @@ public class MatchService {
     //UPDATE MATCH
     @Transactional
     public Optional<Match> updateMatch(Integer matchId, Match updateData) {
+        logger.info("[Service - Match] Updating match with ID: {}", matchId);
         ValidationBoiler.verifyNotNull(matchId, "Match ID");
         ValidationBoiler.verifyNotNull(updateData, "Update data");
         ValidationBoiler.verifyExists(jpaMatchRepo.existsById(matchId), "Match", matchId);
@@ -359,6 +363,7 @@ public class MatchService {
 
                 // If changing to public, organiser must be null and clean privStatus
                 if (updateData.getType().equals("public")) {
+                    logger.info("[Service - Match] Match is now public. Cleaning privStatus.");
                     // MATCH PLAYERS Reset pending/declined slots to open for public, but keep approved players
                     resetMatchPlayersForPublic(matchId);
 
@@ -457,6 +462,7 @@ public class MatchService {
                 }
             }
 
+            logger.info("[Service - Match] Match updated successfully.");
             return jpaMatchRepo.save(match);
         });
     }
@@ -475,6 +481,8 @@ public class MatchService {
     @Transactional
     protected void initializeMatchPlayers(Match match, List<String> usersToInvite) {
         String[] roles = {"p1", "p2", "p3", "p4"};
+
+        logger.info("[Service - Match : Players] Initializing match players for match: {}", match.getMatchId());
 
         for (int i = 0; i < roles.length; i++) {
             String role = roles[i];
@@ -511,6 +519,7 @@ public class MatchService {
                 player.setStatus("pending");
             }
 
+            logger.info("[Service - Match : Players] Initializing player: {}", player);
             jpaMatchPlayersRepo.save(player);
         }
     }
@@ -534,6 +543,7 @@ public class MatchService {
             }
         }
 
+        logger.info("[Service - Match : Players] Reset match players for public match: {}", matchId);
         jpaMatchPlayersRepo.saveAll(players);
     }
 
@@ -553,6 +563,7 @@ public class MatchService {
     //DECLINE MATCH PLAYER
     @Transactional
     public MatchPlayers declineMatchPlayer(Integer matchId, String userId) {
+        logger.info("[Service - Match : Players] Declining match player for match: {} and user: {}", matchId, userId);
         ValidationBoiler.verifyNotNull(matchId, "Match ID");
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaMatchRepo.existsById(matchId), "Match", matchId);
@@ -563,6 +574,7 @@ public class MatchService {
                 .findByMatch_MatchIdAndUser_Matricule(matchId, userId);
 
         if (!existingUserInMatch.isPresent()) {
+            logger.warn("[Service - Match : Players] User {} is not in match {}", userId, matchId);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "User " + userId + " is not in match " + matchId);
         }
@@ -571,6 +583,7 @@ public class MatchService {
         MatchPlayers existingPlayer = existingUserInMatch.get();
         existingPlayer.setStatus("declined");
 
+        logger.info("[Service - Match : Players] Match player declined successfully.");
         return jpaMatchPlayersRepo.save(existingPlayer);
     }
 
@@ -579,6 +592,7 @@ public class MatchService {
     // For private matches: can replace "declined" players
     @Transactional
     public Optional<MatchPlayers> updateMatchPlayer(Integer matchId, String userId, String newStatus) {
+        logger.info("[Service - Match : Players] Updating match player for match: {} and user: {}", matchId, userId);
         ValidationBoiler.verifyNotNull(matchId, "Match ID");
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyNotEmpty(newStatus, "Status");
@@ -620,6 +634,7 @@ public class MatchService {
         
         MatchPlayers slotToFill;
 
+        logger.info("[Service - Match : Players] Processing business logic for player");
         if (existingUserInMatch.isPresent()) {
             // Allow updating if the user has declined status
             if (!existingUserInMatch.get().getStatus().equals("declined")) {
@@ -635,6 +650,7 @@ public class MatchService {
 
             // For public matches: find first "pending" slot
             if (match.getType().equals("public")) {
+                logger.info("[Service - Match : Players] Checking available slots for public match");
                 slotToFill = players.stream()
                         .filter(p -> p.getStatus().equals("pending") && p.getUser() == null)
                         .findFirst()
@@ -643,6 +659,7 @@ public class MatchService {
             }
             // For private matches: filling "declined" slots
             else if (match.getType().equals("private")) {
+                logger.info("[Service - Match : Players] Checking declined slots for private match");
                 slotToFill = players.stream()
                         .filter(p -> p.getStatus().equals("declined"))
                         .findFirst()
@@ -651,6 +668,7 @@ public class MatchService {
         }
 
         if (slotToFill == null) {
+            logger.warn("[Service - Match : Players] No available slot found for match {} and user {}", matchId, userId);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "No available slot found in match " + matchId);
         }
@@ -659,6 +677,7 @@ public class MatchService {
         slotToFill.setUser(user);
         slotToFill.setStatus(newStatus);
 
+        logger.info("[Service - Match : Players] Match player updated successfully.");
         return Optional.of(jpaMatchPlayersRepo.save(slotToFill));
     }
 

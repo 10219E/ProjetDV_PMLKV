@@ -7,6 +7,8 @@ import lu.ephec.backend_projetdv2026.models.*;
 import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,6 +37,7 @@ public class MigrateUserDESTRUCTIVE {
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
     private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
     private final JPAUserSiteRepo jpaUserSiteRepo;
+    private static final Logger logger = LoggerFactory.getLogger(MigrateUserDESTRUCTIVE.class);
 
 
     @PersistenceContext
@@ -53,6 +56,8 @@ public class MigrateUserDESTRUCTIVE {
 
     @Transactional
     public User migrateUserRole(String oldMatricule, Short newRoleId) {
+
+        logger.info("[Service - Migrate User] !!!MIGRATING USER: " + oldMatricule + " TO ROLE: " + newRoleId);
 
         // Verify old user exists
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(oldMatricule), "User", oldMatricule);
@@ -81,6 +86,7 @@ public class MigrateUserDESTRUCTIVE {
 
         // Check if role is different (to avoid unnecessary migration)
         if (oldUser.getRole().getId().equals(newRoleId)) {
+            logger.warn("[Service - Migrate User] User {} already has role {}", oldMatricule, newRoleId);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "User already has this role");
         }
@@ -113,6 +119,7 @@ public class MigrateUserDESTRUCTIVE {
         // GENERATE NEW MATRICULE WITH NEW ROLE
         String newMatricule = MatriculeHandler.generateMatricule(newRoleId, jpaUserRepo);
         newUser.setMatricule(newMatricule);
+        logger.info("[Service - Migrate User] Migrated user {} to new matricule {}", oldMatricule, newMatricule);
 
         // 3 - SAVE NEW USER
         User savedNewUser = jpaUserRepo.save(newUser);
@@ -123,10 +130,12 @@ public class MigrateUserDESTRUCTIVE {
         
         // 4 - UPDATE MATCH OCCURENCES TO NEW USER
         organizedMatches.forEach(match -> match.setOrganiser(managedNewUser));
+        logger.info("[Service - Migrate User] Migrated {} matches to new user", organizedMatches.size());
         jpaMatchRepo.saveAll(organizedMatches);
 
         // 5 - UPDATE MATCH PLAYERS OCCURENCES TO NEW USER
         oldMatchPlayers.forEach(matchPlayer -> matchPlayer.setUser(managedNewUser));
+        logger.info("[Service - Migrate User] Migrated {} player slots", oldMatchPlayers.size());
         jpaMatchPlayersRepo.saveAll(oldMatchPlayers);
 
         // 6 - UPDATE PREVIOUS MATCH PAYMENTS TO NEW USER
@@ -134,6 +143,7 @@ public class MigrateUserDESTRUCTIVE {
         oldPayments.forEach(oldPayment -> {
             oldPayment.setUser(managedNewUser);
         });
+        logger.info("[Service - Migrate User] Migrated {} match payments", oldPayments.size());
         jpaMatchPaymentsRepo.saveAll(oldPayments);
 
         // 7 - UPDATE USER ACCOUNT TO NEW USER (reassign existing row)
@@ -184,7 +194,7 @@ public class MigrateUserDESTRUCTIVE {
 
         em.flush(); //FLUSH TO ENSURE ALL CHANGES ARE COMMITTED
 
-
+        logger.info("[Service - Migrate User] Migrated user {} to new role {}", oldMatricule, newRoleId);
         return managedNewUser;
     }
 

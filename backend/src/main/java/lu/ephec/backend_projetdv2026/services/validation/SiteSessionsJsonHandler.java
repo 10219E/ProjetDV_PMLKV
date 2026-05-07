@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lu.ephec.backend_projetdv2026.services.availability.AvailabilityService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,6 +28,8 @@ public class SiteSessionsJsonHandler {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private static final Logger logger = LoggerFactory.getLogger(SiteSessionsJsonHandler.class);
+
     //WORKING WITH ChronoUnit as LocalTime was wrapping on 24h !!
 
     // Automatically generates the JSON sessions based on the site's opening hours
@@ -39,8 +43,12 @@ public class SiteSessionsJsonHandler {
         ObjectNode rootNode = objectMapper.createObjectNode();
         ArrayNode sessionsArray = objectMapper.createArrayNode();
 
+        logger.info("[Service - Site Sessions Handler] Generating sessions for site with opening time: " + openingTime + " and closing time: " + closingTime);
+
         long totalMinutes = ChronoUnit.MINUTES.between(openingTime, closingTime);
         int preSessionMinutes = calculateOptimalPreSession(totalMinutes);
+
+        logger.info("[Service - Site Sessions Handler] Total minutes: " + totalMinutes + " - Optimal pre-session minutes: " + preSessionMinutes);
 
         long offset = preSessionMinutes; // minutes since opening
         int matchSetId = 1;
@@ -63,6 +71,8 @@ public class SiteSessionsJsonHandler {
             offset += SESSION_DURATION_MINUTES + BREAK_MINUTES;
             matchSetId++;
         }
+
+        logger.info("[Service - Site Sessions Handler] Sessions array generated with " + sessionsArray.size() + " sessions");
 
         rootNode.set("sessions", sessionsArray);
         return rootNode.toString();
@@ -127,6 +137,7 @@ public class SiteSessionsJsonHandler {
                 sessions.add(session);
             }
 
+            logger.info("[Service - Site Sessions Handler] Sessions parsed from JSON: " + sessions.size());
             return sessions;
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,

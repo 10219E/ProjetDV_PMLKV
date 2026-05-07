@@ -4,6 +4,8 @@ import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.*;
 import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.SiteSessionsJsonHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
@@ -25,8 +27,10 @@ public class SiteService {
     private final JPAFieldRepo jpaFieldRepo;
     private final JPAMatchRepo jpaMatchRepo;
 
+    private static final Logger logger = LoggerFactory.getLogger(SiteService.class);
+
     // InjDep Interface Sites
-    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo, SiteSessionsJsonHandler siteSessionsJsonHandler, JPASiteSessionsRepo jpaSiteSessionsRepo, FieldService fieldService, JPAFieldRepo jpaFieldRepo, JPAMatchRepo jpaMatchRepo) {
+    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo, SiteSessionsJsonHandler siteSessionsJsonHandler, JPASiteSessionsRepo jpaSiteSessionsRepo, JPAFieldRepo jpaFieldRepo, JPAMatchRepo jpaMatchRepo) {
 
         this.jpaSiteRepo = jpaSiteRepo;
         this.jpaClosureDaysRepo = jpaClosureDaysRepo;
@@ -46,6 +50,7 @@ public class SiteService {
     // SET Site
     @Transactional
     public Site newSite(Site site) {
+        logger.info("[Service - Site] Creating new site: {}", site);
         // Validate inputs
         ValidationBoiler.verifyNotEmpty(site.getName(), "Site name");
         ValidationBoiler.verifyNotEmpty(site.getAddress(), "Site address");
@@ -62,7 +67,7 @@ public class SiteService {
         ValidationBoiler.verifyNotExists(jpaSiteSessionsRepo.existsBySite_SiteId(savedSite.getSiteId()),
                 "Site Sessions", savedSite.getSiteId());
 
-
+        logger.info("[Service - Site] Saving site sessions for site: {}", savedSite);
         String sessionsJson = siteSessionsJsonHandler.generateSessionsJson(
                 savedSite.getOpeningTime(),
                 savedSite.getClosingTime()
@@ -71,6 +76,7 @@ public class SiteService {
         SiteSessions siteSessions = new SiteSessions(null, savedSite, sessionsJson);
         jpaSiteSessionsRepo.save(siteSessions);
 
+        logger.info("[Service - Site] Saving site");
         return savedSite;
     }
 
@@ -129,6 +135,7 @@ public class SiteService {
     //DELETE Site -- ONLY SUPER ADMIN
     @Transactional
     public void deleteSite(Integer siteId) {
+        logger.warn("[Service - Site] !!!Deleting site with ID: {}", siteId);
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
 
@@ -139,12 +146,14 @@ public class SiteService {
         // DELETE SESSIONS
         Optional<SiteSessions> siteSessions = jpaSiteSessionsRepo.findBySite_SiteId(siteId);
         if (siteSessions.isPresent()) {
+            logger.warn("[Service - Site] !!!Deleting site sessions for site with ID: {}", siteId);
             jpaSiteSessionsRepo.delete(siteSessions.get());
         }
 
         // DELETE FIELDS
         List<Field> fields = jpaFieldRepo.findBySite_SiteId(siteId);
         if (!fields.isEmpty()) {
+            logger.warn("[Service - Site] !!!Deleting fields for site with ID: {}", siteId);
             jpaFieldRepo.deleteAll(fields);
         }
 
@@ -158,13 +167,16 @@ public class SiteService {
             }
         });
         jpaMatchRepo.saveAll(matchesOnSite);
+        logger.warn("[Service - Site] !!!Cancelling matches for site with ID: {}", siteId);
 
         jpaSiteRepo.deleteById(siteId);
+        logger.warn("[Service - Site] !!!Deleted");
     }
 
     //UPDATE Site + SITE Sessions if hours changed
     @Transactional
     public Optional<Site> updateSite(Integer siteId, Site updateData) {
+        logger.info("[Service - Site] Updating site with ID: {}", siteId);
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
         ValidationBoiler.verifyNotNull(updateData, "Update data");
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
@@ -202,6 +214,7 @@ public class SiteService {
             //IF SITE IS SET TO INACTIVE
             if (siteDeactivated.get()) {
                 //DEACTIVATING FIELDS
+                logger.warn("[Service - Site] !!!Deactivating fields for site with ID: {}", siteId);
                 List<Field> fields = jpaFieldRepo.findBySite_SiteId(updatedSite.getSiteId());
                 fields.forEach(field -> {
                     field.setIsActive(false);
@@ -209,6 +222,7 @@ public class SiteService {
                 jpaFieldRepo.saveAll(fields);
 
                 // SET ALL MATCHES ON THIS SITE AS "Cancelled"
+                logger.warn("[Service - Site] !!!Cancelling matches for site with ID: {}", siteId);
                 List<Match> matchesOnSite = jpaMatchRepo.findBySiteId(siteId);
                 matchesOnSite.forEach(match -> {
                     if (match.getType().equals("public")) {
@@ -224,6 +238,7 @@ public class SiteService {
 
             //IF HOURS CHANGED, WE MUST REGENERATE SESSIONS
             if (hoursChanged.get()) {
+                logger.info("[Service - Site] Updating site sessions for site with ID: {}", siteId);
                 // Validate new hours are sufficient
                 ValidationBoiler.verifyEnoughSiteHours(updatedSite.getOpeningTime(), updatedSite.getClosingTime());
                 //ValidationBoiler.verifyExists(jpaSiteSessionsRepo.existsBySiteId(updatedSite.getSiteId()),
@@ -250,6 +265,7 @@ public class SiteService {
                 }
             }
 
+            logger.info("[Service - Site] Site updated");
             return updatedSite;
         });
     }
@@ -284,13 +300,16 @@ public class SiteService {
 
     ////CLOSURE DAYS////
 
+    ///WE HAVEN'T YET APPLIED "FOR_ALL" BIT LOGIC YET!!!!!! METHODS ARE WORKING BUT OUTDATED - NEW METHOD CREATED BUT UNUSED
     // SET MULTIPLE DATES TO ONE SITE
     @Transactional
     public List<SiteClosureDays> newClosuresOneSite(Integer siteId, List<LocalDate> closureDates, String reason) {
+        logger.info("[Service - Site : ClosureDays] Creating new closure days for site: {}", siteId);
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
         ValidationBoiler.verifyNotEmpty(reason, "Closure reason");
 
+        logger.info("[Service - Site : ClosureDays] Closures created for site: {}", siteId);
         return closureDates.stream()
                 .peek(date -> {
                     ValidationBoiler.verifyNotNull(date, "Closure date item");
@@ -305,6 +324,7 @@ public class SiteService {
     // SET MULTIPLE DATES TO MULTIPLE SITES
     @Transactional
     public List<SiteClosureDays> newClosureMultiSite(List<Integer> siteIds, List<LocalDate> closureDates, String reason) {
+        logger.info("[Service - Site : ClosureDays] Creating new closure days for sites: {}", siteIds);
         ValidationBoiler.verifyListNotEmpty(siteIds, "Site IDs");
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
         ValidationBoiler.verifyNotEmpty(reason, "Closure reason");
@@ -324,12 +344,15 @@ public class SiteService {
                         .forEach(result::add);
             }
         }
+
+        logger.info("[Service - Site : ClosureDays] Closures created for sites: {}", siteIds);
         return result;
     }
 
-    //SET DATES (EX: Vacation) TO ALL SITES
+    //NEW FOR_ALL METHOD -- SET DATES (EX: Vacation) TO ALL SITES
     @Transactional
     public List<SiteClosureDays> newClosureForAllSites(List<LocalDate> closureDates, String reason) {
+        logger.info("[Service - Site : ClosureDays] Creating new closure days for all sites");
         ValidationBoiler.verifyListNotEmpty(closureDates, "Closure dates");
         ValidationBoiler.verifyNotEmpty(reason, "Closure reason");
 
@@ -344,6 +367,7 @@ public class SiteService {
                 .map(jpaClosureDaysRepo::save)
                 .forEach(result::add);
 
+        logger.info("[Service - Site : ClosureDays] Closures created for all sites");
         return result;
     }
 
@@ -375,6 +399,7 @@ public class SiteService {
     // DELETE CLOSURE DAY for specific Site and Date
     @Transactional
     public void deleteClosureDayForSite(Integer siteId, LocalDate closureDate) {
+        logger.warn("[Service - Site : ClosureDays] !!!Deleting closure day for site: {} and date: {}", siteId, closureDate);
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         ValidationBoiler.verifyNotNull(closureDate, "Closure date");
 
@@ -389,6 +414,7 @@ public class SiteService {
     // DELETE ALL CLOSURES FOR A SITE
     @Transactional
     public void deleteAllClosuresForSite(Integer siteId) {
+        logger.warn("[Service - Site : ClosureDays] !!!Deleting all closures for site: {}", siteId);
         ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
         List<SiteClosureDays> closures = jpaClosureDaysRepo.findBySiteId(siteId);
         if (!closures.isEmpty()) {
@@ -399,6 +425,7 @@ public class SiteService {
     // DELETE ALL CLOSURE DAYS for a specific Date (ALL SITES)
     @Transactional
     public void deleteClosureDayForAllSites(LocalDate closureDate) {
+        logger.warn("[Service - Site : ClosureDays] !!!Deleting all closures for date: {}", closureDate);
         ValidationBoiler.verifyNotNull(closureDate, "Closure date");
 
         List<SiteClosureDays> closures = jpaClosureDaysRepo.findByClosureDate(closureDate);

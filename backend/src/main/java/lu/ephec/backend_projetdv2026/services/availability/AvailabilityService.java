@@ -6,8 +6,11 @@ import lu.ephec.backend_projetdv2026.models.SiteSessions;
 import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteSessionsRepo;
+import lu.ephec.backend_projetdv2026.services.sitefieldbymatch.SiteFieldsByMatchService;
 import lu.ephec.backend_projetdv2026.services.validation.SiteSessionsJsonHandler;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,6 +28,7 @@ public class AvailabilityService {
     private final JPAFieldRepo jpaFieldRepo;
     private final JPAMatchRepo jpaMatchRepo;
     private final SiteSessionsJsonHandler siteSessionsJsonHandler;
+    private static final Logger logger = LoggerFactory.getLogger(AvailabilityService.class);
 
     public AvailabilityService(JPASiteSessionsRepo jpaSiteSessionsRepo, JPAFieldRepo jpaFieldRepo,
                                JPAMatchRepo jpaMatchRepo, SiteSessionsJsonHandler siteSessionsJsonHandler) {
@@ -47,6 +51,7 @@ public class AvailabilityService {
         // Get all sessions for the site
         Optional<SiteSessions> siteSessionsOpt = jpaSiteSessionsRepo.findBySite_SiteId(siteId);
         if (siteSessionsOpt.isEmpty()) {
+            logger.error("[Service - Availability] No sessions found for site: " + siteId);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "No sessions found for site: " + siteId);
         }
@@ -81,6 +86,7 @@ public class AvailabilityService {
                 availableSessions.add(session);
             }
         }
+        logger.info("[Service - Availability] Available sessions for field " + fieldId + " on " + date + "returned");
 
         return availableSessions;
     }

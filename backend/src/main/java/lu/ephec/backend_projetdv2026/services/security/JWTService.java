@@ -5,6 +5,9 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lu.ephec.backend_projetdv2026.services.availability.AvailabilityService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,6 +28,8 @@ public class JWTService {
     @Value("${security.jwt.expiration-seconds}")
     private long jwtExpirationSeconds;
 
+    private static final Logger logger = LoggerFactory.getLogger(JWTService.class);
+
     public String generateToken(UserDetails userDetails) {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(jwtExpirationSeconds);
@@ -32,6 +37,8 @@ public class JWTService {
         List<String> roles = userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .toList();
+
+        logger.info("[Service - JWT] Generating JWT token for user {} with roles {}", userDetails.getUsername(), roles);
 
         return Jwts.builder()
                 .subject(userDetails.getUsername()) // email in your current UserConfigService

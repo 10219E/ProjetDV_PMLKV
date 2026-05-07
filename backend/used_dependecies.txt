@@ -60,6 +60,12 @@ ADDED///
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.5.0</version>
         </dependency>
+        //JASCRYPT FOR ENCRYPTION OF DB PASS
+        <dependency>
+            <groupId>com.github.ulisesbocchio</groupId>
+            <artifactId>jasypt-spring-boot-starter</artifactId>
+            <version>3.0.5</version>
+        </dependency>
 
 
 ///PLUGINS

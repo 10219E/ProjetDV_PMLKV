@@ -7,7 +7,6 @@ import lu.ephec.backend_projetdv2026.repo.JPAMatchPaymentsRepo;
 import lu.ephec.backend_projetdv2026.models.MatchPlayers;
 import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.services.PaymentService;
-import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
@@ -22,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,17 +35,15 @@ public class SchedulerService {
 	private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
 	private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
 	private final PaymentService paymentService;
-	private final UserService userService;
 	private final PenaltyHelperService penaltyHelperService;
 	private final JPAUserAccountsRepo jpaUserAccountsRepo;
 	private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
 
-	public SchedulerService(JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, PaymentService paymentService, UserService userService, PenaltyHelperService penaltyHelperService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
+	public SchedulerService(JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, PaymentService paymentService, PenaltyHelperService penaltyHelperService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
 		this.jpaMatchRepo = jpaMatchRepo;
 		this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
 		this.jpaMatchPaymentsRepo = jpaMatchPaymentsRepo;
 		this.paymentService = paymentService;
-		this.userService = userService;
 		this.penaltyHelperService = penaltyHelperService;
 		this.jpaUserAccountsRepo = jpaUserAccountsRepo;
 		this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
@@ -59,11 +55,11 @@ public class SchedulerService {
 	@Scheduled(cron = "0 0/5 * * * *")
 	public void confirmMatchPayment() {
 		if (!schedulerLock.tryLock()) {
-			logger.warn("[SchedulerService] confirmMatches is already running, skipping this execution");
+			logger.warn("[Service - Scheduler] confirmMatches is already running, skipping this execution");
 			return;
 		}
 		try {
-			logger.info("[SchedulerService] Running player count check to confirm match");
+			logger.info("[Service - Scheduler] Running player count check to confirm match");
 
 			// Initialize counter for updated matches
 			int updatedCount = 0;
@@ -129,7 +125,7 @@ public class SchedulerService {
 			}
 
 			// Log the number of matches updated
-			logger.info("[SchedulerService] Player count check to confirm match completed. {} matches were updated.", updatedCount);
+			logger.info("[Service - Scheduler] Player count check to confirm match completed. {} matches were updated.", updatedCount);
 		} finally {
 			schedulerLock.unlock();
 		}
@@ -141,12 +137,12 @@ public class SchedulerService {
 	@Scheduled(cron = "0 0/5 * * * *")
 	public void markElapsedMatchesCompleted() {
 		if (!schedulerLock.tryLock()) {
-			logger.warn("[SchedulerService] markElapsedMatchesCompleted is already running, skipping this execution");
+			logger.warn("[Service - Scheduler] markElapsedMatchesCompleted is already running, skipping this execution");
 			return;
 		}
 
 		try {
-			logger.info("[SchedulerService] Running mark elapsed matches completed");
+			logger.info("[Service - Scheduler] Running mark elapsed matches completed");
 
 			LocalDateTime now = LocalDateTime.now();
 
@@ -163,7 +159,7 @@ public class SchedulerService {
 				}
 			}
 
-			logger.info("[SchedulerService] Completed mark elapsed matches completed — {} matches updated in total", totalUpdated);
+			logger.info("[Service - Scheduler] Completed mark elapsed matches completed — {} matches updated in total", totalUpdated);
 		} finally {
 			schedulerLock.unlock();
 		}
@@ -174,12 +170,12 @@ public class SchedulerService {
 	@Scheduled(cron = "0 0/5 * * * *")
 	public void convertAwaitingPrivateMatchesScheduledForTomorrow() {
 		if (!schedulerLock.tryLock()) {
-			logger.warn("[SchedulerService] convertAwaitingPrivateMatchesScheduledForTomorrow is already running, skipping this execution");
+			logger.warn("[Service - Scheduler] convertAwaitingPrivateMatchesScheduledForTomorrow is already running, skipping this execution");
 			return;
 		}
 
 		try {
-			logger.info("[SchedulerService] Running converting incomplete private matches to public matches");
+			logger.info("[Service - Scheduler] Running converting incomplete private matches to public matches");
 
 			LocalDate tomorrow = LocalDate.now().plusDays(1);
 			List<Match> matches = jpaMatchRepo.findAll();
@@ -195,11 +191,11 @@ public class SchedulerService {
 
 					created += processPrivateMatchConversion(m);
 				} catch (Exception ex) {
-					logger.error("[SchedulerService] Error converting match id {}: {}", m.getMatchId(), ex.getMessage(), ex);
+					logger.error("[Service - Scheduler] Error converting match id {}: {}", m.getMatchId(), ex.getMessage(), ex);
 				}
 			}
 
-			logger.info("[SchedulerService] Completed private to public conversion run — {} new public matches created", created);
+			logger.info("[Service - Scheduler] Completed private to public conversion run — {} new public matches created", created);
 		} finally {
 			schedulerLock.unlock();
 		}
@@ -211,12 +207,12 @@ public class SchedulerService {
 	@Scheduled(cron = "0 0/5 * * * *")
 	public void applyPenaltiesForDebtors() {
 		if (!schedulerLock.tryLock()) {
-			logger.warn("[SchedulerService] applyPenaltiesForDebtors is already running, skipping this execution");
+			logger.warn("[Service - Scheduler] applyPenaltiesForDebtors is already running, skipping this execution");
 			return;
 		}
 
 		try {
-			logger.info("[SchedulerService] Running applyPenaltiesForDebtors");
+			logger.info("[Service - Scheduler] Running applyPenaltiesForDebtors");
 
 			List<UserAccounts> debtors = jpaUserAccountsRepo.findAllDebtorsWithDetails();
 			int penalized = 0;
@@ -228,7 +224,7 @@ public class SchedulerService {
 				penalized += processDebtorBatch(batch);
 			}
 
-			logger.info("[SchedulerService] Completed applyPenaltiesForDebtors — {} users penalized", penalized);
+			logger.info("[Service - Scheduler] Completed applyPenaltiesForDebtors — {} users penalized", penalized);
 		} finally {
 			schedulerLock.unlock();
 		}
@@ -238,12 +234,12 @@ public class SchedulerService {
 	@Scheduled(cron = "0 0/5 * * * *")
 	public void expireFinishedPenalties() {
 		if (!schedulerLock.tryLock()) {
-			logger.warn("[SchedulerService] expireFinishedPenalties is already running, skipping this execution");
+			logger.warn("[Service - Scheduler] expireFinishedPenalties is already running, skipping this execution");
 			return;
 		}
 
 		try {
-			logger.info("[SchedulerService] Running expireFinishedPenalties");
+			logger.info("[Service - Scheduler] Running expireFinishedPenalties");
 
 			LocalDateTime now = LocalDateTime.now();
 			List<UserPenalties> active = jpaUserPenaltiesRepo.findAllByIsActiveTrue();
@@ -255,14 +251,14 @@ public class SchedulerService {
 						p.setIsActive(false);
 						jpaUserPenaltiesRepo.save(p);
 						expired++;
-						logger.info("[SchedulerService] Expired penalty {} for user {}", p.getTr(), p.getUser() != null ? p.getUser().getMatricule() : "<null>");
+						logger.info("[Service - Scheduler] Expired penalty {} for user {}", p.getTr(), p.getUser() != null ? p.getUser().getMatricule() : "<null>");
 					}
 				} catch (Exception ex) {
-					logger.error("[SchedulerService] Failed processing penalty {} : {}", p != null ? p.getTr() : "<null>", ex.getMessage(), ex);
+					logger.error("[Service - Scheduler] Failed processing penalty {} : {}", p != null ? p.getTr() : "<null>", ex.getMessage(), ex);
 				}
 			}
 
-			logger.info("[SchedulerService] Completed expireFinishedPenalties — {} penalties expired", expired);
+			logger.info("[Service - Scheduler] Completed expireFinishedPenalties — {} penalties expired", expired);
 		} finally {
 			schedulerLock.unlock();
 		}
@@ -339,14 +335,14 @@ public class SchedulerService {
 				}
 
 				if (!p1IsOrganiser) {
-					logger.warn("[SchedulerService] Organiser mismatch for match {}: organiser matricule {} does not match p1 matricule {}. Skipping applying debt/penalty.", m.getMatchId(),
+					logger.warn("[Service - Scheduler] Organiser mismatch for match {}: organiser matricule {} does not match p1 matricule {}. Skipping applying debt/penalty.", m.getMatchId(),
 							m.getOrganiser() != null ? m.getOrganiser().getMatricule() : "<null>",
 							p1 != null && p1.getUser() != null ? p1.getUser().getMatricule() : "<null>");
 				} else {
 					String organiserId = m.getOrganiser().getMatricule();
 					try {
 						paymentService.updateAccountStatus(organiserId, "debt", totalDebt);
-						logger.info("[SchedulerService] Applied debt {} to organiser {} for cancelled private match {}", totalDebt, organiserId, m.getMatchId());
+						logger.info("[Service - Scheduler] Applied debt {} to organiser {} for cancelled private match {}", totalDebt, organiserId, m.getMatchId());
 
 						// Create penalty
 						try {
@@ -358,14 +354,14 @@ public class SchedulerService {
 							penalty.setStartDate(start);
 							penalty.setEndDate(start.plusWeeks(1));
 							penalty.setIsActive(true);
-							penalty.setDescription("[SchedulerService] Penalty applied due to unpaid invites for match " + m.getMatchId());
+							penalty.setDescription("[Service - Scheduler] Penalty applied due to unpaid invites for match " + m.getMatchId());
 							penaltyHelperService.createPenaltyNewTransaction(penalty);
-							logger.info("[SchedulerService] Applied penalty to organiser {} for match {} (expires {})", organiserId, m.getMatchId(), penalty.getEndDate());
+							logger.info("[Service - Scheduler] Applied penalty to organiser {} for match {} (expires {})", organiserId, m.getMatchId(), penalty.getEndDate());
 						} catch (Exception ex) {
-							logger.error("[SchedulerService] Failed to create penalty for organiser {}: {}", organiserId, ex.getMessage(), ex);
+							logger.error("[Service - Scheduler] Failed to create penalty for organiser {}: {}", organiserId, ex.getMessage(), ex);
 						}
 					} catch (Exception ex) {
-						logger.error("[SchedulerService] Failed to apply debt to organiser {} for match {}: {}", m.getOrganiser().getMatricule(), m.getMatchId(), ex.getMessage(), ex);
+						logger.error("[Service - Scheduler] Failed to apply debt to organiser {} for match {}: {}", m.getOrganiser().getMatricule(), m.getMatchId(), ex.getMessage(), ex);
 					}
 				}
 			}
@@ -377,27 +373,27 @@ public class SchedulerService {
 					if ("clear".equals(pay.getStatus())) {
 						pay.setMatch(savedPub);
 						jpaMatchPaymentsRepo.save(pay);
-						logger.debug("[SchedulerService] Moved cleared payment tr {} to new match {}", pay.getTr(), savedPub.getMatchId());
+						logger.debug("[Service - Scheduler] Moved cleared payment tr {} to new match {}", pay.getTr(), savedPub.getMatchId());
 					} else {
 						pay.setStatus("cancelled");
 						jpaMatchPaymentsRepo.save(pay);
-						logger.debug("[SchedulerService] Cancelled payment tr {} for old match {}", pay.getTr(), m.getMatchId());
+						logger.debug("[Service - Scheduler] Cancelled payment tr {} for old match {}", pay.getTr(), m.getMatchId());
 					}
 				} catch (Exception ex) {
-					logger.error("[SchedulerService] Failed to transfer/cancel payment tr {} for match {}: {}", pay.getTr(), m.getMatchId(), ex.getMessage(), ex);
+					logger.error("[Service - Scheduler] Failed to transfer/cancel payment tr {} for match {}: {}", pay.getTr(), m.getMatchId(), ex.getMessage(), ex);
 				}
 			}
 
 			// After transferring payments, delete all MatchPlayers entries for the old (cancelled) match
 			try {
 				jpaMatchPlayersRepo.deleteByMatch_MatchId(m.getMatchId());
-				logger.debug("[SchedulerService] Deleted MatchPlayers for cancelled match {}", m.getMatchId());
+				logger.debug("[Service - Scheduler] Deleted MatchPlayers for cancelled match {}", m.getMatchId());
 			} catch (Exception ex) {
-				logger.error("[SchedulerService] Failed to delete MatchPlayers for cancelled match {}: {}", m.getMatchId(), ex.getMessage(), ex);
+				logger.error("[Service - Scheduler] Failed to delete MatchPlayers for cancelled match {}: {}", m.getMatchId(), ex.getMessage(), ex);
 			}
 		}
 
-		logger.info("[SchedulerService] Converted private match {} to public match {}", m.getMatchId(), savedPub.getMatchId());
+		logger.info("[Service - Scheduler] Converted private match {} to public match {}", m.getMatchId(), savedPub.getMatchId());
 		return 1;
 	}
 
@@ -420,8 +416,9 @@ public class SchedulerService {
 				if ("public".equals(m.getType()) && ("closed".equals(m.getPubStatus()) || "open".equals(m.getPubStatus()))) {
 					shouldComplete = true;
 				}
-				if ((m.getPrivStatus() != null && m.getPrivStatus().equals("confirmed")) ||
-						(m.getPubStatus() != null && (m.getPubStatus().equals("closed")) || m.getPubStatus().equals("open"))) {
+				// Safe check for null values
+				if ((m.getPrivStatus() != null && "confirmed".equals(m.getPrivStatus())) ||
+						(m.getPubStatus() != null && ("closed".equals(m.getPubStatus()) || "open".equals(m.getPubStatus())))) {
 					shouldComplete = true;
 				}
 
@@ -442,17 +439,17 @@ public class SchedulerService {
 					// When a match is completed, remove all associated MatchPlayers entries
 					try {
 						jpaMatchPlayersRepo.deleteByMatch_MatchId(m.getMatchId());
-						logger.debug("[SchedulerService] Deleted MatchPlayers for completed match {}", m.getMatchId());
+						logger.debug("[Service - Scheduler] Deleted MatchPlayers for completed match {}", m.getMatchId());
 					} catch (Exception ex) {
-						logger.error("[SchedulerService] Failed to delete MatchPlayers for completed match {}: {}", m.getMatchId(), ex.getMessage(), ex);
+						logger.error("[Service - Scheduler] Failed to delete MatchPlayers for completed match {}: {}", m.getMatchId(), ex.getMessage(), ex);
 					}
-					logger.debug("[SchedulerService] Marked match {} as completed", m.getMatchId());
+					logger.debug("[Service - Scheduler] Marked match {} as completed", m.getMatchId());
 				}
 			} catch (Exception ex) {
-				logger.error("[SchedulerService] Error processing match id {}: {}", m.getMatchId(), ex.getMessage(), ex);
+				logger.error("[Service - Scheduler] Error processing match id {}: {}", m.getMatchId(), ex.getMessage(), ex);
 			}
 		}
-		logger.info("[SchedulerService] Batch processed — {} matches updated", updated);
+		logger.info("[Service - Scheduler] Batch processed — {} matches updated", updated);
 		return updated;
 	}
 
@@ -469,7 +466,7 @@ public class SchedulerService {
 				boolean hasUnpaidBalance = jpaUserPenaltiesRepo.existsActivePenaltyByReason(userId, "unpaid_balance", LocalDateTime.now());
 
 				if (hasUnpaidBalance) {
-					logger.debug("[SchedulerService] User {} already has active unpaid_balance penalty, skipping", userId);
+					logger.debug("[Service - Scheduler] User {} already has active unpaid_balance penalty, skipping", userId);
 					continue;
 				}
 
@@ -485,9 +482,9 @@ public class SchedulerService {
 
 				penaltyHelperService.createPenaltyNewTransaction(penalty);
 				penalized++;
-				logger.info("[SchedulerService] Applied unpaid_balance penalty to user {} (expires {})", userId, penalty.getEndDate());
+				logger.info("[Service - Scheduler] Applied unpaid_balance penalty to user {} (expires {})", userId, penalty.getEndDate());
 			} catch (Exception ex) {
-				logger.error("[SchedulerService] Failed to apply unpaid_balance penalty to user {}: {}", ua.getUser() != null ? ua.getUser().getMatricule() : "<null>", ex.getMessage(), ex);
+				logger.error("[Service - Scheduler] Failed to apply unpaid_balance penalty to user {}: {}", ua.getUser() != null ? ua.getUser().getMatricule() : "<null>", ex.getMessage(), ex);
 			}
 		}
 		return penalized;

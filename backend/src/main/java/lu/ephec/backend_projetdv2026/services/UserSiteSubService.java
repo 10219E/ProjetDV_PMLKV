@@ -8,6 +8,8 @@ import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserSiteRepo;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,6 +23,7 @@ public class UserSiteSubService {
     private final JPAUserSiteRepo jpaUserSiteRepo;
     private final JPAUserRepo jpaUserRepo;
     private final JPASiteRepo jpaSiteRepo;
+    private static final Logger logger = LoggerFactory.getLogger(UserSiteSubService.class);
 
     public UserSiteSubService(JPAUserSiteRepo jpaUserSiteRepo, JPAUserRepo jpaUserRepo, JPASiteRepo jpaSiteRepo) {
         this.jpaUserSiteRepo = jpaUserSiteRepo;
@@ -31,6 +34,7 @@ public class UserSiteSubService {
     // SET LINK USER TO SITE -- Admins are also linked the same way EXCEPT SA
     @Transactional
     public UsersSites newUserSite(String userId, Integer siteId, Boolean isPrimary, Boolean isVip) {
+        logger.info("[Service - User-Site] Creating new user-site link for user: {} and site: {}", userId, siteId);
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
@@ -39,11 +43,13 @@ public class UserSiteSubService {
         //IMPLEMENT SITE IS ACTIVE
 
         if (jpaUserRepo.findById(userId).orElseThrow().getRole().getId() == 9) {
+            logger.error("[Service - User-Site] Super Admin user tried to link to site: {}", siteId);
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Super Admin users cannot be linked to sites: " + userId);
         }
 
         if (jpaUserSiteRepo.existsByUser_MatriculeAndSite_SiteId(userId, siteId)) {
+            logger.error("[Service - User-Site] User-site link already exists for user: {} and site: {}", userId, siteId);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "User-site link already exists for user " + userId + " and site " + siteId);
         }
@@ -66,12 +72,14 @@ public class UserSiteSubService {
         link.setUser(user);
         link.setSite(site);
 
+        logger.info("[Service - User-Site] Saving new user-site link: {}", link);
         return jpaUserSiteRepo.save(link);
     }
 
     // UPDATE -- CAN ONLY UPDATE VIP OR PRIMARY STATUS -- NEW HAS TO BE LINKED TO ANOTHER SITE
     @Transactional
     public Optional<UsersSites> updateUserSite(String userId, Integer siteId, Boolean isPrimary, Boolean isVip) {
+        logger.info("[Service - User-Site] Updating user-site link for user: {} and site: {}", userId, siteId);
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
@@ -88,6 +96,7 @@ public class UserSiteSubService {
             if (isVip != null) {
                 link.setIsVip(isVip);
             }
+            logger.info("[Service - User-Site] Saving updated user-site link: {}", link);
             return jpaUserSiteRepo.save(link);
         });
     }
@@ -95,6 +104,7 @@ public class UserSiteSubService {
     // DELETE LINK
     @Transactional
     public void deleteUserSite(String userId, Integer siteId) {
+        logger.warn("[Service - User-Site] !!!Deleting user-site link for user: {} and site: {}", userId, siteId);
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyNotNull(siteId, "Site ID");
 

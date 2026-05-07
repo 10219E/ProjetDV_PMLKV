@@ -7,6 +7,8 @@ import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -23,6 +25,7 @@ public class UserService {
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
     private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
     private final JPAUserSiteRepo jpaUserSiteRepo;
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     // InjDep Interface User + Penalties
     public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserSiteRepo jpaUserSiteRepo) {
@@ -64,6 +67,7 @@ public class UserService {
     //TOUCH LAST LOGIN BY USERID
     @Transactional
     public void touchLastLoginByMatricule(String user_id) {
+        logger.info("[Service - User] Touching last login for user: {}", user_id);
         jpaUserRepo.findById(user_id).ifPresent(user -> {
             user.setLastLogin(LocalDateTime.now());
             jpaUserRepo.save(user);
@@ -74,6 +78,7 @@ public class UserService {
     @Transactional //Makes sure the whole method is executed
     public User newUser(User user) {
 
+        logger.info("[Service - User] Creating new user: {}", user.getMatricule());
         //GENERATE MATRICULE
         user.setMatricule(MatriculeHandler.generateMatricule(user.getRole().getId(), jpaUserRepo));
 
@@ -96,11 +101,13 @@ public class UserService {
         }
 
         //SAVE USER
+        logger.info("[Service - User] Saving user: {}", user.getMatricule());
         User savedUser = jpaUserRepo.save(user);
 
         //CREATE FINANCE ACCOUNT
         EnumUserRolesType roleType = EnumUserRolesType.fromId(savedUser.getRole().getId());
         if (roleType != null && !roleType.isAdmin()) { //only normal users should have financial accounts
+            logger.info("[Service - User] Creating new user wallet: {}", savedUser.getMatricule());
             paymentService.newUserAccount(savedUser.getMatricule());
         }
 
@@ -151,26 +158,31 @@ public class UserService {
     //DELETE User -- FOR SUPER ADMIN ONLY AND GENERALLY SHOULD NOT BE USED
     @Transactional //Makes sure the whole method is executed
     public void deleteUser(String userId) {
+        logger.warn("[Service - User] !!!Deleting user: {}", userId);
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
 
         //DELETE PENALTIES
         try {
+            logger.warn("[Service - User] !!!Deleting user penalties: {}", userId);
             jpaUserPenaltiesRepo.deleteAllByUserMatricule(userId);
         } catch (Exception ignored) { }
 
         //DELETE ACCOUNT
         try {
+            logger.warn("[Service - User] !!!Deleting user wallet: {}", userId);
             jpaUserAccountsRepo.deleteByUser_Matricule(userId);
         } catch (Exception ignored) { }
 
         //DELETE MATCH PAYMENTS
         try {
+            logger.warn("[Service - User] !!!Deleting user match payments: {}", userId);
             jpaMatchPaymentsRepo.deleteAll(jpaMatchPaymentsRepo.findByUser_Matricule(userId));
         } catch (Exception ignored) { }
 
         //DELETE USER SITE SUBS
         try {
+            logger.warn("[Service - User] !!!Deleting user site subscriptions: {}", userId);
             jpaUserSiteRepo.deleteAll(jpaUserSiteRepo.findByUser_Matricule(userId));
         } catch (Exception ignored) { }
 
@@ -181,6 +193,7 @@ public class UserService {
     //UPDATE User
     @Transactional //Makes sure the whole method is executed
     public Optional<User> updateUser(String userId, User updatedUser) {
+        logger.info("[Service - User] Updating user: {}", userId);
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyNotNull(updatedUser, "Updated User");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
@@ -232,6 +245,7 @@ public class UserService {
                 user.setAuth(updatedUser.getAuth());
             }
 
+            logger.info("[Service - User] Saving updated user: {}", userId);
             return jpaUserRepo.save(user);
         });
     }
@@ -247,6 +261,7 @@ public class UserService {
     //SET PENALTY to User
     @Transactional //Makes sure the whole method is executed
     public UserPenalties newPenalty(UserPenalties penalty) {
+        logger.info("[Service - User : Penalty] Creating new penalty for user: {}", penalty.getUser().getMatricule());
         //CHECK USR
         ValidationBoiler.verifyNotNull(penalty.getUser(), "User");
         ValidationBoiler.verifyNotNull(penalty.getUser().getMatricule(), "User matricule");
@@ -267,6 +282,7 @@ public class UserService {
         ValidationBoiler.verifyNotNull(penalty.getEndDate(), "Penalty end date");
         ValidationBoiler.verifyDatesValid(penalty.getStartDate(), penalty.getEndDate(), "Penalty dates");
 
+        logger.info("[Service - User : Penalty] Saving new penalty for user: {}", penalty.getUser().getMatricule());
         return jpaUserPenaltiesRepo.save(penalty);
     }
 
@@ -314,6 +330,7 @@ public class UserService {
     //UPDATE Penalty
     @Transactional //Makes sure the whole method is executed
     public Optional<UserPenalties> updatePenalty(Integer penaltyId, UserPenalties updatedPenalty) {
+        logger.info("[Service - User : Penalty] Updating penalty: {}", penaltyId);
         ValidationBoiler.verifyNotNull(penaltyId, "Penalty ID");
         ValidationBoiler.verifyNotNull(updatedPenalty, "Update data");
         ValidationBoiler.verifyExists(jpaUserPenaltiesRepo.existsById(penaltyId), "Penalty", penaltyId);
@@ -344,12 +361,14 @@ public class UserService {
                 penalty.setDescription(updatedPenalty.getDescription());
             }
 
+            logger.info("[Service - User : Penalty] Saving updated penalty: {}", penaltyId);
             return jpaUserPenaltiesRepo.save(penalty);
         });
     }
 
     //DELETE UNIQUE Penalty -- Only for Test cleanup
     public void deletePenalty(Integer penaltyId) {
+        logger.warn("[Service - User : Penalty] !!!Deleting penalty: {}", penaltyId);
         ValidationBoiler.verifyNotNull(penaltyId, "Penalty ID");
         ValidationBoiler.verifyExists(jpaUserPenaltiesRepo.existsById(penaltyId), "Penalty", penaltyId);
         jpaUserPenaltiesRepo.deleteById(penaltyId);
@@ -358,6 +377,7 @@ public class UserService {
     //DELETE ALL PENALTIES for User by userId (clear history) -- Admin only
     @Transactional //Makes sure the whole method is executed
     public void deleteAllPenaltiesForUser(String userId) {
+        logger.warn("[Service - User : Penalty] !!!Deleting all penalties for user: {}", userId);
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         jpaUserPenaltiesRepo.deleteAllByUserMatricule(userId);

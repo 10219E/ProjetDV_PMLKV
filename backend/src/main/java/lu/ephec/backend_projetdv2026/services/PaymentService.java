@@ -8,6 +8,8 @@ import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,6 +25,7 @@ public class PaymentService {
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
     private final JPAMatchRepo jpaMatchRepo;
     private final JPAUserRepo jpaUserRepo;
+    private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
     // Dependency Injection
     public PaymentService(JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo) {
@@ -37,6 +40,7 @@ public class PaymentService {
     // SET PAYMENT MATCH
     @Transactional
     public MatchPayments newPayment(MatchPayments payment) {
+        logger.info("[Service - Payment Service] Creating new payment: {}", payment);
         ValidationBoiler.verifyNotNull(payment, "Payment");
         ValidationBoiler.verifyNotNull(payment.getAmount(), "Payment amount");
         ValidationBoiler.verifyNotEmpty(payment.getStatus(), "Payment status");
@@ -46,6 +50,7 @@ public class PaymentService {
 
         // Validate status (creation: cancelled not applicable here)
         if (!payment.getStatus().matches("^(clear|pending|failed|refunded)$")) {
+            logger.error("[Service - Payment Service] Invalid payment status: {}", payment.getStatus());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid payment status. Must be clear, pending, failed or refunded. Received: " + payment.getStatus());
         }
@@ -61,6 +66,7 @@ public class PaymentService {
 
         // Validate payment method when present
         if (method != null && !method.matches("^(COUNTER|CARD)$")) {
+            logger.error("[Service - Payment Service] Invalid payment method: {}", method);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid payment method. Must be COUNTER or CARD when provided. Received: " + method);
         }
@@ -70,6 +76,7 @@ public class PaymentService {
         // - If payment_date is provided, payment_method must also be present.
         // - payment_method may be NULL only when status is NOT 'clear'/'refunded' AND payment_date IS NULL.
 
+        logger.info("[Service - Payment Service] Validating payment status and method: status={}, method={}", status, method);
         if (status.equals("clear") || status.equals("refunded")) {
             // ensure payment date exists (set to now if missing) and method provided
             if (pDate == null) {
@@ -77,6 +84,7 @@ public class PaymentService {
                 pDate = payment.getPaymentDate();
             }
             if (method == null || method.isBlank()) {
+                logger.error("[Service - Payment Service] Payment method is required when status is 'clear' or 'refunded'.");
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Payment method is required when status is 'clear' or 'refunded'.");
             }
@@ -84,16 +92,13 @@ public class PaymentService {
             // status not clear/refunded
             if (pDate != null && method == null) {
                 // date provided but method missing -> invalid
+                logger.error("[Service - Payment Service] Payment method is required when payment date is present.");
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Payment method must be provided when payment date is present.");
             }
-            if (method == null && pDate != null) { // defensive, covered above
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Payment method cannot be null when payment date is set.");
-            }
-            // if both are null that's allowed (no payment yet)
         }
 
+        logger.info("[Service - Payment Service] Payment processed");
         return jpaMatchPaymentsRepo.save(payment);
     }
 
@@ -197,6 +202,7 @@ public class PaymentService {
     // UPDATE MATCH PAYMENT
     @Transactional
     public Optional<MatchPayments> updatePayment(Integer paymentId, MatchPayments updatedPayment) {
+        logger.info("[Service - Payment Service] Updating payment with ID: {}", paymentId);
         ValidationBoiler.verifyNotNull(paymentId, "Payment ID");
         ValidationBoiler.verifyNotNull(updatedPayment, "Update data");
         ValidationBoiler.verifyExists(jpaMatchPaymentsRepo.existsById(paymentId), "Payment", paymentId);
@@ -219,6 +225,7 @@ public class PaymentService {
             // UPDATE STATUS
             if (updatedPayment.getStatus() != null) {
                 if (!updatedPayment.getStatus().matches("^(clear|pending|cancelled|failed|refunded)$")) {
+                    logger.error("[Service - Payment Service] Invalid payment status: {}", updatedPayment.getStatus());
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "Invalid payment status. Must be clear, pending, cancelled, failed, or refunded. Received: " + updatedPayment.getStatus());
                 }
@@ -231,6 +238,7 @@ public class PaymentService {
 
             // Validate new payment method when provided
             if (newMethod != null && !newMethod.matches("^(COUNTER|CARD)$")) {
+                logger.error("[Service - Payment Service] Invalid payment method: {}", newMethod);
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Invalid payment method. Must be COUNTER or CARD when provided. Received: " + newMethod);
             }
@@ -242,11 +250,13 @@ public class PaymentService {
             if (newDate != null) {
                 String methodToUse = newMethod != null ? newMethod : payment.getPaymentMethod();
                 if (methodToUse == null) {
+                    logger.error("[Service - Payment Service] Payment method is required when payment date is present.");
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "Payment method must be provided when payment date is present.");
                 }
             }
 
+            logger.info("[Service - Payment Service] Validating payment status and method for update: resultingStatus={}, newMethod={}, newDate={}", resultingStatus, newMethod, newDate);
             // If resulting status requires a date/method (clear or refunded), ensure they exist/apply defaults
             if ("clear".equals(resultingStatus) || "refunded".equals(resultingStatus)) {
                 // Ensure method exists either from update or current
@@ -274,6 +284,7 @@ public class PaymentService {
                 payment.setPaymentMethod(newMethod);
             }
 
+            logger.info("[Service - Payment Service] Payment processed");
             return jpaMatchPaymentsRepo.save(payment);
         });
     }
@@ -282,9 +293,10 @@ public class PaymentService {
     /// USER ACCOUNTS (FINANCIAL STATUS) ////
 
 
-    // NEW USER ACCOUNT
+    // NEW USER ACCOUNT (FINANCE)
     @Transactional
     public UserAccounts newUserAccount(String userId) {
+        logger.info("[Service - Payment : Account] Creating new wallet for user: {}", userId);
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
         ValidationBoiler.verifyUserActive(jpaUserRepo.findById(userId).orElseThrow().getIsActive(), userId);
@@ -292,6 +304,7 @@ public class PaymentService {
         // Check if account already exists
         Optional<UserAccounts> existingAccount = jpaUserAccountsRepo.findByUser_Matricule(userId);
         if (existingAccount.isPresent()) {
+            logger.error("[Service - Payment : Account] Wallet already exists for user: {}", userId);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Account already exists for user: " + userId);
         }
@@ -303,6 +316,7 @@ public class PaymentService {
         newAccount.setStatus("clear");
         newAccount.setLastUpdate(LocalDateTime.now());
 
+        logger.info("[Service - Payment : Account] Wallet created for user: {}", userId);
         return jpaUserAccountsRepo.save(newAccount);
     }
 
@@ -349,6 +363,7 @@ public class PaymentService {
     // UPDATE BALANCE FOR USER
     @Transactional
     public void updateUserBalance(String userId, Double amount) {
+        logger.info("[Service - Payment : Account] Updating balance for user: {}", userId);
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyNotNull(amount, "Amount");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
@@ -356,6 +371,7 @@ public class PaymentService {
         // Check if account exists
         Optional<UserAccounts> accountOpt = jpaUserAccountsRepo.findByUser_Matricule(userId);
         if (accountOpt.isEmpty()) {
+            logger.error("[Service - Payment : Account] No wallet found for user: {}", userId);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "No account found for user: " + userId);
         }
@@ -366,22 +382,26 @@ public class PaymentService {
         account.setBalance(currentBalance + amount);
         account.setLastUpdate(LocalDateTime.now());
 
+        logger.info("[Service - Payment : Account] Balance updated for user: {}", userId);
         jpaUserAccountsRepo.save(account);
     }
 
     // UPDATE ACCOUNT STATUS
     @Transactional
     public void updateAccountStatus(String userId, String status, Double amount) {
+        logger.info("[Service - Payment : Account] Updating wallet status for user: {}", userId);
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyNotEmpty(status, "Status");
 
         if (!status.matches("^(clear|debt)$")) {
+            logger.error("[Service - Payment : Account] Invalid status: {}", status);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid status. Must be clear or debt. Received: " + status);
         }
 
         Optional<UserAccounts> accountOpt = jpaUserAccountsRepo.findByUser_Matricule(userId);
         if (accountOpt.isEmpty()) {
+            logger.error("[Service - Payment : Account] No wallet found for user: {}", userId);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "No account found for user: " + userId);
         }
@@ -395,6 +415,7 @@ public class PaymentService {
         account.setStatus(status);
         account.setLastUpdate(LocalDateTime.now());
 
+        logger.info("[Service - Payment : Account] Status updated for user: {}", userId);
         jpaUserAccountsRepo.save(account);
     }
 
