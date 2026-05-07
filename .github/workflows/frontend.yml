@@ -10,6 +10,14 @@ on:
       - 'frontend/**'
       - '.github/workflows/frontend.yml'
 
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -42,11 +50,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
         working-directory: frontend
+
+      - name: Install Cypress JUnit Reporter
+        run: npm install --save-dev cypress-junit-reporter
+        working-directory: frontend
+
       - name: Run Cypress component tests
         uses: cypress-io/github-action@v6
         with:
           working-directory: frontend
+          command: npx cypress run --component --reporter junit --reporter-options "mochaFile=cypress/results/[hash].xml,testsuitesTitle=true"
           start: npm run start
           wait-on: 'http://localhost:4200'
           wait-on-timeout: 120
-          command: npx cypress run --component
+
+      - name: Upload Test Reports (JUnit)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: frontend/cypress/results/*.xml
+
+      - name: Publish Test Report to Checks UI
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: frontend-tests
+          path: 'frontend/cypress/results/*.xml'
+          reporter: java-junit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
