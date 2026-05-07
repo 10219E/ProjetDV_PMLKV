@@ -668,6 +668,7 @@ public class MatchServiceH2DbTests extends InitBaseH2Test {
             closure.setSiteId(site.getSiteId());
             closure.setClosureDate(closureDate);
             closure.setReason("Maintenance");
+            closure.setForAll(true); //workaround since adding for_all, should fail anyways as exception test
             jpaSiteClosureDaysRepo.save(closure); // Save closure day
 
             Match match = createPublicMatch(field);

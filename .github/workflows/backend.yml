@@ -1,0 +1,66 @@
+name:  Backend - Padel Proj.
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build and Test with Maven
+        run: |
+          chmod +x mvnw
+          ./mvnw test
+        working-directory: backend
+
+      - name: Upload Test Reports (Surefire)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/target/surefire-reports/*.xml
+
+      # Code Coverage (JaCoCo) is temporarily disabled as it does not yet support Java 25 class versions (69)
+      # - name: Upload Coverage Report (JaCoCo)
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: backend-coverage-report
+      #     path: backend/target/site/jacoco/**
+
+      - name: Publish Test Report to Checks UI
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: backend-tests
+          path: 'backend/target/surefire-reports/*.xml'
+          reporter: java-junit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+

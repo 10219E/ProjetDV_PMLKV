@@ -4,15 +4,26 @@
   <div class="text-sm md:text-base font-semibold text-white md:text-left">
     {{ todayDate | date:'dd MMMM yyyy HH:mm' }}
   </div>
-  <!-- Mobile hamburger trigger (square with rounded edges, larger) -->
-  <button class="mid:hidden bg-white rounded-lg w-12 h-12 flex flex-col items-center justify-center gap-1 p-2 shadow-sm hover:bg-gray-50 focus:outline-none" title="Menu" (click)="toggleNav()" aria-label="Open menu">
-    <span class="block w-full h-0.5 bg-gray-700 rounded"></span>
-    <span class="block w-full h-0.5 bg-gray-700 rounded"></span>
-    <span class="block w-full h-0.5 bg-gray-700 rounded"></span>
-  </button>
+
+  <div class="flex items-center gap-2">
+    <!-- Home Button (Redirects to dashboard) -->
+    @if (showHomeButton) {
+      <a routerLink="/home"
+         class="bg-white rounded-lg w-12 h-12 flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors"
+         title="Retour au tableau de bord"
+         aria-label="Retour au tableau de bord">
+        <mat-icon class="text-gray-700">house</mat-icon>
+      </a>
+    }
+
+    <!-- Mobile hamburger trigger (square with rounded edges, larger) -->
+    <button class="mid:hidden bg-white rounded-lg w-12 h-12 flex flex-col items-center justify-center gap-1 p-2 shadow-sm hover:bg-gray-50 focus:outline-none" title="Menu" (click)="toggleNav()" aria-label="Open menu">
+      <span class="block w-full h-0.5 bg-gray-700 rounded"></span>
+      <span class="block w-full h-0.5 bg-gray-700 rounded"></span>
+      <span class="block w-full h-0.5 bg-gray-700 rounded"></span>
+    </button>
+  </div>
 </header>
 
 <!-- Spacer shown only on small screens to offset fixed header so page content is not hidden beneath it -->
 <div class="mid:hidden h-20"></div>
-
-

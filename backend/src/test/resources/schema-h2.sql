@@ -1,3 +1,5 @@
+-- SCHEMA A BIT OUT OF DATE SINCE FRONTEND BUILD, BUT GOOD ENOUGH FOR TESTING PURPOSES
+
 CREATE SCHEMA IF NOT EXISTS dbo;
 SET SCHEMA dbo;
 
@@ -41,6 +43,7 @@ CREATE TABLE dbo.Sites_ClosureDays (
     site_id INT,
     closure_date DATE NOT NULL,
     reason VARCHAR(255),
+    for_all BIT NOT NULL DEFAULT 0,
     CONSTRAINT fk_closure_site FOREIGN KEY (site_id) REFERENCES dbo.Sites(site_id) ON DELETE CASCADE
 );
 

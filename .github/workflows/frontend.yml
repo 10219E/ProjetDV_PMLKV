@@ -1,0 +1,85 @@
+name: Frontend - Padel Proj.
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Create Cypress results directory
+        run: mkdir -p frontend/cypress/results
+
+      - name: Install Cypress JUnit Reporter
+        run: npm install --save-dev cypress-junit-reporter
+        working-directory: frontend
+
+      - name: Run Cypress component tests
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: frontend
+          command: npx cypress run --component
+          start: npm run start
+          wait-on: 'http://localhost:4200'
+          wait-on-timeout: 120
+
+      - name: Upload Test Reports (JUnit)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: frontend/cypress/results/*.xml
+
+      - name: Publish Test Report to Checks UI
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: frontend-tests
+          path: 'frontend/cypress/results/*.xml'
+          reporter: java-junit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

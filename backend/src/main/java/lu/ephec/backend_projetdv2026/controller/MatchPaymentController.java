@@ -74,7 +74,17 @@ public class MatchPaymentController {
 	public ResponseEntity<List<InvitesDto>> getPendingWithDetailsPaymentsByUser(@PathVariable String userId) {
 		logger.info("[MATCH PAYMENT CONTROLLER] Get pending payments details for match user request received: userId={}", userId);
 		try {
-			List<MatchPayments> payments = paymentService.fetchPendingByUser(userId);
+			List<MatchPayments> payments;
+			try {
+				payments = paymentService.fetchPendingByUser(userId);
+			} catch (ResponseStatusException ex) {
+				// Intercept 404 NOT_FOUND from service and return empty list with 200 OK
+				if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+					logger.info("[MATCH PAYMENT CONTROLLER] No pending payments found for user {}, returning empty list with OK status", userId);
+					return ResponseEntity.ok(List.of());
+				}
+				throw ex;
+			}
 
 			List<InvitesDto> result = payments.stream().map(p -> {
 				MatchPaymentDto payDto = MatchPaymentDto.fromEntity(p);
