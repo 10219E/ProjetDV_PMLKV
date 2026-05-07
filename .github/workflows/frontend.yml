@@ -51,6 +51,9 @@ jobs:
         run: npm ci
         working-directory: frontend
 
+      - name: Create Cypress results directory
+        run: mkdir -p frontend/cypress/results
+
       - name: Install Cypress JUnit Reporter
         run: npm install --save-dev cypress-junit-reporter
         working-directory: frontend
@@ -59,7 +62,7 @@ jobs:
         uses: cypress-io/github-action@v6
         with:
           working-directory: frontend
-          command: npx cypress run --component --reporter junit --reporter-options '{"mochaFile":"cypress/results/[hash].xml","testsuitesTitle":true}'
+          command: npx cypress run --component
           start: npm run start
           wait-on: 'http://localhost:4200'
           wait-on-timeout: 120
