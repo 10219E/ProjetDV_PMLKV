@@ -63,7 +63,7 @@ ADDED///
 
 
 ///PLUGINS
-//JACOCO FOR CODE COVERAGE - GITHUB TESTS
+//REMOVED AS NOT COMPATIBLE WITH JDK 25///JACOCO FOR CODE COVERAGE - GITHUB TESTS
         <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
