@@ -56,7 +56,14 @@ export class NavMenu implements OnInit, OnDestroy {
     // determine if current user is an admin (roleId 7 or 9)
     // Avoid calling the protected endpoint when the user is not authenticated
     // (prevents noisy 403s on public pages like the root landing).
-    this.checkAuthentication();
+    const isLandingPage = this.router.url === '/' || this.router.url === '';
+    if (!this.preventMobileOverlay && isLandingPage) {
+      // Global nav on landing page: skip auth check to prevent 403
+      this.isAdmin = false;
+      this.currentMatricule = null;
+    } else {
+      this.checkAuthentication();
+    }
 
     // Listen for navigation end to show restriction popup when redirected by guard
     try {
