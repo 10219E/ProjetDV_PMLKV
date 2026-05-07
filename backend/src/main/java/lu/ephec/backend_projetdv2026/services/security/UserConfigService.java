@@ -3,6 +3,9 @@ package lu.ephec.backend_projetdv2026.services.security;
 import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.repo.JPAUserRepo;
+import lu.ephec.backend_projetdv2026.services.availability.AvailabilityService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -16,6 +19,8 @@ import java.util.Locale;
 public class UserConfigService implements UserDetailsService {
 
     private final JPAUserRepo jpaUserRepo;
+
+    private static final Logger logger = LoggerFactory.getLogger(UserConfigService.class);
 
     public UserConfigService(JPAUserRepo jpaUserRepo) {
         this.jpaUserRepo = jpaUserRepo;
@@ -31,6 +36,7 @@ public class UserConfigService implements UserDetailsService {
 
 
         if (dbUser.getAuth() == null || dbUser.getAuth().isBlank()) { //BCrypt Hash stored for each user
+            logger.error("[Service - UserConfigService] No password configured for user: {}", reclogin);
             throw new UsernameNotFoundException("No password configured for user: " + reclogin);
         }
 
@@ -41,6 +47,7 @@ public class UserConfigService implements UserDetailsService {
                 ? "ROLE_" + roleType.name()
                 : "ROLE_USER";
 
+        logger.info("[Service - UserConfigService] User {} has role {}", dbUser.getMatricule(), authority);
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(dbUser.getMatricule())              // login field by Matricule (even if email was used for login)

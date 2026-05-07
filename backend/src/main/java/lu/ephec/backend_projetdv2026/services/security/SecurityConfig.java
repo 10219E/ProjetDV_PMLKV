@@ -45,9 +45,9 @@ public class SecurityConfig {
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> {
-                    logger.info("Security exception handling configured");
+                    logger.info("[Service - SecurityConfig] Security exception handling configured");
                     ex.authenticationEntryPoint((request, response, authException) -> {
-                        logger.error("Authentication failed for {}: {}", request.getRequestURI(), authException.getMessage());
+                        logger.error("[Service - SecurityConfig] Authentication failed for {}: {}", request.getRequestURI(), authException.getMessage());
                         response.sendError(403, "Forbidden: " + authException.getMessage());
                     }); //Exception handling for authentication
                 });

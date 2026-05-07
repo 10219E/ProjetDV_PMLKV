@@ -33,7 +33,7 @@ public class SiteFieldsByMatchService {
     public Map<Site, List<Field>> findSitesAndFieldsForMatches(List<Match> matches) {
         // Validate input
         if (matches == null || matches.isEmpty()) {
-            logger.warn("Empty or null matches list provided");
+            logger.warn("[Service - SiteFieldsByMatch]Empty or null matches list provided");
             return Collections.emptyMap();
         }
 
@@ -43,7 +43,7 @@ public class SiteFieldsByMatchService {
         // Process each match
         for (Match match : matches) {
             if (match == null || match.getField() == null) {
-                logger.debug("Skipping null match or match without field");
+                logger.debug("[Service - SiteFieldsByMatch] Skipping null match or match without field");
                 continue; // Skip null matches or matches without fields
             }
 
@@ -54,7 +54,7 @@ public class SiteFieldsByMatchService {
                     .orElse(null);
 
             if (completeField == null || completeField.getSite() == null) {
-                logger.debug("Skipping field without complete site information: {}", field.getFieldId());
+                logger.debug("[Service - SiteFieldsByMatch] Skipping field without complete site information: {}", field.getFieldId());
                 continue; // Skip fields without complete site information
             }
 
@@ -70,7 +70,7 @@ public class SiteFieldsByMatchService {
             }
         }
 
-        logger.info("Found {} unique sites with fields for {} matches", siteFieldMap.size(), matches.size());
+        logger.info("[Service - SiteFieldsByMatch] Found {} unique sites with fields for {} matches", siteFieldMap.size(), matches.size());
         return siteFieldMap;
     }
 }

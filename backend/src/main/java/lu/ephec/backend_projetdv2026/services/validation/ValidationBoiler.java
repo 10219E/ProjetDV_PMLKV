@@ -5,6 +5,9 @@ import lu.ephec.backend_projetdv2026.models.Field;
 import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.User;
 import lu.ephec.backend_projetdv2026.repo.JPASiteClosureDaysRepo;
+import lu.ephec.backend_projetdv2026.services.availability.AvailabilityService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -17,9 +20,12 @@ import java.util.List;
 
 public class ValidationBoiler {
 
+    private static final Logger logger = LoggerFactory.getLogger(ValidationBoiler.class);
+
     // Check if passed object is not null
     public static void verifyNotNull(Object value, String fieldName) {
         if (value == null) {
+            logger.error("[Validation - verify not null] Object {} is null", fieldName);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     fieldName + " is required");
         }
@@ -28,6 +34,7 @@ public class ValidationBoiler {
     // Check if user is active
     public static void verifyUserActive(Boolean isActive, String userId) {
         if (isActive == null || !isActive) {
+            logger.error("[Validation - verify user active] User {} is not active", userId);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "User " + userId + " is not active. Cannot proceed with this operation.");
         }
@@ -36,6 +43,7 @@ public class ValidationBoiler {
     // Check if user has outstanding debt or pending match payments
     public static void verifyNoOutstandingFinancialObligations(boolean hasDebt, List<MatchPayments> pendingPayments, String userId) {
         if (hasDebt) {
+            logger.error("[Validation - verify no debt] User {} has outstanding debt", userId);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "User " + userId + " has outstanding debt. Cannot proceed with this operation.");
         }
@@ -55,6 +63,7 @@ public class ValidationBoiler {
     // Check if collection is not empty (for List, Set, etc.)
     public static void verifyListNotEmpty(Collection<?> collection, String fieldName) {
         if (collection == null || collection.isEmpty()) {
+            logger.error("[Validation - verify list not empty] Collection {} is empty", fieldName);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     fieldName + " is required");
         }
@@ -63,6 +72,7 @@ public class ValidationBoiler {
     //Check if passed object (id String or Integer) exists
     public static void verifyExists(boolean exists, String resourceType, Object id) {
         if (!exists) {
+            logger.error("[Validation - verify exists] {} with id {} does not exist", resourceType, id);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     resourceType + " not found with id: " + id);
         }
@@ -71,6 +81,7 @@ public class ValidationBoiler {
     //Check if passed object (id String or Integer) does NOT exist (prevent duplicates)
     public static void verifyNotExists(boolean exists, String resourceType, Object id) {
         if (exists) {
+            logger.error("[Validation - verify not exists] {} with id {} already exists", resourceType, id);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     resourceType + " already exists with id: " + id);
         }
@@ -79,6 +90,7 @@ public class ValidationBoiler {
     //Check if passed email exists
     public static void verifyEmailNotExists(boolean emailExists, String email) {
         if (emailExists) {
+            logger.error("[Validation - verify email not exists] Email {} already exists", email);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Email already exists: " + email);
         }
@@ -87,6 +99,7 @@ public class ValidationBoiler {
     //Check if toDate or toTime is superior
     public static <T extends Comparable<T>> void verifyDatesValid(T fromDate, T toDate, String fieldName) {
         if (fromDate != null && toDate != null && fromDate.compareTo(toDate) > 0) {
+            logger.error("[Validation - verify dates valid] {} must be before {}", fromDate, toDate);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     fieldName + ": start date must be <= end date");
         }
@@ -95,6 +108,7 @@ public class ValidationBoiler {
     //Check if string is not empty or null
     public static void verifyNotEmpty(String value, String fieldName) {
         if (value == null || value.trim().isEmpty()) {
+            logger.error("[Validation - verify not empty] String {} is empty", fieldName);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     fieldName + " is required");
         }
@@ -114,6 +128,7 @@ public class ValidationBoiler {
         }
 
         if (!isValid) {
+            logger.error("[Validation - verify valid level] Invalid level: {}", level);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid level: " + level + ". Valid levels are: débutant, averti, confirmé");
         }
@@ -122,6 +137,7 @@ public class ValidationBoiler {
     // Check if user has active penalties - block migration if yes
     public static void verifyNoActivePenalties(boolean hasActivePenalties, String userId) {
         if (hasActivePenalties) {
+            logger.error("[Validation - verify no active penalties] User {} has active penalties", userId);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "User " + userId + " has active penalties. Cannot migrate user with active penalties.");
         }
@@ -141,6 +157,7 @@ public class ValidationBoiler {
         }
 
         if (!isValid) {
+            logger.error("[Validation - verify valid penalty reason] Invalid penalty reason: {}", reason);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid penalty reason: " + reason + ". Valid reasons are: unpaid_balance, no_show, insufficient_players");
         }
@@ -150,6 +167,7 @@ public class ValidationBoiler {
     public static void verifyNotAdminUser(Short roleId, String userId) {
         EnumUserRolesType role = EnumUserRolesType.fromId(roleId);
         if (role != null && role.isAdmin()) {
+            logger.error("[Validation - verify not admin user] User {} (roles {}) cannot be used here", userId, role.getDisplayName());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Admin user " + userId + " (roles " + role.getDisplayName() + ") cannot be used here.");
         }
@@ -158,12 +176,14 @@ public class ValidationBoiler {
     //Validate role
     public static void verifyValidRoleId(Short roleId) {
         if (roleId == null) {
+            logger.error("[Validation - verify valid role id] Role ID is required");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Role ID is required");
         }
 
         EnumUserRolesType role = EnumUserRolesType.fromId(roleId);
         if (role == null) {
+            logger.error("[Validation - verify valid role id] Invalid role ID: {}", roleId);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid role ID: " + roleId);
         }
@@ -176,6 +196,7 @@ public class ValidationBoiler {
 
         if (oldRole != null && newRole != null) {
             if (oldRole.isAdmin() != newRole.isAdmin()) {
+                logger.error("[Validation - verify unauthorized user transfer] Migration between admin and non-admin roles not allowed. Attempted to migrate: {} to {}", oldRole.getDisplayName(), newRole.getDisplayName());
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Migration between admin and non-admin roles not allowed. Attempted to migrate: " + oldRole.getDisplayName() + " to " + newRole.getDisplayName() + ".");
             }
@@ -227,6 +248,7 @@ public class ValidationBoiler {
         }
 
         if (!feasible) {
+            logger.error("[Validation - site hours validation] Invalid site hours: need pre/post between 15 and 30 minutes and at least one 90-minute session fitting the schedule");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid site hours: need pre/post between 15 and 30 minutes and at least one 90-minute session fitting the schedule");
         }
@@ -236,6 +258,7 @@ public class ValidationBoiler {
     public static void verifyValidMatchType(String type) {
         verifyNotEmpty(type, "Match type");
         if (!type.equals("private") && !type.equals("public")) {
+            logger.error("[Validation - verify valid match type] Invalid match type: {}", type);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Match type must be 'private' or 'public'. Received: " + type);
         }
@@ -247,11 +270,13 @@ public class ValidationBoiler {
 
         if (matchType.equals("private")) {
             if (organiser == null || organiser.getMatricule() == null) {
+                logger.error("[Validation - verify organizer] Private match must have an organiser");
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Private match must have an organiser");
             }
         } else if (matchType.equals("public")) {
             if (organiser != null) {
+                logger.error("[Validation - verify organizer] Public match must not have an organiser (must be NULL)");
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Public match must not have an organiser (must be NULL)");
             }
@@ -266,29 +291,35 @@ public class ValidationBoiler {
 
         if (matchType.equals("public")) {
             if (pubStatus == null || pubStatus.trim().isEmpty()) {
+                logger.error("[Validation - verify match status] Public match must have a public status");
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Public match must have a public status");
             }
             if (privStatus != null) {
+                logger.error("[Validation - verify match status] Public match must not have a private status");
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Public match must not have a private status");
             }
             if (!pubStatus.equals("open") && !pubStatus.equals("closed") &&
                     !pubStatus.equals("completed") && !pubStatus.equals("cancelled")) {
+                logger.error("[Validation - verify match status] Public status must be one of: 'open', 'closed', 'completed', 'cancelled'. Received: {}", pubStatus);
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Public status must be one of: 'open', 'closed', 'completed', 'cancelled'. Received: " + pubStatus);
             }
         } else if (matchType.equals("private")) {
             if (privStatus == null || privStatus.trim().isEmpty()) {
+                logger.error("[Validation - verify match status] Private match must have a private status");
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Private match must have a private status");
             }
             if (pubStatus != null) {
+                logger.error("[Validation - verify match status] Private match must not have a public status");
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Private match must not have a public status");
             }
             if (!privStatus.equals("awaiting") && !privStatus.equals("confirmed") &&
                     !privStatus.equals("completed") && !privStatus.equals("cancelled")) {
+                logger.error("[Validation - verify match status] Private status must be one of: 'awaiting', 'confirmed', 'completed', 'cancelled'. Received: {}", privStatus);
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Private status must be one of: 'awaiting', 'confirmed', 'completed', 'cancelled'. Received: " + privStatus);
             }
@@ -302,6 +333,7 @@ public class ValidationBoiler {
         verifyNotNull(siteId, "Site ID");
 
         if (jpaSiteClosureDaysRepo.existsBySiteIdAndClosureDate(siteId, matchDate)) {
+            logger.error("[Validation - verify match date not on closure day] Cannot create match on {}: site is closed on this date", matchDate);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Cannot create match on " + matchDate + ": site is closed on this date");
         }
@@ -318,6 +350,7 @@ public class ValidationBoiler {
         // If both maintenance dates are set, check if match date falls within the range
         if (maintenanceFromDate != null && maintenanceToDate != null) {
             if (!matchDate.isBefore(maintenanceFromDate) && !matchDate.isAfter(maintenanceToDate)) {
+                logger.error("[Validation - field maintenance] Cannot create match on {}: field is under maintenance from {} to {}", matchDate, maintenanceFromDate, maintenanceToDate);
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Cannot create match on " + matchDate + ": field is under maintenance from " + maintenanceFromDate + " to " + maintenanceToDate);
             }

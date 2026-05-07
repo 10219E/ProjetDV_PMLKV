@@ -6,7 +6,10 @@ import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
+import lu.ephec.backend_projetdv2026.services.availability.AvailabilityService;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,6 +24,8 @@ public class FieldService {
     private final JPAFieldRepo jpaFieldRepo;
     private final JPASiteRepo jpaSiteRepo;
     private final JPAMatchRepo jpaMatchRepo;
+
+    private static final Logger logger = LoggerFactory.getLogger(FieldService.class);
 
 
     // InjDep Interface Field
@@ -43,6 +48,7 @@ public class FieldService {
         ValidationBoiler.verifyNotNull(field.getSite().getSiteId(), "Site ID");
         ValidationBoiler.verifyDatesValid(field.getMaintenanceFromDate(), field.getMaintenanceToDate(), "Maintenance From / To Date");
 
+        logger.info("[Service - Field] Field {} created for site: {}", field.getFieldId(), field.getSite().getName());
         return jpaFieldRepo.save(field);
     }
 
@@ -70,6 +76,7 @@ public class FieldService {
                         "Site is inactive: " + siteId);
             }
         });
+
         return jpaFieldRepo.findBySite_SiteIdAndIsActiveTrue(siteId);
     }
 
@@ -131,6 +138,9 @@ public class FieldService {
                 match.setPrivStatus("cancelled");
             }
         });
+
+        logger.warn("[Service - Field] !!!Deleting Field with id {} ", fieldId);
+
         jpaMatchRepo.saveAll(matchesOnField);
 
         jpaFieldRepo.deleteById(fieldId);
@@ -180,8 +190,12 @@ public class FieldService {
                         match.setPrivStatus("cancelled");
                     }
                 });
+                logger.warn("[Service - Field] !!!Field {} is now inactive and matches have been cancelled", fieldId);
+
                 jpaMatchRepo.saveAll(matchesOnField);
             }
+
+            logger.info("[Service - Field] Field {} updated", field.getFieldId());
 
             return jpaFieldRepo.save(field);
         });
