@@ -7,7 +7,6 @@ import lu.ephec.backend_projetdv2026.repo.JPAMatchPaymentsRepo;
 import lu.ephec.backend_projetdv2026.models.MatchPlayers;
 import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.services.PaymentService;
-import lu.ephec.backend_projetdv2026.services.UserService;
 import lu.ephec.backend_projetdv2026.models.UserPenalties;
 import lu.ephec.backend_projetdv2026.repo.JPAUserAccountsRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAUserPenaltiesRepo;
@@ -22,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -37,17 +35,15 @@ public class SchedulerService {
 	private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
 	private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
 	private final PaymentService paymentService;
-	private final UserService userService;
 	private final PenaltyHelperService penaltyHelperService;
 	private final JPAUserAccountsRepo jpaUserAccountsRepo;
 	private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
 
-	public SchedulerService(JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, PaymentService paymentService, UserService userService, PenaltyHelperService penaltyHelperService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
+	public SchedulerService(JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, PaymentService paymentService, PenaltyHelperService penaltyHelperService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
 		this.jpaMatchRepo = jpaMatchRepo;
 		this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
 		this.jpaMatchPaymentsRepo = jpaMatchPaymentsRepo;
 		this.paymentService = paymentService;
-		this.userService = userService;
 		this.penaltyHelperService = penaltyHelperService;
 		this.jpaUserAccountsRepo = jpaUserAccountsRepo;
 		this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
@@ -420,8 +416,9 @@ public class SchedulerService {
 				if ("public".equals(m.getType()) && ("closed".equals(m.getPubStatus()) || "open".equals(m.getPubStatus()))) {
 					shouldComplete = true;
 				}
-				if ((m.getPrivStatus() != null && m.getPrivStatus().equals("confirmed")) ||
-						(m.getPubStatus() != null && (m.getPubStatus().equals("closed")) || m.getPubStatus().equals("open"))) {
+				// Safe check for null values
+				if ((m.getPrivStatus() != null && "confirmed".equals(m.getPrivStatus())) ||
+						(m.getPubStatus() != null && ("closed".equals(m.getPubStatus()) || "open".equals(m.getPubStatus())))) {
 					shouldComplete = true;
 				}
 

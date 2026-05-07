@@ -6,7 +6,6 @@ import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteRepo;
-import lu.ephec.backend_projetdv2026.services.availability.AvailabilityService;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +42,7 @@ public class FieldService {
     // SET Field
     @Transactional
     public Field newField(Field field) {
+        logger.info("[Service - Field] Creating new Field");
         ValidationBoiler.verifyNotNull(field, "Field");
         ValidationBoiler.verifyNotNull(field.getSite(), "Site");
         ValidationBoiler.verifyNotNull(field.getSite().getSiteId(), "Site ID");
@@ -149,6 +149,7 @@ public class FieldService {
     // UPDATE Field
     @Transactional
     public Optional<Field> updateField(Integer fieldId, Field updateData) {
+        logger.info("[Service - Field] Updating Field");
         ValidationBoiler.verifyExists(jpaFieldRepo.existsById(fieldId), "Field", fieldId);
         AtomicBoolean fieldDeactivated = new AtomicBoolean(false);
 
