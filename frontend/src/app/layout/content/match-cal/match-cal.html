@@ -25,7 +25,7 @@
               'w-8 h-8 flex items-center justify-center mx-auto': true
             }"
             class="transition-colors duration-150"
-            [attr.title]="d.isFullyBooked ? 'Complet' : (!d.isAvailable ? 'Non disponible' : null)"
+            [attr.title]="d.isFullyBooked ? '' : (!d.isAvailable ? 'Non disponible' : null)"
           >
             {{ d.date.getDate() }}
           </button>
