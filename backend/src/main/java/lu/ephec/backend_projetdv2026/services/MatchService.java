@@ -109,8 +109,19 @@ public class MatchService {
                 .map(mp -> mp.getMatch().getMatchId())
                 .collect(Collectors.toSet());
 
+        // Remove matches that are already full (all match players set to approved)
+        List<Match> notFullMatches = publicMatches.stream()
+                .filter(match -> {
+                    long approvedCount = jpaMatchPlayersRepo.findByMatch_MatchId(match.getMatchId())
+                            .stream()
+                            .filter(p -> "approved".equals(p.getStatus()))
+                            .count();
+                    return approvedCount < 4;
+                })
+                .collect(Collectors.toList());
+
         // Filter public matches to exclude those the user is already registered for
-        List<Match> availableMatches = publicMatches.stream()
+        List<Match> availableMatches = notFullMatches.stream()
                 .filter(match -> !registeredMatchIds.contains(match.getMatchId()))
                 .collect(Collectors.toList());
 
