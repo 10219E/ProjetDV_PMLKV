@@ -23,7 +23,7 @@ export class PayFormComponent {
     this.error = null;
     if (this.cardNumber.invalid) {
       this.cardNumber.markAsTouched();
-      this.error = 'Card number must be 16 digits.';
+      //this.error = 'Card number must be 16 digits.';
       return;
     }
     this.loading = true;
