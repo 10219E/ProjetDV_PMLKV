@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators, FormArray } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -27,12 +27,15 @@ import {InviteService} from '../../../services/invite.service';
   styleUrls: ['./match-form.css']
 })
 export class MatchForm implements OnInit {
+  @ViewChild(MatchCal) matchCalComponent!: MatchCal;
+
   @Input() organiserId?: string | null;
   @Input() organiserName?: string | null;
   @Input() defaultType?: string | null; // e.g. 'private' or 'public'
   @Input() hideOrganiser?: boolean | null;
   @Input() hideInvites?: boolean | null;
   @Input() stayOnPageAfterSuccess?: boolean | null;
+  @Input() editMode = false;
 
   fields: any[] = [];
   // all fields loaded from server (unfiltered). `fields` is the currently displayed list after site filtering.
@@ -1023,6 +1026,8 @@ export class MatchForm implements OnInit {
 
     if (this.stayOnPageAfterSuccess) {
       // Clear form and reload sessions/fields as needed, but stay on page
+      this.sessionService.clearCaches();
+
       this.form.reset({
         siteId: this.form.get('siteId')?.value, // Keep the site if selected
         type: this.defaultType ?? this.form.get('type')?.value,
@@ -1043,6 +1048,10 @@ export class MatchForm implements OnInit {
         this.form.get('matchDate')?.disable();
         this.form.get('startTime')?.disable();
         this.form.get('endTime')?.disable();
+      }
+
+      if (this.matchCalComponent) {
+        this.matchCalComponent.refresh();
       }
 
       this.cd.detectChanges();
