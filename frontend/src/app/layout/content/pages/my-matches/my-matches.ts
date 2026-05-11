@@ -87,11 +87,27 @@ export class MyMatches implements OnInit {
         // Process matches data
         this.matchPlayers = Array.isArray(matchesData) ? matchesData : [];
 
-        // Sort matches by date (closest first)
+        // Sort matches by date and time (closest first)
         this.matchPlayers.sort((a, b) => {
-          const dateA = a.match?.matchDate ? new Date(a.match.matchDate).getTime() : Infinity;
-          const dateB = b.match?.matchDate ? new Date(b.match.matchDate).getTime() : Infinity;
-          return dateA - dateB;
+          const dateA = a.match?.matchDate ? new Date(a.match.matchDate) : new Date(8640000000000000);
+          const dateB = b.match?.matchDate ? new Date(b.match.matchDate) : new Date(8640000000000000);
+
+          const applyTime = (d: Date, t: any) => {
+            if (!t) return;
+            if (typeof t === 'string') {
+              const parts = t.split(':');
+              if (parts.length >= 2) d.setHours(Number(parts[0]), Number(parts[1]), 0, 0);
+            } else {
+              const h = t.hour ?? t.Hour ?? 0;
+              const m = t.minute ?? t.Minute ?? 0;
+              d.setHours(Number(h), Number(m), 0, 0);
+            }
+          };
+
+          applyTime(dateA, a.match?.startTime);
+          applyTime(dateB, b.match?.startTime);
+
+          return dateA.getTime() - dateB.getTime();
         });
 
         // Process declined players data

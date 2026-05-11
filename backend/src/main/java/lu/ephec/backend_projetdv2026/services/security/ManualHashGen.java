@@ -13,7 +13,7 @@ public class ManualHashGen {
         System.out.println("G0001 -> " + enc.encode("VIP@ccess1!")); //mchlo@ephec.be
         System.out.println("G0002 -> " + enc.encode("VIP@ccess2!")); //jdupont@ephec.be ///HAS DEBT
         System.out.println("G0003 -> " + enc.encode("VIP@ccess3!")); //gguy@ephec.be
-        System.out.println("G0004 -> " + enc.encode("Norm@lS!te5")); //REGISTERED THROUGH FORM AND UPGRADED TO VIP
+        System.out.println("G0004 -> " + enc.encode("Norm@lS!te5")); //clambert@ephec.be //REGISTERED THROUGH FORM AND UPGRADED TO VIP
         System.out.println("S0001 -> " + enc.encode("Norm@lS!te1")); //cmartin@ephec.be
         System.out.println("S0002 -> " + enc.encode("Norm@lS!te2")); //adubois@ephec.be ///HAD DEBT
         System.out.println("S0003 -> " + enc.encode("Norm@lS!te3")); //lvandriesche@ephec.be
