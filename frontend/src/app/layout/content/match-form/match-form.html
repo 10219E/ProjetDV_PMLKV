@@ -138,6 +138,9 @@
               @if (getInviteControl(i)?.errors?.inviteNotAllowed) {
                 <p class="text-red-500 text-xs mt-1">Vous ne pouvez pas inviter cet utilisateur.</p>
               }
+              @if (getInviteControl(i)?.errors?.collidingMatch) {
+                <p class="text-red-500 text-xs mt-1">Ce joueur a déjà un match à cette heure.</p>
+              }
             }
 
             @if (inviteStates[i]?.status === 'found') {

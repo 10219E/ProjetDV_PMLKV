@@ -109,6 +109,14 @@ public class MatchController {
         return ResponseEntity.ok(responses);
     }
 
+    @GetMapping(value = "/colliding/{userMatricule}", produces = "application/json")
+    public ResponseEntity<Boolean> getCollidingMatches(@PathVariable("userMatricule") String userMatricule, @RequestParam("matchDate") String matchDate, @RequestParam("startTime") String startTime) {
+        List<Match> mymatches = matchService.fetchMyUpcomingMatches(userMatricule);
+        boolean isColliding = mymatches.stream()
+                .anyMatch(match -> match.getMatchDate().toString().equals(matchDate) && match.getStartTime().toString().equals(startTime));
+        return ResponseEntity.ok(isColliding);
+    }
+
     @GetMapping(value = "/mypublicmatches/{userMatricule}", produces = "application/json")
     public ResponseEntity<List<MatchSiteFieldDto>> getAvailablePublicMatches(@PathVariable String userMatricule) {
         // Validate the userMatricule parameter

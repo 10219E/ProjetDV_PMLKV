@@ -122,6 +122,11 @@ public class MatchService {
                 .map(mp -> mp.getMatch().getMatchId())
                 .collect(Collectors.toSet());
 
+        // Create a set of date-time strings the user is already booked for
+        Set<String> userBookedDateTimes = myregistered.stream()
+                .map(mp -> mp.getMatch().getMatchDate().toString() + "_" + mp.getMatch().getStartTime().toString())
+                .collect(Collectors.toSet());
+
         // Remove matches that are already full (all match players set to approved)
         List<Match> notFullMatches = publicMatches.stream()
                 .filter(match -> {
@@ -143,6 +148,7 @@ public class MatchService {
         // Filter public matches to exclude those the user is already registered for
         List<Match> availableMatches = siteFilteredMatches.stream()
                 .filter(match -> !registeredMatchIds.contains(match.getMatchId()))
+                .filter(match -> !userBookedDateTimes.contains(match.getMatchDate().toString() + "_" + match.getStartTime().toString()))
                 .collect(Collectors.toList());
 
         logger.info("[Service - Match] Found {} available public matches for user {}", availableMatches.size(), userId);

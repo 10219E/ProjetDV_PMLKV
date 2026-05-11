@@ -113,6 +113,16 @@ export class MatchService {
     );
   }
 
+  getCollidingMatches(userId: string, matchDate: string, startTime: string): Observable<boolean> {
+    this.setAuthHeader();
+    return this.matchControllerService.getCollidingMatches(userId, matchDate, startTime).pipe(
+      catchError((error) => {
+        console.error('Error fetching colliding matches:', error);
+        return of(false);
+      })
+    );
+  }
+
   // Normalized setAuthHeader method
   private setAuthHeader(): void {
     try {
