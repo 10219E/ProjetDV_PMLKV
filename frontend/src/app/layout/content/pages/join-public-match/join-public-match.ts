@@ -277,7 +277,7 @@ export class JoinPublicMatch implements OnInit {
   }
 
   get filteredMatches(): MatchSiteFieldDto[] {
-    return this.matches.filter(m => {
+    const filtered = this.matches.filter(m => {
       let matchSite = true;
       if (this.selectedSiteId !== '') {
         matchSite = m.site?.siteId === Number(this.selectedSiteId);
@@ -299,6 +299,19 @@ export class JoinPublicMatch implements OnInit {
         matchEndDate = mDate <= this.endDateString;
       }
       return matchSite && matchFieldType && matchStartDate && matchEndDate;
+    });
+
+    return filtered.sort((a, b) => {
+      const dateA = (a.match?.matchDate ?? '').split('T')[0];
+      const dateB = (b.match?.matchDate ?? '').split('T')[0];
+
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+
+      const timeA = this.formatTime(a.match?.startTime);
+      const timeB = this.formatTime(b.match?.startTime);
+      return timeA.localeCompare(timeB);
     });
   }
 
