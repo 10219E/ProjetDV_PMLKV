@@ -14,7 +14,7 @@
 
 --------------------
 
-### Database will be initialized and ready after +- 100 seconds. You can check the logs to see the progress:
+### Database will be initialized and ready after +- 120 seconds. You can check the logs to see the progress:
 
 #### _docker compose logs -f_
 
