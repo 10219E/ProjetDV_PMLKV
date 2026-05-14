@@ -1,5 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NavMenu } from '../../nav-menu/nav-menu';
 import { HomeAccountHeader } from '../../header/header';
@@ -15,13 +16,26 @@ import { MatchSiteFieldDto } from '../../../../api/model/matchSiteFieldDto';
 @Component({
   selector: 'app-join-public-match',
   standalone: true,
-  imports: [CommonModule, NavMenu, HomeAccountHeader, PayFormComponent],
+  imports: [CommonModule, FormsModule, NavMenu, HomeAccountHeader, PayFormComponent],
   templateUrl: './join-public-match.html'
 })
 export class JoinPublicMatch implements OnInit {
   matches: Array<MatchSiteFieldDto> = [];
   loading = false;
   error: string | null = null;
+
+  // Filters
+  selectedSiteId: number | '' = '';
+  selectedFieldType: 'indoor' | 'outdoor' | '' = '';
+  startDateString: string = '';
+  endDateString: string = '';
+
+  clearFilters(): void {
+    this.selectedSiteId = '';
+    this.selectedFieldType = '';
+    this.startDateString = '';
+    this.endDateString = '';
+  }
 
   // Payment form state
   showPayForm = false;
@@ -252,6 +266,55 @@ export class JoinPublicMatch implements OnInit {
     return site?.name || '—';
   }
 
+  get uniqueSites(): {id: number, name: string}[] {
+    const sites = new Map<number, {id: number, name: string}>();
+    for (const m of this.matches) {
+      if (m.site?.siteId) {
+        sites.set(m.site.siteId, {id: m.site.siteId, name: m.site.name || ''});
+      }
+    }
+    return Array.from(sites.values());
+  }
+
+  get filteredMatches(): MatchSiteFieldDto[] {
+    const filtered = this.matches.filter(m => {
+      let matchSite = true;
+      if (this.selectedSiteId !== '') {
+        matchSite = m.site?.siteId === Number(this.selectedSiteId);
+      }
+      let matchFieldType = true;
+      if (this.selectedFieldType !== '') {
+        const isIndoor = m.field?.isIndoor;
+        if (this.selectedFieldType === 'indoor') matchFieldType = isIndoor === true;
+        if (this.selectedFieldType === 'outdoor') matchFieldType = isIndoor === false;
+      }
+      let matchStartDate = true;
+      if (this.startDateString) {
+        const mDate = (m.match?.matchDate ?? '').split('T')[0];
+        matchStartDate = mDate >= this.startDateString;
+      }
+      let matchEndDate = true;
+      if (this.endDateString) {
+        const mDate = (m.match?.matchDate ?? '').split('T')[0];
+        matchEndDate = mDate <= this.endDateString;
+      }
+      return matchSite && matchFieldType && matchStartDate && matchEndDate;
+    });
+
+    return filtered.sort((a, b) => {
+      const dateA = (a.match?.matchDate ?? '').split('T')[0];
+      const dateB = (b.match?.matchDate ?? '').split('T')[0];
+
+      if (dateA !== dateB) {
+        return dateA.localeCompare(dateB);
+      }
+
+      const timeA = this.formatTime(a.match?.startTime);
+      const timeB = this.formatTime(b.match?.startTime);
+      return timeA.localeCompare(timeB);
+    });
+  }
+
   getMatchType(match: MatchSiteFieldDto['match']): string {
     const type = match?.type ?? '';
     if (type === 'public') return 'Public';
@@ -273,4 +336,5 @@ export class JoinPublicMatch implements OnInit {
     return `${yyyy}-${mm}-${dd}`;
   }
 }
+
 

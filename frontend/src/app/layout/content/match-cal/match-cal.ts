@@ -135,6 +135,11 @@ export class MatchCal implements OnChanges, OnDestroy {
     }
   }
 
+  refresh(): void {
+    this.loadAvailableDates();
+    this.updateBlockedDates();
+  }
+
   ngOnDestroy(): void {
     this._blockedSub?.unsubscribe();
     this._availableDatesSub?.unsubscribe();

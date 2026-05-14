@@ -54,8 +54,12 @@
             <option [value]="ss._start">{{ ss.label }}</option>
           }
         </select>
-        @if (form.get('startTime')?.invalid && form.get('startTime')?.touched) {
-          <p class="text-red-500 text-xs mt-1">L'heure de début est obligatoire</p>
+        @if (form.get('startTime')?.touched) {
+          @if (form.get('startTime')?.errors?.['collidingOrganiser']) {
+            <p class="text-red-500 text-xs mt-1">Vous avez déjà un match programmé à ce moment-là.</p>
+          } @else if (form.get('startTime')?.errors?.['required']) {
+            <p class="text-red-500 text-xs mt-1">L'heure de début est obligatoire</p>
+          }
         }
       </div>
       <div>
@@ -137,6 +141,9 @@
               }
               @if (getInviteControl(i)?.errors?.inviteNotAllowed) {
                 <p class="text-red-500 text-xs mt-1">Vous ne pouvez pas inviter cet utilisateur.</p>
+              }
+              @if (getInviteControl(i)?.errors?.collidingMatch) {
+                <p class="text-red-500 text-xs mt-1">Ce joueur a déjà un match à cette heure.</p>
               }
             }
 

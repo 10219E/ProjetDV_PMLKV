@@ -129,6 +129,10 @@ export class SessionService {
     const mm = d.getMinutes().toString().padStart(2, '0');
     return `${hh}:${mm}`;
   }
+
+  // Add a clear method to clear the caches so that form submission forces fetching fresh availabilities
+  public clearCaches(): void {
+    this.datesCache.clear();
+    this.siteCache.clear();
+  }
 }
-
-

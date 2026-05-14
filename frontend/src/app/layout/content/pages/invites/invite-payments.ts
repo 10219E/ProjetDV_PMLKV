@@ -9,6 +9,7 @@ import { PayService } from '../../../../services/pay.service';
 import { InviteService } from '../../../../services/invite.service';
 import { AuthService } from '../../../../services/auth.service';
 import { UserService } from '../../../../services/user.service';
+import { MatchService } from '../../../../services/match.service';
 import { take } from 'rxjs/operators';
 import { MatchPaymentDto } from '../../../../api/model/matchPaymentDto';
 import { InvitesDto } from '../../../../api/model/invitesDto';
@@ -45,6 +46,7 @@ export class InvitePaymentsPage implements OnInit {
 	private inviteService: InviteService,
 	private auth: AuthService,
 	private userService: UserService,
+	private matchService: MatchService,
 	private cd: ChangeDetectorRef
   ) {}
 
@@ -78,6 +80,13 @@ export class InvitePaymentsPage implements OnInit {
 	  next: (data: any) => {
 		// API returns an array of InvitesDto
 		this.payments = Array.isArray(data) ? data : [];
+
+		this.payments.sort((a, b) => {
+		  const dateA = a.match?.matchDate ? new Date(a.match.matchDate).getTime() : Number.MAX_SAFE_INTEGER;
+		  const dateB = b.match?.matchDate ? new Date(b.match.matchDate).getTime() : Number.MAX_SAFE_INTEGER;
+		  return dateA - dateB;
+		});
+
 		this.loading = false;
 		this.cd.detectChanges();
 	  },
@@ -215,19 +224,21 @@ export class InvitePaymentsPage implements OnInit {
 
         this.payService.updatePayment(this.selectedPayment!.payment!.tr!, dto).subscribe({
           next: (_res) => {
-            const m = this.selectedPayment?.match;
-            const matchDate = m?.matchDate ? new Date(m.matchDate) : null;
-            const formattedDate = matchDate ? matchDate.toLocaleDateString('fr-FR') : '—';
-            const startTime = this.formatTime(m?.startTime);
-            const endTime = this.formatTime(m?.endTime);
-
-            this.popupMessage = `Votre paiement a été accepté. Vous êtes inscrit pour ce match le ${formattedDate} de ${startTime} à ${endTime}.`;
-
-            // remove locally and clear selection
-            this.payments = this.payments.filter(p => p.payment?.tr !== this.selectedPayment?.payment?.tr);
-            this.selectedPayment = null;
-            this.showSuccessDialog = true;
-            this.cd.detectChanges();
+            if (this.selectedPayment?.match?.matchId) {
+              this.matchService.joinPublicMatchOrUpdatePrivate(this.selectedPayment.match.matchId, currentMat).subscribe({
+                next: () => {
+                  this.completePaymentSuccess();
+                },
+                error: (err: any) => {
+                  console.error('Failed to update match player', err);
+                  this.error = err?.message || 'Erreur lors de la mise à jour de l\'inscription.';
+                  this.selectedPayment = null;
+                  this.cd.detectChanges();
+                }
+              });
+            } else {
+              this.completePaymentSuccess();
+            }
           },
           error: (err: any) => {
             console.error('Failed to update payment', err);
@@ -250,5 +261,21 @@ export class InvitePaymentsPage implements OnInit {
 	this.showPayForm = false;
 	this.selectedPayment = null;
 	this.cd.detectChanges();
+  }
+
+  private completePaymentSuccess() {
+    const m = this.selectedPayment?.match;
+    const matchDate = m?.matchDate ? new Date(m.matchDate) : null;
+    const formattedDate = matchDate ? matchDate.toLocaleDateString('fr-FR') : '—';
+    const startTime = this.formatTime(m?.startTime);
+    const endTime = this.formatTime(m?.endTime);
+
+    this.popupMessage = `Votre paiement a été accepté. Vous êtes inscrit pour ce match le ${formattedDate} de ${startTime} à ${endTime}.`;
+
+    // remove locally and clear selection
+    this.payments = this.payments.filter(p => p.payment?.tr !== this.selectedPayment?.payment?.tr);
+    this.selectedPayment = null;
+    this.showSuccessDialog = true;
+    this.cd.detectChanges();
   }
 }

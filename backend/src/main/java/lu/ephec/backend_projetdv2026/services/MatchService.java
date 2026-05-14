@@ -2,6 +2,7 @@ package lu.ephec.backend_projetdv2026.services;
 
 import jakarta.transaction.Transactional;
 import lu.ephec.backend_projetdv2026.models.Field;
+import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
 import lu.ephec.backend_projetdv2026.models.Match;
 import lu.ephec.backend_projetdv2026.models.MatchPayments;
 import lu.ephec.backend_projetdv2026.models.MatchPlayers;
@@ -28,18 +29,20 @@ public class MatchService {
     private final JPAFieldRepo jpaFieldRepo;
     private final JPASiteClosureDaysRepo jpaSiteClosureDaysRepo;
     private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
+    private final JPAUserSiteRepo jpaUserSiteRepo;
     private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
     private final JPAUserPenaltiesRepo jpaUserPenaltiesRepo;
     private final Logger logger = LoggerFactory.getLogger(MatchService.class);
 
     // Dependency Injection
-    public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo, JPASiteClosureDaysRepo jpaSiteClosureDaysRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
+    public MatchService(JPAMatchRepo jpaMatchRepo, JPAUserRepo jpaUserRepo, JPAFieldRepo jpaFieldRepo, JPASiteClosureDaysRepo jpaSiteClosureDaysRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo, JPAUserSiteRepo jpaUserSiteRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserAccountsRepo jpaUserAccountsRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo) {
         this.jpaMatchRepo = jpaMatchRepo;
         this.jpaUserRepo = jpaUserRepo;
         this.jpaFieldRepo = jpaFieldRepo;
         this.jpaSiteClosureDaysRepo = jpaSiteClosureDaysRepo;
         this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
+        this.jpaUserSiteRepo = jpaUserSiteRepo;
         this.jpaMatchPaymentsRepo = jpaMatchPaymentsRepo;
         this.jpaUserAccountsRepo = jpaUserAccountsRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
@@ -93,10 +96,20 @@ public class MatchService {
     }
 
     //GET AVAILABLE PUBLIC MATCHES FOR USER (part of removing business logic of frontend branch 72)
+    @Transactional
     public List<Match> fetchAvailablePublicMatches(String userId) {
         // Input validation
         ValidationBoiler.verifyNotEmpty(userId, "User ID");
         ValidationBoiler.verifyExists(jpaUserRepo.existsById(userId), "User", userId);
+
+        var user = jpaUserRepo.findById(userId).orElseThrow();
+        boolean hasAllSiteAccess = user.getRole() != null
+                && EnumUserRolesType.ALL_SITE_ACCESS.getId().equals(user.getRole().getId());
+        Set<Integer> userSiteIds = hasAllSiteAccess
+                ? Set.of()
+                : jpaUserSiteRepo.findByUser_Matricule(userId).stream()
+                .map(link -> link.getSite().getSiteId())
+                .collect(Collectors.toSet());
 
         // Get all public matches that are open or pending
         List<Match> publicMatches = jpaMatchRepo.findByTypeAndPubStatus("public", "open");
@@ -109,9 +122,33 @@ public class MatchService {
                 .map(mp -> mp.getMatch().getMatchId())
                 .collect(Collectors.toSet());
 
+        // Create a set of date-time strings the user is already booked for
+        Set<String> userBookedDateTimes = myregistered.stream()
+                .map(mp -> mp.getMatch().getMatchDate().toString() + "_" + mp.getMatch().getStartTime().toString())
+                .collect(Collectors.toSet());
+
+        // Remove matches that are already full (all match players set to approved)
+        List<Match> notFullMatches = publicMatches.stream()
+                .filter(match -> {
+                    long approvedCount = jpaMatchPlayersRepo.findByMatch_MatchId(match.getMatchId())
+                            .stream()
+                            .filter(p -> "approved".equals(p.getStatus()))
+                            .count();
+                    return approvedCount < 4;
+                })
+                .toList();
+
+        // Remove matches not on my site, except for all_site users
+        List<Match> siteFilteredMatches = hasAllSiteAccess
+                ? notFullMatches
+                : notFullMatches.stream()
+                .filter(match -> userSiteIds.contains(match.getField().getSite().getSiteId()))
+                .toList();
+
         // Filter public matches to exclude those the user is already registered for
-        List<Match> availableMatches = publicMatches.stream()
+        List<Match> availableMatches = siteFilteredMatches.stream()
                 .filter(match -> !registeredMatchIds.contains(match.getMatchId()))
+                .filter(match -> !userBookedDateTimes.contains(match.getMatchDate().toString() + "_" + match.getStartTime().toString()))
                 .collect(Collectors.toList());
 
         logger.info("[Service - Match] Found {} available public matches for user {}", availableMatches.size(), userId);
@@ -636,13 +673,14 @@ public class MatchService {
 
         logger.info("[Service - Match : Players] Processing business logic for player");
         if (existingUserInMatch.isPresent()) {
-            // Allow updating if the user has declined status
-            if (!existingUserInMatch.get().getStatus().equals("declined")) {
+            // Allow updating if the user has declined or pending status
+            String currentStatus = existingUserInMatch.get().getStatus();
+            if (!currentStatus.equals("declined") && !currentStatus.equals("pending")) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "User " + userId + " is already assigned to role " + existingUserInMatch.get().getPlayerRole()
                                 + " in match " + matchId);
             }
-            // If user has declined status, we'll update their existing record instead of creating a new one
+            // If user has declined or pending status, we'll update their existing record instead of creating a new one
             slotToFill = existingUserInMatch.get();
         } else {
             List<MatchPlayers> players = jpaMatchPlayersRepo.findByMatch_MatchId(matchId);

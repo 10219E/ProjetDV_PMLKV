@@ -9,11 +9,14 @@ import { HomeAccountHeader } from '../../header/header';
 import { MatchService } from '../../../../services/match.service';
 import { InviteService } from '../../../../services/invite.service';
 import { UserService } from '../../../../services/user.service';
+import { PayService } from '../../../../services/pay.service';
 import { MatchPlayerSiteFieldDto } from '../../../../api/model/matchPlayerSiteFieldDto';
 import { DeclinedPlayersDto } from '../../../../api/model/declinedPlayersDto';
 import { SimpleInviteDto } from '../../../../api/model/simpleInviteDto';
 import { MatchPlayerDto } from '../../../../api/model/matchPlayerDto';
+import { MatchPaymentDto } from '../../../../api/model/matchPaymentDto';
 import { UserFormComponent } from '../../user-form/user-form';
+import { switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-my-matches',
@@ -58,6 +61,7 @@ export class MyMatches implements OnInit {
     private matchService: MatchService,
     private inviteService: InviteService,
     private userService: UserService,
+    private payService: PayService,
     private cd: ChangeDetectorRef
   ) {}
 
@@ -87,11 +91,27 @@ export class MyMatches implements OnInit {
         // Process matches data
         this.matchPlayers = Array.isArray(matchesData) ? matchesData : [];
 
-        // Sort matches by date (closest first)
+        // Sort matches by date and time (closest first)
         this.matchPlayers.sort((a, b) => {
-          const dateA = a.match?.matchDate ? new Date(a.match.matchDate).getTime() : Infinity;
-          const dateB = b.match?.matchDate ? new Date(b.match.matchDate).getTime() : Infinity;
-          return dateA - dateB;
+          const dateA = a.match?.matchDate ? new Date(a.match.matchDate) : new Date(8640000000000000);
+          const dateB = b.match?.matchDate ? new Date(b.match.matchDate) : new Date(8640000000000000);
+
+          const applyTime = (d: Date, t: any) => {
+            if (!t) return;
+            if (typeof t === 'string') {
+              const parts = t.split(':');
+              if (parts.length >= 2) d.setHours(Number(parts[0]), Number(parts[1]), 0, 0);
+            } else {
+              const h = t.hour ?? t.Hour ?? 0;
+              const m = t.minute ?? t.Minute ?? 0;
+              d.setHours(Number(h), Number(m), 0, 0);
+            }
+          };
+
+          applyTime(dateA, a.match?.startTime);
+          applyTime(dateB, b.match?.startTime);
+
+          return dateA.getTime() - dateB.getTime();
         });
 
         // Process declined players data
@@ -334,16 +354,32 @@ export class MyMatches implements OnInit {
             return;
           }
 
-          const c = this.getInviteControl(index);
-          if (c) {
-            const errs = c.errors || {};
-            delete errs['adminNotAllowed']; delete errs['inviteNotAllowed']; delete errs['userDeclined'];
-            if (Object.keys(errs).length === 0) c.setErrors(null, { emitEvent: false }); else c.setErrors(errs, { emitEvent: false });
+          const targetMatch = this.matchPlayers.find(m => m.match?.matchId === this.selectedMatchId);
+          if (targetMatch && targetMatch.match?.matchDate && targetMatch.match?.startTime && user.matricule) {
+            const matchDateStr = typeof targetMatch.match.matchDate === 'string' ? targetMatch.match.matchDate.split('T')[0] : targetMatch.match.matchDate;
+            const startTimeStr = typeof targetMatch.match.startTime === 'string' ? targetMatch.match.startTime : (targetMatch.match.startTime as any)?.hour !== undefined ? `${(targetMatch.match.startTime as any).hour}:${(targetMatch.match.startTime as any).minute}` : String(targetMatch.match.startTime);
+
+            this.matchService.getCollidingMatches(user.matricule, matchDateStr, startTimeStr).subscribe({
+              next: (isColliding: boolean) => {
+                if (isColliding) {
+                  const c = this.getInviteControl(index);
+                  if (c) { const err = c.errors || {}; err['collidingMatch'] = true; c.setErrors(err, { emitEvent: false }); }
+                  this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
+                  if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+                  this.cd.detectChanges();
+                } else {
+                  this.finalizeInviteSuccess(index, user);
+                }
+              },
+              error: () => {
+                // proceed anyway if the check fails
+                this.finalizeInviteSuccess(index, user);
+              }
+            });
+            return;
           }
-          this.inviteStates[index] = { status: 'found', user: { matricule: user.matricule, email: user.email } };
-          this.runInviteCrossValidation();
-          if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
-          this.cd.detectChanges();
+
+          this.finalizeInviteSuccess(index, user);
         },
         error: (err) => {
           this.inviteStates[index] = { status: 'not_found' };
@@ -355,6 +391,19 @@ export class MyMatches implements OnInit {
       this.inviteStates[index] = { status: 'error' };
       this.cd.detectChanges();
     }
+  }
+
+  private finalizeInviteSuccess(index: number, user: SimpleInviteDto): void {
+    const c = this.getInviteControl(index);
+    if (c) {
+      const errs = c.errors || {};
+      delete errs['adminNotAllowed']; delete errs['inviteNotAllowed']; delete errs['userDeclined']; delete errs['collidingMatch'];
+      if (Object.keys(errs).length === 0) c.setErrors(null, { emitEvent: false }); else c.setErrors(errs, { emitEvent: false });
+    }
+    this.inviteStates[index] = { status: 'found', user: { matricule: user.matricule, email: user.email } };
+    this.runInviteCrossValidation();
+    if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+    this.cd.detectChanges();
   }
 
   clearInvite(index: number): void {
@@ -436,9 +485,24 @@ export class MyMatches implements OnInit {
     if (!this.selectedMatchId || !this.userId) return;
     this.loading = true;
 
-    const requests = newPlayerIds.map(newPlayerId =>
-      this.matchService.joinPublicMatchOrUpdatePrivate(this.selectedMatchId!, newPlayerId, 'pending')
-    );
+    // Find the pricing for this match
+    const targetMatch = this.matchPlayers.find(m => m.match?.matchId === this.selectedMatchId);
+    // Assume shared pay means pricing / 4 for the newly invited replacement player
+    const amount = targetMatch && targetMatch.match?.pricing != null ? targetMatch.match.pricing / 4 : 0;
+
+    const requests = newPlayerIds.map(newPlayerId => {
+      return this.matchService.joinPublicMatchOrUpdatePrivate(this.selectedMatchId!, newPlayerId, 'pending').pipe(
+        switchMap(() => {
+          const dto: MatchPaymentDto = {
+            matchId: this.selectedMatchId!,
+            userMatricule: newPlayerId,
+            amount: amount,
+            status: 'pending'
+          };
+          return this.payService.createPayment(dto);
+        })
+      );
+    });
 
     if (requests.length === 0) {
       this.loading = false;
@@ -536,4 +600,3 @@ export class MyMatches implements OnInit {
     return this.declinedPlayers.filter(dp => dp.matchId === matchId).length;
   }
 }
-

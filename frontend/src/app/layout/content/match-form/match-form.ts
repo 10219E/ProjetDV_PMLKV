@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators, FormArray } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -8,6 +8,7 @@ import { SiteControllerService } from '../../../api/api/siteController.service';
 import { AuthService } from '../../../services/auth.service';
 import { UserService } from '../../../services/user.service';
 import { SessionService } from '../../../services/session.service';
+import { MatchService } from '../../../services/match.service';
 import { AvailabilityControllerService } from '../../../api/api/availabilityController.service';
 import { Router } from '@angular/router';
 import { MatchCal } from '../match-cal/match-cal';
@@ -27,12 +28,15 @@ import {InviteService} from '../../../services/invite.service';
   styleUrls: ['./match-form.css']
 })
 export class MatchForm implements OnInit {
+  @ViewChild(MatchCal) matchCalComponent!: MatchCal;
+
   @Input() organiserId?: string | null;
   @Input() organiserName?: string | null;
   @Input() defaultType?: string | null; // e.g. 'private' or 'public'
   @Input() hideOrganiser?: boolean | null;
   @Input() hideInvites?: boolean | null;
   @Input() stayOnPageAfterSuccess?: boolean | null;
+  @Input() editMode = false;
 
   fields: any[] = [];
   // all fields loaded from server (unfiltered). `fields` is the currently displayed list after site filtering.
@@ -100,7 +104,7 @@ export class MatchForm implements OnInit {
   // DTO stored while waiting for payment
   private pendingDto: any | null = null;
 
-  constructor(private fieldService: FieldService, private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityControllerService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService, private inviteService: InviteService) {}
+  constructor(private fieldService: FieldService, private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityControllerService, private matchService: MatchService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService, private inviteService: InviteService) {}
   // keep a direct reference to PayFormComponent to satisfy analyzers that the imported component is used
   // (template uses <app-pay-form> conditionally with @if which some static analyzers may not detect)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -284,6 +288,23 @@ export class MatchForm implements OnInit {
         if (sd) this.form.get('matchDate')?.setValue(this.formatDateForInput(sd));
       }
       this.updatingFromSession = false;
+
+      // Check collision for organiser
+      const organiserId = this.form.get('organiserId')?.value;
+      const matchDate = this.form.get('matchDate')?.value;
+      if (organiserId && matchDate && val) {
+        this.matchService.getCollidingMatches(String(organiserId), matchDate, val).subscribe({
+          next: (isColliding) => {
+            if (isColliding) {
+              this.form.get('startTime')?.setValue(null, { emitEvent: false });
+              this.form.get('endTime')?.setValue(null, { emitEvent: false });
+              this.form.get('startTime')?.setErrors({ required: true, collidingOrganiser: true });
+              this.form.get('startTime')?.markAsTouched();
+              this.cd.detectChanges();
+            }
+          }
+        });
+      }
     });
 
     // Load sessions when a field is selected (instead of when a site is selected)
@@ -749,21 +770,34 @@ export class MatchForm implements OnInit {
             return;
           }
 
-          // otherwise user found -> keep email in control but store user (matricule) for later use
-          // clear any adminNotAllowed error
-          const control = this.getInviteControl(index);
-          if (control) {
-            const errs = control.errors || {};
-            delete errs['adminNotAllowed'];
-            delete errs['inviteNotAllowed'];
-            if (Object.keys(errs).length === 0) control.setErrors(null); else control.setErrors(errs);
+          const matchDate = this.form.get('matchDate')?.value;
+          const startTime = this.form.get('startTime')?.value;
+
+          if (user.matricule && matchDate && startTime) {
+            this.matchService.getCollidingMatches(user.matricule, matchDate, startTime).subscribe({
+              next: (isColliding: boolean) => {
+                if (isColliding) {
+                  const control = this.getInviteControl(index);
+                  if (control) {
+                    const err = control.errors || {};
+                    err['collidingMatch'] = true;
+                    control.setErrors(err);
+                  }
+                  this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
+                  if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+                  this.cd.detectChanges();
+                  return;
+                }
+                this.finalizeInviteSuccess(index, user);
+              },
+              error: () => {
+                this.finalizeInviteSuccess(index, user);
+              }
+            });
+            return;
           }
-          this.inviteStates[index] = { status: 'found', user: { matricule: user.matricule, email: user.email } };
-          // re-run cross-field validation in case this email creates a duplicate/self-invite
-          this.runInviteCrossValidation();
-          // clear any pending timeout
-          if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
-          this.cd.detectChanges();
+
+          this.finalizeInviteSuccess(index, user);
         },
         error: (err) => {
           // if backend returns 404 or similar, mark as not_found
@@ -780,6 +814,21 @@ export class MatchForm implements OnInit {
       this.inviteStates[index] = { status: 'error' };
       this.cd.detectChanges();
     }
+  }
+
+  private finalizeInviteSuccess(index: number, user: SimpleInviteDto): void {
+    const control = this.getInviteControl(index);
+    if (control) {
+      const errs = control.errors || {};
+      delete errs['adminNotAllowed'];
+      delete errs['inviteNotAllowed'];
+      delete errs['collidingMatch'];
+      if (Object.keys(errs).length === 0) control.setErrors(null); else control.setErrors(errs);
+    }
+    this.inviteStates[index] = { status: 'found', user: { matricule: user.matricule, email: user.email } };
+    this.runInviteCrossValidation();
+    if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+    this.cd.detectChanges();
   }
 
   // Clear invite input and its state
@@ -1023,6 +1072,8 @@ export class MatchForm implements OnInit {
 
     if (this.stayOnPageAfterSuccess) {
       // Clear form and reload sessions/fields as needed, but stay on page
+      this.sessionService.clearCaches();
+
       this.form.reset({
         siteId: this.form.get('siteId')?.value, // Keep the site if selected
         type: this.defaultType ?? this.form.get('type')?.value,
@@ -1043,6 +1094,10 @@ export class MatchForm implements OnInit {
         this.form.get('matchDate')?.disable();
         this.form.get('startTime')?.disable();
         this.form.get('endTime')?.disable();
+      }
+
+      if (this.matchCalComponent) {
+        this.matchCalComponent.refresh();
       }
 
       this.cd.detectChanges();
