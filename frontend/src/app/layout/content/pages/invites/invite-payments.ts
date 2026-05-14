@@ -80,6 +80,13 @@ export class InvitePaymentsPage implements OnInit {
 	  next: (data: any) => {
 		// API returns an array of InvitesDto
 		this.payments = Array.isArray(data) ? data : [];
+
+		this.payments.sort((a, b) => {
+		  const dateA = a.match?.matchDate ? new Date(a.match.matchDate).getTime() : Number.MAX_SAFE_INTEGER;
+		  const dateB = b.match?.matchDate ? new Date(b.match.matchDate).getTime() : Number.MAX_SAFE_INTEGER;
+		  return dateA - dateB;
+		});
+
 		this.loading = false;
 		this.cd.detectChanges();
 	  },
