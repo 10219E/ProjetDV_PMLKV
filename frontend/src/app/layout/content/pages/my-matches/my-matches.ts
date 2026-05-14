@@ -9,11 +9,14 @@ import { HomeAccountHeader } from '../../header/header';
 import { MatchService } from '../../../../services/match.service';
 import { InviteService } from '../../../../services/invite.service';
 import { UserService } from '../../../../services/user.service';
+import { PayService } from '../../../../services/pay.service';
 import { MatchPlayerSiteFieldDto } from '../../../../api/model/matchPlayerSiteFieldDto';
 import { DeclinedPlayersDto } from '../../../../api/model/declinedPlayersDto';
 import { SimpleInviteDto } from '../../../../api/model/simpleInviteDto';
 import { MatchPlayerDto } from '../../../../api/model/matchPlayerDto';
+import { MatchPaymentDto } from '../../../../api/model/matchPaymentDto';
 import { UserFormComponent } from '../../user-form/user-form';
+import { switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-my-matches',
@@ -58,6 +61,7 @@ export class MyMatches implements OnInit {
     private matchService: MatchService,
     private inviteService: InviteService,
     private userService: UserService,
+    private payService: PayService,
     private cd: ChangeDetectorRef
   ) {}
 
@@ -452,9 +456,24 @@ export class MyMatches implements OnInit {
     if (!this.selectedMatchId || !this.userId) return;
     this.loading = true;
 
-    const requests = newPlayerIds.map(newPlayerId =>
-      this.matchService.joinPublicMatchOrUpdatePrivate(this.selectedMatchId!, newPlayerId, 'pending')
-    );
+    // Find the pricing for this match
+    const targetMatch = this.matchPlayers.find(m => m.match?.matchId === this.selectedMatchId);
+    // Assume shared pay means pricing / 4 for the newly invited replacement player
+    const amount = targetMatch && targetMatch.match?.pricing != null ? targetMatch.match.pricing / 4 : 0;
+
+    const requests = newPlayerIds.map(newPlayerId => {
+      return this.matchService.joinPublicMatchOrUpdatePrivate(this.selectedMatchId!, newPlayerId, 'pending').pipe(
+        switchMap(() => {
+          const dto: MatchPaymentDto = {
+            matchId: this.selectedMatchId!,
+            userMatricule: newPlayerId,
+            amount: amount,
+            status: 'pending'
+          };
+          return this.payService.createPayment(dto);
+        })
+      );
+    });
 
     if (requests.length === 0) {
       this.loading = false;
@@ -552,4 +571,3 @@ export class MyMatches implements OnInit {
     return this.declinedPlayers.filter(dp => dp.matchId === matchId).length;
   }
 }
-
