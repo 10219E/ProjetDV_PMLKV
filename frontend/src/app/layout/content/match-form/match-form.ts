@@ -288,6 +288,23 @@ export class MatchForm implements OnInit {
         if (sd) this.form.get('matchDate')?.setValue(this.formatDateForInput(sd));
       }
       this.updatingFromSession = false;
+
+      // Check collision for organiser
+      const organiserId = this.form.get('organiserId')?.value;
+      const matchDate = this.form.get('matchDate')?.value;
+      if (organiserId && matchDate && val) {
+        this.matchService.getCollidingMatches(String(organiserId), matchDate, val).subscribe({
+          next: (isColliding) => {
+            if (isColliding) {
+              this.form.get('startTime')?.setValue(null, { emitEvent: false });
+              this.form.get('endTime')?.setValue(null, { emitEvent: false });
+              this.form.get('startTime')?.setErrors({ required: true, collidingOrganiser: true });
+              this.form.get('startTime')?.markAsTouched();
+              this.cd.detectChanges();
+            }
+          }
+        });
+      }
     });
 
     // Load sessions when a field is selected (instead of when a site is selected)
