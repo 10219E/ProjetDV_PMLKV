@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -109,11 +111,19 @@ public class MatchController {
         return ResponseEntity.ok(responses);
     }
 
-    @GetMapping(value = "/colliding/{userMatricule}", produces = "application/json")
+    @GetMapping(value = "/colliding/{userMatricule}", produces = "application/json") //improved logic check -90 / +90 min range from start time
     public ResponseEntity<Boolean> getCollidingMatches(@PathVariable("userMatricule") String userMatricule, @RequestParam("matchDate") String matchDate, @RequestParam("startTime") String startTime) {
         List<Match> mymatches = matchService.fetchMyUpcomingMatches(userMatricule);
+        LocalTime requestedTime = LocalTime.parse(startTime);
         boolean isColliding = mymatches.stream()
-                .anyMatch(match -> match.getMatchDate().toString().equals(matchDate) && match.getStartTime().toString().equals(startTime));
+                .anyMatch(match -> {
+                    if (!match.getMatchDate().toString().equals(matchDate)) {
+                        return false;
+                    }
+                    LocalTime existingTime = LocalTime.parse(match.getStartTime().toString());
+                    long diffMinutes = Math.abs(ChronoUnit.MINUTES.between(existingTime, requestedTime));
+                    return diffMinutes < 90;
+                });
         return ResponseEntity.ok(isColliding);
     }
 
