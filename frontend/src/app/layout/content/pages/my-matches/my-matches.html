@@ -157,10 +157,13 @@
                   <p class="text-red-500 text-xs mt-1">Vous ne pouvez pas inviter cet utilisateur.</p>
                 }
                 @if (getInviteControl(i)?.errors?.userDeclined) {
-                  <p class="text-red-500 text-xs mt-1">Ce joueur a déjà décliné ce match.</p>
+                  <p class="text-red-500 text-xs mt-1">Cet utilisateur a déjà refusé l'invitation à ce match.</p>
+                }
+                @if (getInviteControl(i)?.errors?.collidingMatch) {
+                  <p class="text-red-500 text-xs mt-1">Ce joueur a déjà un match à cette heure.</p>
                 }
                 @if (getInviteControl(i)?.errors?.alreadyPlayer) {
-                  <p class="text-red-500 text-xs mt-1">Ce joueur participe déjà à ce match.</p>
+                  <p class="text-red-500 text-xs mt-1">Cet utilisateur est déjà dans ce match.</p>
                 }
               }
 

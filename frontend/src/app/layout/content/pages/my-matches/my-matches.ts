@@ -354,16 +354,32 @@ export class MyMatches implements OnInit {
             return;
           }
 
-          const c = this.getInviteControl(index);
-          if (c) {
-            const errs = c.errors || {};
-            delete errs['adminNotAllowed']; delete errs['inviteNotAllowed']; delete errs['userDeclined'];
-            if (Object.keys(errs).length === 0) c.setErrors(null, { emitEvent: false }); else c.setErrors(errs, { emitEvent: false });
+          const targetMatch = this.matchPlayers.find(m => m.match?.matchId === this.selectedMatchId);
+          if (targetMatch && targetMatch.match?.matchDate && targetMatch.match?.startTime && user.matricule) {
+            const matchDateStr = typeof targetMatch.match.matchDate === 'string' ? targetMatch.match.matchDate.split('T')[0] : targetMatch.match.matchDate;
+            const startTimeStr = typeof targetMatch.match.startTime === 'string' ? targetMatch.match.startTime : (targetMatch.match.startTime as any)?.hour !== undefined ? `${(targetMatch.match.startTime as any).hour}:${(targetMatch.match.startTime as any).minute}` : String(targetMatch.match.startTime);
+
+            this.matchService.getCollidingMatches(user.matricule, matchDateStr, startTimeStr).subscribe({
+              next: (isColliding: boolean) => {
+                if (isColliding) {
+                  const c = this.getInviteControl(index);
+                  if (c) { const err = c.errors || {}; err['collidingMatch'] = true; c.setErrors(err, { emitEvent: false }); }
+                  this.inviteStates[index] = { status: 'error', user: { matricule: user.matricule, email: user.email } };
+                  if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+                  this.cd.detectChanges();
+                } else {
+                  this.finalizeInviteSuccess(index, user);
+                }
+              },
+              error: () => {
+                // proceed anyway if the check fails
+                this.finalizeInviteSuccess(index, user);
+              }
+            });
+            return;
           }
-          this.inviteStates[index] = { status: 'found', user: { matricule: user.matricule, email: user.email } };
-          this.runInviteCrossValidation();
-          if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
-          this.cd.detectChanges();
+
+          this.finalizeInviteSuccess(index, user);
         },
         error: (err) => {
           this.inviteStates[index] = { status: 'not_found' };
@@ -375,6 +391,19 @@ export class MyMatches implements OnInit {
       this.inviteStates[index] = { status: 'error' };
       this.cd.detectChanges();
     }
+  }
+
+  private finalizeInviteSuccess(index: number, user: SimpleInviteDto): void {
+    const c = this.getInviteControl(index);
+    if (c) {
+      const errs = c.errors || {};
+      delete errs['adminNotAllowed']; delete errs['inviteNotAllowed']; delete errs['userDeclined']; delete errs['collidingMatch'];
+      if (Object.keys(errs).length === 0) c.setErrors(null, { emitEvent: false }); else c.setErrors(errs, { emitEvent: false });
+    }
+    this.inviteStates[index] = { status: 'found', user: { matricule: user.matricule, email: user.email } };
+    this.runInviteCrossValidation();
+    if (this.inviteTimeouts[index]) { clearTimeout(this.inviteTimeouts[index]); this.inviteTimeouts[index] = null; }
+    this.cd.detectChanges();
   }
 
   clearInvite(index: number): void {
