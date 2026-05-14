@@ -107,9 +107,9 @@ public class AvailabilityController {
         // 9 = as_admin (super administrator) -> admin: 3 months (~90 days)
 
         int range = 0;
-        if (roledId == 0) {range = 5;}
-        if (roledId == 1) {range = 90;} //as populating the db setting to 90 instead of 14
-        if (roledId == 2) {range = 90;} // as populating the db setting to 90 instead of 21
+        if (roledId == 0) {range = 5;} //done:as populating the db setting to 90 instead of 5
+        if (roledId == 1) {range = 14;} //done:as populating the db setting to 90 instead of 14
+        if (roledId == 2) {range = 21;} //done:as populating the db setting to 90 instead of 21
         if (roledId == 7 || roledId == 9) {range = 90;}
 
         range = range -1; //to account for binary logic - counting from 0

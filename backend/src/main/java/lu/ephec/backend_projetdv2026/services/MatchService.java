@@ -673,13 +673,14 @@ public class MatchService {
 
         logger.info("[Service - Match : Players] Processing business logic for player");
         if (existingUserInMatch.isPresent()) {
-            // Allow updating if the user has declined status
-            if (!existingUserInMatch.get().getStatus().equals("declined")) {
+            // Allow updating if the user has declined or pending status
+            String currentStatus = existingUserInMatch.get().getStatus();
+            if (!currentStatus.equals("declined") && !currentStatus.equals("pending")) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "User " + userId + " is already assigned to role " + existingUserInMatch.get().getPlayerRole()
                                 + " in match " + matchId);
             }
-            // If user has declined status, we'll update their existing record instead of creating a new one
+            // If user has declined or pending status, we'll update their existing record instead of creating a new one
             slotToFill = existingUserInMatch.get();
         } else {
             List<MatchPlayers> players = jpaMatchPlayersRepo.findByMatch_MatchId(matchId);
