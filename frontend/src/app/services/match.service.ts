@@ -1,14 +1,18 @@
 import { Injectable } from '@angular/core';
-import {Observable, of} from 'rxjs';
-import { MatchControllerService } from '../api/api/matchController.service';
-import {MatchCreationControllerService} from '../api';
-import {MatchPlayerControllerService, MatchPlayerDto, MatchPlayerSiteFieldDto} from '../api';
-import { MatchDto } from '../api/model/matchDto';
-import { MatchSiteFieldDto} from '../api/model/matchSiteFieldDto';
-import { MatchCreationDto } from '../api/model/matchCreationDto';
-import { DeclinedPlayersDto } from '../api/model/declinedPlayersDto';
-import { AuthService } from './auth.service';
+import {
+  DeclinedPlayersDto,
+  MatchControllerService,
+  MatchCreationControllerService,
+  MatchCreationDto,
+  MatchDto,
+  MatchPlayerControllerService,
+  MatchPlayerDto,
+  MatchPlayerSiteFieldDto,
+  MatchSiteFieldDto
+} from '../api';
 import {catchError, map} from 'rxjs/operators';
+import {Observable, of} from 'rxjs';
+import {AuthService} from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class MatchService {
@@ -20,7 +24,7 @@ export class MatchService {
   ) {}
 
   // Fetch all matches for a given site using the generated API client.
-  // This calls GET /api/matches/site/{siteId}
+  // This calls GET /api/matches/site/{siteId} -- to be used in the future
   getMatchesBySite(siteId: number): Observable<MatchDto[]> {
     this.setAuthHeader();
     return this.matchControllerService.getBySite(siteId).pipe(
@@ -90,9 +94,8 @@ export class MatchService {
     );
   }
 
-  // Add this method to the MatchService class
-  createMatch(matchCreationDto: MatchCreationDto): Observable<{ [key: string]: object; }> {
-    this.setAuthHeader();
+  createMatch(matchCreationDto: MatchCreationDto): Observable<any> {
+    this.setAuthHeader(this.matchCreationControllerService);
     return this.matchCreationControllerService.create(matchCreationDto).pipe(
       catchError((error) => {
         console.error('Error creating match:', error);
@@ -124,14 +127,17 @@ export class MatchService {
   }
 
   // Normalized setAuthHeader method
-  private setAuthHeader(): void {
+  private setAuthHeader(service?: any): void {
     try {
       const token = this.authService.getToken();
-      if (token && this.matchControllerService && this.matchControllerService.defaultHeaders && this.matchControllerService.defaultHeaders.set) {
-        this.matchControllerService.defaultHeaders = this.matchControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-      }
-      if (token && this.matchPlayerControllerService && this.matchPlayerControllerService.defaultHeaders && this.matchPlayerControllerService.defaultHeaders.set) {
-        this.matchPlayerControllerService.defaultHeaders = this.matchPlayerControllerService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      const services = service ? [service] : [this.matchControllerService, this.matchPlayerControllerService, this.matchCreationControllerService];
+
+      if (token) {
+        for (const s of services) {
+          if (s && s.defaultHeaders && s.defaultHeaders.set) {
+            s.defaultHeaders = s.defaultHeaders.set('Authorization', `Bearer ${token}`);
+          }
+        }
       }
     } catch (e) {
       // ignore

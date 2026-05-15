@@ -3,13 +3,10 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormControl, Validators, FormArray } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { finalize } from 'rxjs/operators';
-import { MatchCreationControllerService } from '../../../api/api/matchCreationController.service';
-import { SiteControllerService } from '../../../api/api/siteController.service';
-import { AuthService } from '../../../services/auth.service';
+import { SiteService } from '../../../services/site.service';
 import { UserService } from '../../../services/user.service';
 import { SessionService } from '../../../services/session.service';
 import { MatchService } from '../../../services/match.service';
-import { AvailabilityControllerService } from '../../../api/api/availabilityController.service';
 import { Router } from '@angular/router';
 import { MatchCal } from '../match-cal/match-cal';
 import { UserFormComponent } from '../user-form/user-form';
@@ -104,11 +101,7 @@ export class MatchForm implements OnInit {
   // DTO stored while waiting for payment
   private pendingDto: any | null = null;
 
-  constructor(private fieldService: FieldService, private matchCreationService: MatchCreationControllerService, private siteController: SiteControllerService, private authService: AuthService, private userService: UserService, private sessionService: SessionService, private availabilityService: AvailabilityControllerService, private matchService: MatchService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService, private inviteService: InviteService) {}
-  // keep a direct reference to PayFormComponent to satisfy analyzers that the imported component is used
-  // (template uses <app-pay-form> conditionally with @if which some static analyzers may not detect)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private _payFormRef = PayFormComponent;
+  constructor(private fieldService: FieldService, private siteService: SiteService, private userService: UserService, private sessionService: SessionService, private matchService: MatchService, private router: Router, private cd: ChangeDetectorRef, private payService: PayService, private inviteService: InviteService) {}
 
   ngOnInit(): void {
     // ensure calendar overlay is not prompted on initial form load
@@ -344,7 +337,9 @@ export class MatchForm implements OnInit {
       // try to find the field in the currently loaded fields to get its siteId
       const fld = (this.fields || []).find((f: any) => Number(f.fieldId) === Number(fid));
       const siteId = fld?.siteId ? Number(fld.siteId) : Number(this.form.get('siteId')?.value) || null;
-
+      if (!siteId) {
+        // if siteId is not found, do nothing.
+      }
     });
 
     // React to date changes - do NOT clear the selected field when the user changes the date.
@@ -381,9 +376,7 @@ export class MatchForm implements OnInit {
             const isAllSites = [2, 9].includes(Number(roleId)) || (profile?.sites && profile.sites.some((s: any) => s.isVip));
             if (isAllSites) {
               // fetch all sites
-              // ensure Authorization header is set on the site controller
-              this.sessionService.setAuthHeader(this.siteController);
-              this.siteController.getAllSites(true).subscribe({
+              this.siteService.getAllSites(true).subscribe({
                 next: (sites: any[]) => {
                   this.sites = sites || [];
                         // store current user info if present on profile
@@ -954,13 +947,8 @@ export class MatchForm implements OnInit {
     // Public match: create immediately without payment and show confirmation
     try {
       this.loading = true;
-      // ensure Authorization header from AuthService token if available
-      const token = this.authService.getToken();
-      if (token) {
-        this.matchCreationService.defaultHeaders = this.matchCreationService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-      }
-      this.matchCreationService.create(dto).subscribe({
-        next: (resp: any) => {
+      this.matchService.createMatch(dto).subscribe({
+        next: () => {
           this.loading = false;
           const rawDate = this.form.get('matchDate')?.value || '';
           const rawStart = this.form.get('startTime')?.value || '';
@@ -992,16 +980,10 @@ export class MatchForm implements OnInit {
     this.pendingDto.paidAmount = payload.amount;
     if (payload.cardLast4) this.pendingDto.cardLast4 = payload.cardLast4;
 
-    // Set Authorization header from AuthService token (if available)
-    const token = this.authService.getToken();
-    if (token) {
-      this.matchCreationService.defaultHeaders = this.matchCreationService.defaultHeaders.set('Authorization', `Bearer ${token}`);
-    }
-
     // hide pay form while creating
     this.showPayForm = false;
     this.loading = true;
-    this.matchCreationService.create(this.pendingDto).subscribe({
+    this.matchService.createMatch(this.pendingDto).subscribe({
       next: (resp: any) => {
         this.loading = false;
         const id = resp && resp['matchId'];
@@ -1013,7 +995,7 @@ export class MatchForm implements OnInit {
         // Create payments via PayService: organiser cleared (CARD) and invites pending
         if (id && organiserMat) {
           this.payService.createPaymentsForMatch(Number(id), organiserMat, invites, pricing).subscribe({
-            next: (results) => {
+            next: () => {
               // Build French confirmation message using values directly from the form
               const rawDate = this.form.get('matchDate')?.value || '';
               const rawStart = this.form.get('startTime')?.value || '';
@@ -1117,4 +1099,3 @@ export class MatchForm implements OnInit {
     this.cd.detectChanges();
   }
 }
-

@@ -6,7 +6,7 @@ import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { MatIconModule } from '@angular/material/icon';
 
-// Register French locale data for date pipe when this module loads.
+// Register French locale data for date pipe when this module loads
 registerLocaleData(localeFr);
 
 @Component({
