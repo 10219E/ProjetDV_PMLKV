@@ -252,4 +252,4 @@ Voici la liste des utilisateurs de test disponibles dans l'application, avec leu
 PS: vous pouvez également consulter la liste des utilisateurs et essayer le hacheur de mots de passe BCrypt de l'application sous:
 `backend/src/main/java/lu/ephec/backend_projetdv2026/services/security/`
 
--- fichier service `ManualHashGen.java`
+--> fichier service `ManualHashGen.java`
