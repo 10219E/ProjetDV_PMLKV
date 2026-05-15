@@ -99,7 +99,7 @@ export class SessionService {
     );
   }
 
-  // Convenience wrapper used when date input changes
+  // Convenience wrapper used when date input changes -- not used when date is cleared, so it will trigger the "hide sessions until date is set" behavior
   public onDateChange(siteId: number, fieldId: number, matchDate?: string | null): Observable<any[]> {
     if (!siteId || !fieldId) return of([]);
     return this.loadSessionsForField(siteId, fieldId, matchDate);
@@ -124,6 +124,7 @@ export class SessionService {
     return out;
   }
 
+  //not used, but could be helpful if we need to convert times in the future
   private formatTimeHHMM(d: Date): string {
     const hh = d.getHours().toString().padStart(2, '0');
     const mm = d.getMinutes().toString().padStart(2, '0');

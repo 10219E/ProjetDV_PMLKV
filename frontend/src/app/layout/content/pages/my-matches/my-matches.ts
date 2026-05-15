@@ -13,7 +13,6 @@ import { PayService } from '../../../../services/pay.service';
 import { MatchPlayerSiteFieldDto } from '../../../../api/model/matchPlayerSiteFieldDto';
 import { DeclinedPlayersDto } from '../../../../api/model/declinedPlayersDto';
 import { SimpleInviteDto } from '../../../../api/model/simpleInviteDto';
-import { MatchPlayerDto } from '../../../../api/model/matchPlayerDto';
 import { MatchPaymentDto } from '../../../../api/model/matchPaymentDto';
 import { UserFormComponent } from '../../user-form/user-form';
 import { switchMap } from 'rxjs/operators';
@@ -524,7 +523,7 @@ export class MyMatches implements OnInit {
     });
   }
 
-  // Show success popup
+  // Show success popup - not used as we're triggering a reload then show popup
   displaySuccessPopup(): void {
     this.showSuccessPopup = true;
     this.cd.detectChanges();

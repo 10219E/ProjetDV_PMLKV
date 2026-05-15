@@ -20,9 +20,6 @@ export class PayService {
   }
 
 
-
-
-
   createPayment(payment: MatchPaymentDto): Observable<any> {
 	this._setAuthHeaderOnApiService();
 

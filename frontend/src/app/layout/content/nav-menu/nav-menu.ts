@@ -402,7 +402,7 @@ export class NavMenu implements OnInit, OnDestroy {
         };
         return map[code] ?? code;
       }
-
+  //not in use anymore as we moved date logic to header
   private formatDate(d: string | Date): string {
     try {
       const dt = d instanceof Date ? d : new Date(d);
