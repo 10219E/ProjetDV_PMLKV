@@ -1,27 +1,26 @@
 import { Injectable } from '@angular/core';
-// HttpHeaders removed — not used in this service
 import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
-import { MatchPaymentControllerService } from '../api/api/matchPaymentController.service';
-import { MatchPaymentDto } from '../api/model/matchPaymentDto';
-import { SessionService } from './session.service';
+import { MatchPaymentControllerService, MatchPaymentDto } from '../api';
 
 @Injectable({ providedIn: 'root' })
 export class PayService {
-  constructor(private matchPaymentService: MatchPaymentControllerService, private auth: AuthService, private sessionService: SessionService) {}
+  constructor(private matchPaymentService: MatchPaymentControllerService, private authService: AuthService) {}
 
-  private _setAuthHeaderOnApiService(): void {
-	// Use SessionService helper to set Authorization header consistently with other services
-	try {
-	  this.sessionService.setAuthHeader(this.matchPaymentService);
-	} catch (e) {
-	  // ignore
-	}
+  private setAuthHeader(): void {
+    try {
+      const token = this.authService.getToken();
+      if (token && this.matchPaymentService && this.matchPaymentService.defaultHeaders && this.matchPaymentService.defaultHeaders.set) {
+        this.matchPaymentService.defaultHeaders = this.matchPaymentService.defaultHeaders.set('Authorization', `Bearer ${token}`);
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
 
   createPayment(payment: MatchPaymentDto): Observable<any> {
-	this._setAuthHeaderOnApiService();
+	this.setAuthHeader();
 
 	// client-side validation to avoid sending payloads that will fail DB constraints
 	const validationError = this.validatePaymentDto(payment);
@@ -36,7 +35,7 @@ export class PayService {
 
   // Update an existing payment (mark as cleared/refunded/etc.)
   updatePayment(paymentId: number, payment: MatchPaymentDto): Observable<any> {
-	this._setAuthHeaderOnApiService();
+	this.setAuthHeader();
 	return this.matchPaymentService.updatePayment(paymentId, payment);
   }
 
@@ -106,13 +105,10 @@ export class PayService {
 
   // Cancel a payment by setting its status to 'cancelled'
   cancelPayment(paymentId: number): Observable<any> {
-	this._setAuthHeaderOnApiService();
+	this.setAuthHeader();
 	const paymentDto: MatchPaymentDto = {
 	  status: 'cancelled'
 	};
 	return this.updatePayment(paymentId, paymentDto);
   }
 }
-
-
-
