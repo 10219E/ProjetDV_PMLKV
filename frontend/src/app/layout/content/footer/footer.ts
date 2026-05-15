@@ -115,7 +115,7 @@ export class Footer implements OnInit, AfterViewInit, OnDestroy {
   private setupMarquee() {
     if (this.isDestroyed) return;
 
-    // Only run if we actually have data to show!
+    //Only run if we actually have data to show!
     if (!this.sites || this.sites.length === 0) return;
 
     try {
