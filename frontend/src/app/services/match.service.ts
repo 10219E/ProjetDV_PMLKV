@@ -24,7 +24,7 @@ export class MatchService {
   ) {}
 
   // Fetch all matches for a given site using the generated API client.
-  // This calls GET /api/matches/site/{siteId} -- to be used in the future
+  // This calls GET /api/matches/site/{siteId} --to be used in the future
   getMatchesBySite(siteId: number): Observable<MatchDto[]> {
     this.setAuthHeader();
     return this.matchControllerService.getBySite(siteId).pipe(
