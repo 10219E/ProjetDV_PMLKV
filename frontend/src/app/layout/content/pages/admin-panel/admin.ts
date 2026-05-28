@@ -300,21 +300,18 @@ export class AdminComponent implements OnInit {
   cancelMaintenance(field: any) {
     const fid = field.fieldId || field.id;
 
-    // Calculate yesterday's date in YYYY-MM-DD format as a workaround
-    // since the backend might ignore null values in PATCH requests.
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    // Use 1970-01-01 as a magic date to signal the backend to set maintenance dates to null
+    const resetDate = "1970-01-01";
 
     const fieldUpdate: any = {
-      maintenanceFromDate: yesterdayStr,
-      maintenanceToDate: yesterdayStr
+      maintenanceFromDate: resetDate,
+      maintenanceToDate: resetDate
     };
 
     this.fieldService.updateField(fid, fieldUpdate).subscribe({
       next: () => {
-        field.maintenanceFromDate = yesterdayStr;
-        field.maintenanceToDate = yesterdayStr;
+        field.maintenanceFromDate = null;
+        field.maintenanceToDate = null;
         this.cd.detectChanges();
       },
       error: () => {
