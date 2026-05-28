@@ -168,11 +168,11 @@ export class AdminComponent implements OnInit {
     user.isActive = !user.isActive;
 
     this.userService.updateUserInBackend(matricule, { isActive: user.isActive }).subscribe({
-      next: (updated) => {
+      next: () => {
         // Success
         this.cd.detectChanges();
       },
-      error: (err) => {
+      error: () => {
         // Revert on error
         user.isActive = previousStatus;
         alert("Erreur lors de la mise à jour du statut de l'utilisateur.");
@@ -210,7 +210,7 @@ export class AdminComponent implements OnInit {
     this.cd.detectChanges();
   }
 
-  onUserAdded(newUser: any) {
+  onUserAdded(_newUser?: any) {
     this.closeUserForm();
     window.location.reload();
   }
@@ -258,7 +258,7 @@ export class AdminComponent implements OnInit {
         this.cd.detectChanges();
         setTimeout(() => this.closePasswordModal(), 1500);
       },
-      error: (err) => {
+      error: () => {
         this.passwordUpdateMessage = "Erreur lors de la mise à jour du mot de passe.";
         this.passwordUpdateError = true;
         this.isSubmittingPassword = false;
