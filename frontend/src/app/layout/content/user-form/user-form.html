@@ -112,14 +112,14 @@
 				  <div class="flex flex-col gap-1 mt-4">
 					<label for="siteId" class="text-sm font-semibold text-gray-700">Site *</label>
 																	@if (signupForm.get('siteId')?.disabled && prefillSiteName) {
-																	  <!-- When the site is locked (invite-mode with a prefilling site), show a readonly display of the site name -->
-																	  <input type="text" readonly class="border border-gray-300 rounded-lg p-2 bg-gray-50" [value]="prefillSiteName" />
+																	  <!-- When the site is locked (invite-mode or role-7 admin), show a readonly display of the site name -->
+																	  <input type="text" readonly class="border border-gray-300 rounded-lg p-2 bg-gray-50 focus:outline-none" [value]="prefillSiteName" />
 																	}
 																	@if (!(signupForm.get('siteId')?.disabled && prefillSiteName)) {
 																	  <select id="siteId" formControlName="siteId" class="border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:outline-none">
 																		<option [ngValue]="null" disabled>Choisissez un site</option>
 																		@for (s of sites; track s.siteId) {
-																		  <option [ngValue]="s.siteId">{{s.name}} — {{s.address}}</option>
+																		  <option [ngValue]="s.siteId">{{ s.name || $any(s).siteName }} @if (s.address) { — {{s.address}} }</option>
 																		}
 																	  </select>
 																	}
