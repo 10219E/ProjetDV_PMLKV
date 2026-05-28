@@ -1,9 +1,6 @@
 package lu.ephec.backend_projetdv2026.services;
 import jakarta.transaction.Transactional;
-import lu.ephec.backend_projetdv2026.models.EnumUserRolesType;
-import lu.ephec.backend_projetdv2026.models.MatchPayments;
-import lu.ephec.backend_projetdv2026.models.User;
-import lu.ephec.backend_projetdv2026.models.UserPenalties;
+import lu.ephec.backend_projetdv2026.models.*;
 import lu.ephec.backend_projetdv2026.repo.*;
 import lu.ephec.backend_projetdv2026.services.validation.MatriculeHandler;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
@@ -25,10 +22,11 @@ public class UserService {
     private final JPAUserAccountsRepo jpaUserAccountsRepo;
     private final JPAMatchPaymentsRepo jpaMatchPaymentsRepo;
     private final JPAUserSiteRepo jpaUserSiteRepo;
+    private final JPASiteRepo jpaSiteRepo;
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     // InjDep Interface User + Penalties
-    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserSiteRepo jpaUserSiteRepo) {
+    public UserService(JPAUserRepo jpaUserRepo, JPAUserPenaltiesRepo jpaUserPenaltiesRepo, MigrateUserDESTRUCTIVE migrateUser, PaymentService paymentService, JPAUserAccountsRepo jpaUserAccountsRepo, JPAMatchPaymentsRepo jpaMatchPaymentsRepo, JPAUserSiteRepo jpaUserSiteRepo, JPASiteRepo jpaSiteRepo) {
         this.jpaUserRepo = jpaUserRepo;
         this.jpaUserPenaltiesRepo = jpaUserPenaltiesRepo;
         this.migrateUser = migrateUser;
@@ -36,6 +34,7 @@ public class UserService {
         this.jpaUserAccountsRepo = jpaUserAccountsRepo;
         this.jpaMatchPaymentsRepo = jpaMatchPaymentsRepo;
         this.jpaUserSiteRepo = jpaUserSiteRepo;
+        this.jpaSiteRepo = jpaSiteRepo;
     }
 
     ////////////USER OPERATIONS
@@ -132,8 +131,21 @@ public class UserService {
         return jpaUserRepo.findByFirstNameIgnoreCaseOrLastNameIgnoreCase(gname, gname);
     }
 
-    //GET All Users
+    //GET All Users -- FOR SUPER ADMINS
     public List<User> fetchAll() { return jpaUserRepo.findAll(); }
+
+    // FETCH ALL USER FOR SITE
+    public List<User> fetchBySite(Integer siteId) {
+        ValidationBoiler.verifyNotNull(siteId, "Site ID");
+        ValidationBoiler.verifyExists(jpaSiteRepo.existsById(siteId), "Site", siteId);
+
+        List<UsersSites> links = jpaUserSiteRepo.findBySite_SiteId(siteId);
+        List<User> users = new java.util.ArrayList<>();
+        for (UsersSites link : links) {
+            users.add(link.getUser());
+        }
+        return users;
+    }
 
     //GET Users by ROLE ID
     public List<User> fetchByRoleId(Short roleId) {

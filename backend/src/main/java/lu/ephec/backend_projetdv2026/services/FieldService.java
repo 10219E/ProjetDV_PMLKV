@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -168,14 +169,22 @@ public class FieldService {
             }
 
             if (updateData.getMaintenanceFromDate() != null) {
-                field.setMaintenanceFromDate(updateData.getMaintenanceFromDate());
+                if (updateData.getMaintenanceFromDate().equals(java.time.LocalDate.of(1970, 1, 1))) {
+                    field.setMaintenanceFromDate(null);
+                } else {
+                    field.setMaintenanceFromDate(updateData.getMaintenanceFromDate());
+                }
             }
 
             if (updateData.getMaintenanceToDate() != null) {
-                field.setMaintenanceToDate(updateData.getMaintenanceToDate());
+                if (updateData.getMaintenanceToDate().equals(java.time.LocalDate.of(1970, 1, 1))) {
+                    field.setMaintenanceToDate(null);
+                } else {
+                    field.setMaintenanceToDate(updateData.getMaintenanceToDate());
+                }
             }
 
-            if  (updateData.getMaintenanceFromDate() != null && updateData.getMaintenanceToDate() != null) {
+            if  (field.getMaintenanceFromDate() != null && field.getMaintenanceToDate() != null) {
                 ValidationBoiler.verifyDatesValid(field.getMaintenanceFromDate(), field.getMaintenanceToDate(), "Maintenance From / To Date");
             }
 

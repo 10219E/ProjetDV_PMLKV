@@ -135,12 +135,21 @@ export class UserFormComponent implements AfterViewInit, OnDestroy {
 	  this.signupForm.get('siteId')?.markAsTouched();
 	}
 
+				// If only one site is available (e.g. for Site Admin role 7), auto-select and lock it
+				if (this.sites && this.sites.length === 1) {
+				  const singleSite = this.sites[0];
+				  const sid = singleSite.siteId;
+				  if (sid !== undefined && sid !== null) {
+					this.signupForm.get('siteId')?.setValue(String(sid));
+					this.signupForm.get('siteId')?.disable({ onlySelf: true });
+					// Ensure prefillSiteName is set for the readonly display in template
+					if (!this.prefillSiteName) {
+					  this.prefillSiteName = (singleSite as any).name || (singleSite as any).siteName;
+					}
+				  }
+				}
+
 				// If inviteMode is set, preselect defaults and make the email and site fields non-editable
-				// according to the following rules (match-form behaviour):
-				// - If a prefilled site id was provided by the parent (match-form), use it and disable the site control.
-				// - Otherwise, if only one site is available for the user, preselect that site and disable the control.
-				// - If multiple sites are available and no prefill was provided, leave the site control enabled so the
-				//   invite can choose the appropriate site.
 				if (this.inviteMode) {
 
 				  // prefill email already set above; lock it
@@ -151,12 +160,14 @@ export class UserFormComponent implements AfterViewInit, OnDestroy {
 					this.signupForm.get('siteId')?.setValue(String(this.prefillSiteId));
 					this.signupForm.get('siteId')?.disable({ onlySelf: true });
 				  } else if (this.sites && this.sites.length === 1) {
-					// only one site available for this user -> preselect and lock it (match-form behaviour)
+					// already handled by general logic above, but kept for clarity in inviteMode
 					this.signupForm.get('siteId')?.setValue(String(this.sites[0].siteId));
 					this.signupForm.get('siteId')?.disable({ onlySelf: true });
 				  } else {
-					// multiple sites available and no explicit prefill -> allow choosing
-					this.signupForm.get('siteId')?.enable();
+					// multiple sites available and no explicit prefill -> allow choosing if not already disabled
+					if (this.sites && this.sites.length > 1 && (!this.prefillSiteId)) {
+						this.signupForm.get('siteId')?.enable();
+					}
 				  }
 				}
   }

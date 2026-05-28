@@ -13,6 +13,7 @@ import { JoinPublicMatch } from './layout/content/pages/join-public-match/join-p
 import { MyMatches } from './layout/content/pages/my-matches/my-matches';
 import { SettingsComponent } from './layout/content/pages/settings/settings';
 import { MyProfile } from './layout/content/pages/my-profile/my-profile';
+import { AdminComponent} from './layout/content/pages/admin-panel/admin';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
@@ -68,6 +69,14 @@ export const authGuard: CanActivateFn = (route, state) => {
           return router.createUrlTree(['/home', currentMatricule]);
         }
 
+        // Protect admin block from non-admins, and settings from admins
+        if (url.includes('admin') && !isAdmin) {
+          return router.createUrlTree(['/home', currentMatricule]);
+        }
+        if (url.includes('settings') && isAdmin) {
+          return router.createUrlTree(['/home', currentMatricule, 'admin']);
+        }
+
         // If trying to access create_pmatch manually and the user has a restriction
         // (active penalty or debt), redirect to home and set a query param that will
         // trigger a popup on the UI.
@@ -100,6 +109,7 @@ export const routes: Routes = [
   { path: 'home/:userId/join_public', component: JoinPublicMatch, canActivate: [authGuard] },
   { path: 'home/:userId/my_matches', component: MyMatches, canActivate: [authGuard] },
   { path: 'home/:userId/settings', component: SettingsComponent, canActivate: [authGuard] },
+  { path: 'home/:userId/admin', component: AdminComponent, canActivate: [authGuard] },
   { path: 'home/:userId/me', component: MyProfile, canActivate: [authGuard] },
   { path: 'home/:userId', component: HomeAccount, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }

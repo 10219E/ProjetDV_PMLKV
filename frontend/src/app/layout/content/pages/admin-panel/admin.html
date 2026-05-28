@@ -1,1 +1,379 @@
-<!--NOT YET IMPLEMENTED-->
+<div class="relative flex flex-col min-h-screen px-4 md:px-8">
+  <app-home-account-header></app-home-account-header>
+
+  <div class="flex flex-1 mid:flex-row relative">
+    <main class="flex-1 p-6 relative flex flex-col items-stretch z-10">
+      <div class="max-w-6xl mx-auto w-full bg-white/60 backdrop-blur-sm border border-gray-200 p-6 rounded-xl mt-6">
+        <h2 class="font-bold text-2xl mb-4">Panneau d'administration</h2>
+
+        @if (loading) {
+          <div class="text-sm text-gray-600 mb-4">Chargement...</div>
+        }
+
+        <div class="flex gap-4 border-b pb-2 mb-6">
+          <button (click)="activeTab = 'users'"
+                  [class.border-b-2]="activeTab === 'users'"
+                  [class.border-blue-600]="activeTab === 'users'"
+                  class="pb-2 font-medium hover:text-blue-600 transition-colors">
+            Utilisateurs
+          </button>
+          <button (click)="activeTab = 'sites'"
+                  [class.border-b-2]="activeTab === 'sites'"
+                  [class.border-blue-600]="activeTab === 'sites'"
+                  class="pb-2 font-medium hover:text-blue-600 transition-colors">
+            Sites
+          </button>
+        </div>
+
+        @if (activeTab === 'users') {
+          <div class="mb-4 flex flex-row-reverse">
+            <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm transition-colors shadow-sm" (click)="openUserForm()">+ Nouvel Utilisateur</button>
+          </div>
+
+          <!-- Filtres -->
+          <div class="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col gap-2">
+            <h2 class="font-semibold text-gray-600 m-0">Filtres</h2>
+            <div class="flex flex-wrap gap-4 items-end">
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Nom</label>
+                <input type="text" [(ngModel)]="userFilters.name" placeholder="Nom..." class="border border-gray-300 rounded p-1.5 text-sm w-32 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Email</label>
+                <input type="text" [(ngModel)]="userFilters.email" placeholder="Email..." class="border border-gray-300 rounded p-1.5 text-sm w-40 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Site</label>
+                <select [(ngModel)]="userFilters.siteId" class="border border-gray-300 rounded p-1.5 text-sm min-w-32 focus:ring-blue-500">
+                  <option value="">Tous</option>
+                  @for (site of sites; track site.siteId || site.id) {
+                    <option [value]="site.siteId || site.id">{{ site.name || site.siteName || site.siteId }}</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Statut</label>
+                <select [ngModel]="userFilters.isActive" (ngModelChange)="userFilters.isActive = $event" class="border border-gray-300 rounded p-1.5 text-sm min-w-24 focus:ring-blue-500">
+                  <option value="">Tous</option>
+                  <option value="true">Actif</option>
+                  <option value="false">Inactif</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-2 mb-1.5">
+                <input type="checkbox" id="f-debt" [(ngModel)]="userFilters.hasDebt" class="rounded border-gray-300">
+                <label for="f-debt" class="text-sm font-semibold text-gray-700">Dette (non nul)</label>
+              </div>
+              <div class="flex items-center gap-2 mb-1.5">
+                <input type="checkbox" id="f-pen" [(ngModel)]="userFilters.hasPenalty" class="rounded border-gray-300">
+                <label for="f-pen" class="text-sm font-semibold text-gray-700">Pénalité (non nul)</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto shadow-sm rounded-lg border border-gray-200">
+            <table class="min-w-full bg-white text-left text-sm whitespace-nowrap">
+              <thead class="bg-gray-100 text-gray-700">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">Nom</th>
+                  <th class="px-4 py-3 font-semibold">Email</th>
+                  <th class="px-4 py-3 font-semibold">Sites</th>
+                  <th class="px-4 py-3 font-semibold text-center">Actif</th>
+                  <th class="px-4 py-3 font-semibold text-center">Dette</th>
+                  <th class="px-4 py-3 font-semibold text-center">Pénalité</th>
+                  <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                @for (user of filteredUsers; track user.matricule || user.id) {
+                  <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-4 py-3 font-medium text-gray-800">
+                      @if (user.roleId == 9) {
+                        <span class="text-red-600 font-bold mr-1">SA:</span>
+                      } @else if (user.roleId == 7) {
+                        <span class="text-red-600 font-bold mr-1">SITE:</span>
+                      }
+                      {{ user.firstName }} {{ user.lastName }}
+                    </td>
+                    <td class="px-4 py-3 text-gray-600">{{ user.email }}</td>
+                    <td class="px-4 py-3 text-gray-600">
+                      @if (user.sites && user.sites.length > 0) {
+                        <div class="flex flex-wrap gap-1">
+                          @for (s of user.sites; track $index) {
+                            <span class="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded">{{ s.siteName || s.name || s.siteId }}</span>
+                          }
+                        </div>
+                      } @else {
+                        <span class="text-gray-400 text-xs italic">-</span>
+                      }
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span class="px-2 py-1 rounded-full text-xs font-semibold"
+                            [class.bg-green-100]="user.isActive" [class.text-green-800]="user.isActive"
+                            [class.bg-red-100]="!user.isActive" [class.text-red-800]="!user.isActive">
+                        {{ user.isActive ? 'Actif' : 'Inactif' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      @if (user.account?.balance < 0) {
+                        <span class="text-red-600 font-bold bg-red-50 px-2 py-1 rounded">{{ user.account?.balance }} €</span>
+                      } @else {
+                        <span class="text-gray-400">-</span>
+                      }
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      @if (user.penalties?.length > 0) {
+                        <span class="text-red-600 font-bold bg-red-100 px-2 py-0.5 rounded-full text-xs">{{ user.penalties.length }}</span>
+                      } @else {
+                        <span class="text-gray-400">-</span>
+                      }
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <div class="flex gap-2 justify-end">
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs transition-colors shadow-sm" (click)="openPasswordModal(user)">
+                          Modifier Mot de Passe
+                        </button>
+                        <button class="text-white px-3 py-1.5 rounded text-xs transition-colors shadow-sm"
+                                [class.bg-orange-500]="user.isActive" [class.hover:bg-orange-600]="user.isActive"
+                                [class.bg-green-600]="!user.isActive" [class.hover:bg-green-700]="!user.isActive"
+                                (click)="toggleUserActiveStatus(user)">
+                          {{ user.isActive ? 'Désactiver' : 'Réactiver' }}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        @if (activeTab === 'sites') {
+          <div class="mb-4 flex flex-row-reverse">
+            <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm transition-colors shadow-sm" (click)="openSiteForm()">+ Nouveau Site</button>
+          </div>
+          <div class="space-y-4">
+            @for (site of sites; track site.siteId || site.id) {
+              <div class="p-4 bg-white rounded-md shadow flex flex-col gap-2">
+                <div class="flex justify-between items-center cursor-pointer" (click)="toggleSite(site.siteId || site.id)">
+                  <span class="font-bold text-lg select-none flex items-baseline gap-3 flex-wrap">
+                    {{ site.name || site.siteName }}
+                    @if (site.address || site.city) {
+                      <span class="text-sm font-normal text-gray-600 whitespace-nowrap">📍 {{ site.address || '' }} {{ site.city || '' }}</span>
+                    }
+                    <span class="text-sm font-normal text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                      {{ fieldsBySiteId[site.siteId || site.id]?.length || 0 }} terrains
+                    </span>
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold"
+                          [class.bg-green-100]="site.isActive" [class.text-green-800]="site.isActive"
+                          [class.bg-red-100]="!site.isActive" [class.text-red-800]="!site.isActive">
+                      {{ site.isActive ? 'Actif' : 'Inactif' }}
+                    </span>
+                  </span>
+                  <div class="flex gap-2">
+                    <button class="text-white px-3 py-1 rounded text-sm transition-colors shadow-sm"
+                            [class.bg-orange-500]="site.isActive" [class.hover:bg-orange-600]="site.isActive"
+                            [class.bg-green-600]="!site.isActive" [class.hover:bg-green-700]="!site.isActive"
+                            (click)="$event.stopPropagation(); toggleSiteActiveStatus(site)">
+                      {{ site.isActive ? 'Désactiver' : 'Réactiver' }}
+                    </button>
+                    <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-sm transition-colors">
+                      {{ expandedSiteId === (site.siteId || site.id) ? '▲' : '▼' }}
+                    </button>
+                  </div>
+                </div>
+
+                @if (expandedSiteId === (site.siteId || site.id)) {
+                  <div class="mt-4 border-t pt-4">
+                    <div class="flex justify-between items-center mb-3">
+                      <h4 class="font-semibold text-md text-gray-700">Terrains pour {{ site.name || site.siteName }}</h4>
+                      <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs transition-colors shadow-sm" (click)="openFieldForm(site.siteId || site.id)">
+                        + Ajouter un terrain
+                      </button>
+                    </div>
+                    <div class="space-y-2">
+                      @for (field of fieldsBySiteId[site.siteId || site.id]; track field.fieldId || field.id) {
+                        <div class="p-3 border border-gray-100 bg-gray-50 hover:bg-gray-100 rounded-md flex flex-col md:flex-row justify-between md:items-center gap-3 transition-colors">
+                          <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-2">
+                              <span class="font-bold text-gray-700">Terrain #{{ field.fieldId || field.id }}</span>
+                              <span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-semibold shadow-sm">
+                                {{ field.isIndoor ? 'Intérieur' : 'Extérieur' }}
+                              </span>
+                              @if (field.maintenanceFromDate || field.maintenanceToDate) {
+                                <span class="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded font-semibold animate-pulse">
+                                  Maintenance: {{ field.maintenanceFromDate | date:'dd/MM' }} - {{ field.maintenanceToDate | date:'dd/MM' }}
+                                </span>
+                              }
+                            </div>
+                          </div>
+                          <div class="flex gap-2">
+                            @if (field.maintenanceFromDate || field.maintenanceToDate) {
+                              <button class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs transition-colors shadow-sm" (click)="cancelMaintenance(field)">
+                                Annuler maintenance
+                              </button>
+                            }
+                            <button class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs transition-colors shadow-sm" (click)="openMaintenanceModal(field)">
+                              {{ (field.maintenanceFromDate || field.maintenanceToDate) ? 'Modifier maintenance' : 'Planifier maintenance' }}
+                            </button>
+                          </div>
+                        </div>
+                      }
+                      @if (!fieldsBySiteId[site.siteId || site.id] || fieldsBySiteId[site.siteId || site.id].length === 0) {
+                        <div class="text-sm italic text-gray-500 text-center py-2">Aucun terrain configuré pour ce site.</div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+      </div>
+    </main>
+    <app-nav-menu></app-nav-menu>
+  </div>
+</div>
+
+@if (showPasswordModal) {
+  <div class="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold">Nouveau mot de passe</h3>
+        <button (click)="closePasswordModal()" class="text-gray-400 hover:text-gray-800 text-xl font-bold">✕</button>
+      </div>
+
+      <p class="text-sm text-gray-600 mb-4">Changer le mot de passe pour <strong>{{ selectedUserEmailForPassword }}</strong>.</p>
+
+      <form [formGroup]="passwordForm" (ngSubmit)="submitPasswordChange()" class="flex flex-col gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
+          <input type="password" formControlName="newPassword" class="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+          @if (passwordForm.get('newPassword')?.touched && passwordForm.get('newPassword')?.invalid) {
+            <p class="text-xs text-red-500 mt-1">Le mot de passe doit faire au moins 8 caractères, inclure majuscule, minuscule, chiffre et un des caractères suivants : &#64;!-+&$€</p>
+          }
+        </div>
+
+        @if (passwordUpdateMessage) {
+          <div class="text-sm p-3 rounded" [class.bg-green-100]="!passwordUpdateError" [class.text-green-800]="!passwordUpdateError" [class.bg-red-100]="passwordUpdateError" [class.text-red-800]="passwordUpdateError">
+            {{ passwordUpdateMessage }}
+          </div>
+        }
+
+        <div class="flex justify-end gap-2 mt-2">
+          <button type="button" class="px-4 py-2 border rounded hover:bg-gray-50" (click)="closePasswordModal()">Annuler</button>
+          <button type="submit" [disabled]="passwordForm.invalid || isSubmittingPassword" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            {{ isSubmittingPassword ? (passwordUpdateMessage && !passwordUpdateError ? 'Succès!' : 'Patientez...') : 'Enregistrer' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (showUserForm) {
+  <app-user-form [sites]="sites" (close)="closeUserForm()" (signupCompleted)="onUserAdded($event)"></app-user-form>
+}
+
+@if (showMaintenanceModal) {
+  <div class="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold">Planifier une maintenance</h3>
+        <button (click)="closeMaintenanceModal()" class="text-gray-400 hover:text-gray-800 text-xl font-bold">✕</button>
+      </div>
+      <p class="text-sm text-gray-600 mb-4">Définissez les dates de maintenance pour le terrain #{{ selectedFieldForMaintenance?.fieldId || selectedFieldForMaintenance?.id }}.</p>
+
+      <form [formGroup]="maintenanceForm" (ngSubmit)="submitMaintenance()" class="flex flex-col gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
+          <input type="date" formControlName="fromDate" class="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Date de fin</label>
+          <input type="date" formControlName="toDate" class="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <button type="button" class="px-4 py-2 border rounded hover:bg-gray-50" (click)="closeMaintenanceModal()">Annuler</button>
+          <button type="submit" [disabled]="maintenanceForm.invalid || isSubmittingMaintenance" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            {{ isSubmittingMaintenance ? 'Enregistrement...' : 'Enregistrer' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (showSiteForm) {
+  <div class="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-8">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold">Nouveau Site</h3>
+        <button (click)="closeSiteForm()" class="text-gray-400 hover:text-gray-800 text-xl font-bold">✕</button>
+      </div>
+
+      <form [formGroup]="siteForm" (ngSubmit)="submitSite()" class="flex flex-col gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Nom du site *</label>
+          <input type="text" formControlName="name" placeholder="Ex: Central Park" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Adresse *</label>
+          <input type="text" formControlName="address" placeholder="Ex: 5th Ave, New York" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Heure d'ouverture *</label>
+            <input type="time" formControlName="openingTime" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Heure de fermeture *</label>
+            <input type="time" formControlName="closingTime" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+        </div>
+
+        @if (siteFormError) {
+          <div class="mt-4 p-3 bg-red-100 text-red-800 text-sm rounded-lg border border-red-200">
+            {{ siteFormError }}
+          </div>
+        }
+
+        <div class="mt-6">
+          <button type="submit" [disabled]="siteForm.invalid || isSubmittingSite" class="w-full bg-blue-600 text-white font-bold py-3 rounded-full shadow-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            {{ isSubmittingSite ? 'CRÉATION...' : 'CRÉER LE SITE' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (showFieldForm) {
+  <div class="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-8">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold">Nouveau Terrain</h3>
+        <button (click)="closeFieldForm()" class="text-gray-400 hover:text-gray-800 text-xl font-bold">✕</button>
+      </div>
+
+      <p class="text-gray-600 mb-6 text-center">Ajouter un nouveau terrain pour ce site.</p>
+
+      <form [formGroup]="fieldForm" (ngSubmit)="submitField()" class="flex flex-col gap-6">
+        <div class="flex justify-around items-center">
+          <label class="flex items-center gap-2 cursor-pointer group">
+            <input type="radio" [value]="true" formControlName="isIndoor" class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+            <span class="text-lg font-medium group-hover:text-blue-600 transition-colors">Intérieur</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer group">
+            <input type="radio" [value]="false" formControlName="isIndoor" class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
+            <span class="text-lg font-medium group-hover:text-blue-600 transition-colors">Extérieur</span>
+          </label>
+        </div>
+
+        <button type="submit" [disabled]="fieldForm.invalid || isSubmittingField" class="w-full bg-blue-600 text-white font-bold py-3 rounded-full shadow-lg hover:bg-blue-700 disabled:opacity-50 transition-colors mt-4">
+          {{ isSubmittingField ? 'CRÉATION...' : 'AJOUTER TERRAIN' }}
+        </button>
+      </form>
+    </div>
+  </div>
+}

@@ -71,7 +71,7 @@ describe('NavMenu Component', () => {
       cy.contains('Mes Invitations').should('be.visible');
       cy.contains('Rejoindre Match Public').should('be.visible');
       cy.contains('Créer Match Privé').should('be.visible');
-      cy.contains('Reglages').should('be.visible');
+      cy.contains('Réglages').should('be.visible');
       cy.contains('Se Déconnecter').should('be.visible');
     });
   });
@@ -90,8 +90,8 @@ describe('NavMenu Component', () => {
       cy.contains(/Mes Invitations/i).should('not.exist');
       cy.contains(/Rejoindre Match Public/i).should('not.exist');
 
-      // Specifically check that "Reglages" (user version) is not present
-      cy.contains(/Reglages/i).should('not.exist');
+      // Specifically check that "Réglages" (user version) is not present
+      cy.contains(/Réglages/i).should('not.exist');
     });
   });
 

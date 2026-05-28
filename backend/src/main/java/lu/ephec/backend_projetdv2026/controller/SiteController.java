@@ -9,9 +9,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -76,5 +78,88 @@ public class SiteController {
         return ResponseEntity.ok(simplified);
     }
 
+    @PostMapping(produces = "application/json", consumes = "application/json")
+    public ResponseEntity<SiteDto> newSite(@RequestBody SiteDto siteDto) {
+        logger.info("[SITE CONTROLLER] Creating new site");
+        Site site = new Site();
+        site.setName(siteDto.getName());
+        site.setAddress(siteDto.getAddress());
+        if (siteDto.getOpeningTime() != null) {
+            site.setOpeningTime(siteDto.getOpeningTime());
+        }
+        if (siteDto.getClosingTime() != null) {
+            site.setClosingTime(siteDto.getClosingTime());
+        }
+        site.setIsActive(siteDto.getIsActive() != null ? siteDto.getIsActive() : true);
+
+        Site saved = siteService.newSite(site);
+
+        List<?> sessions = null;
+        try {
+            sessions = siteService.fetchSessionTimesForSite(saved.getSiteId());
+        } catch (Exception ex) {
+            logger.warn("[SITE CONTROLLER] Failed to fetch sessions for site {} — leaving sessions=null", saved.getSiteId(), ex);
+        }
+
+        return ResponseEntity.ok(SiteDto.from(saved, sessions));
+    }
+
+    @PatchMapping(value = "/{siteId}", produces = "application/json")
+    public ResponseEntity<SiteDto> updateSite(@PathVariable Integer siteId, @RequestBody Map<String, Object> updates) {
+        logger.info("[SITE CONTROLLER] Updating site with id={}", siteId);
+
+        Optional<Site> siteOpt = siteService.fetchById(siteId);
+        if (siteOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Site updateData = new Site();
+
+        if (updates.containsKey("siteName")) {
+            updateData.setName((String) updates.get("siteName"));
+        }
+
+        if (updates.containsKey("siteAddress")) {
+            updateData.setAddress((String) updates.get("siteAddress"));
+        }
+
+        if (updates.containsKey("openingTime")) {
+            logger.warn("[SITE CONTROLLER] Received update for openingTime, process will have to recalculate sessions.");
+            Object val = updates.get("openingTime");
+            if (val instanceof String) {
+                updateData.setOpeningTime(LocalTime.parse((String) val));
+            } else if (val instanceof Map) {
+                // If somehow it's still sent as an object
+                Map<String, Integer> m = (Map<String, Integer>) val;
+                updateData.setOpeningTime(LocalTime.of(m.getOrDefault("hour", 0), m.getOrDefault("minute", 0)));
+            }
+        }
+
+        if (updates.containsKey("closingTime")) {
+            Object val = updates.get("closingTime");
+            if (val instanceof String) {
+                updateData.setClosingTime(LocalTime.parse((String) val));
+            } else if (val instanceof Map) {
+                Map<String, Integer> m = (Map<String, Integer>) val;
+                updateData.setClosingTime(LocalTime.of(m.getOrDefault("hour", 0), m.getOrDefault("minute", 0)));
+            }
+        }
+
+        if (updates.containsKey("isActive")) {
+            updateData.setIsActive((Boolean) updates.get("isActive"));
+        }
+
+        return siteService.updateSite(siteId, updateData)
+                .map(updated -> {
+                    List<?> sessions = null;
+                    try {
+                        sessions = siteService.fetchSessionTimesForSite(updated.getSiteId());
+                    } catch (Exception ex) {
+                        logger.warn("[SITE CONTROLLER] Failed to fetch sessions for site {} — leaving sessions=null", updated.getSiteId(), ex);
+                    }
+                    return ResponseEntity.ok(SiteDto.from(updated, sessions));
+                })
+                .orElse(ResponseEntity.badRequest().build());
+    }
 }
 
