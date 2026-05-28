@@ -594,6 +594,21 @@ export class MatchForm implements OnInit {
     return (this.form.get('invites') as FormArray).controls as any[];
   }
 
+  allInvitesFound(): boolean {
+    if (!this.isPrivate()) return true;
+    const invites = this.form.get('invites') as FormArray;
+    if (!invites || invites.length === 0) return true;
+    for (let i = 0; i < invites.length; i++) {
+      const val = invites.at(i).value;
+      if (!val) {
+        if (this.isPrivate()) return false;
+        continue;
+      }
+      if (this.inviteStates[i]?.status !== 'found') return false;
+    }
+    return true;
+  }
+
   // Return the display name of the currently selected site (used to prefill child forms)
   getSelectedSiteName(): string | null {
     const siteId = this.form.get('siteId')?.value;
@@ -879,8 +894,12 @@ export class MatchForm implements OnInit {
     // for public matches we create immediately and show a confirmation message.
     this.error = null;
     this.successMessage = null;
-    if (this.form.invalid) {
-      this.error = 'Formulaire invalide. Merci de vérifier les champs manquants.';
+    if (this.form.invalid || !this.allInvitesFound()) {
+      if (this.form.invalid) {
+         this.error = 'Formulaire invalide. Merci de vérifier les champs manquants.';
+      } else {
+         this.error = 'Veuillez valider tous les invités avant de continuer.';
+      }
       return;
     }
 
