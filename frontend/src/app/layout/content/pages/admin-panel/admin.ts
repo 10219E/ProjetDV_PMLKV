@@ -47,11 +47,18 @@ export class AdminComponent implements OnInit {
 
   showUserForm = false;
 
-  userFilters = {
-    name: '' as string,
-    email: '' as string,
-    siteId: '' as string,
-    isActive: '' as string,
+  userFilters: {
+    name: string;
+    email: string;
+    siteId: string;
+    isActive: string;
+    hasDebt: boolean;
+    hasPenalty: boolean;
+  } = {
+    name: '',
+    email: '',
+    siteId: '',
+    isActive: '',
     hasDebt: false,
     hasPenalty: false
   };
