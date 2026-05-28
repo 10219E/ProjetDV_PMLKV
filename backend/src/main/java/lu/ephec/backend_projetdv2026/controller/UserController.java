@@ -64,6 +64,14 @@ public class UserController {
         return ResponseEntity.ok(responses);
     }
 
+    @GetMapping(value = "/siteusers", produces = "application/json")
+    public ResponseEntity<List<UserProfileDto>> getUsersForSite(@RequestParam("siteId") Integer siteId){
+        List<UserProfileDto> responses = userService.fetchBySite(siteId).stream()
+                .map(this::fetchUserProfile)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(responses);
+    }
+
     // Single endpoint to fetch by either email or matricule to avoid ambiguous mappings when both
     // routes would match the same path segment. If the identifier contains '@' it is treated as an email.
     @GetMapping(value = "/{identifier}", produces = "application/json")

@@ -65,6 +65,11 @@ export class UserService {
     return this.userControllerService.getAllUsers();
   }
 
+  getUsersForSite(siteId: number): Observable<Array<UserProfileDto>> {
+    this.setAuthHeader();
+    return this.userControllerService.getUsersForSite(siteId);
+  }
+
   // Normalized setAuthHeader method
   private setAuthHeader(): void {
     try {

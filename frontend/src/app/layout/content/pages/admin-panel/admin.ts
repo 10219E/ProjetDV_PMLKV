@@ -6,7 +6,7 @@ import { HomeAccountHeader } from '../../header/header';
 import { UserService } from '../../../../services/user.service';
 import { SiteService } from '../../../../services/site.service';
 import { FieldService } from '../../../../services/field.service';
-import { catchError, of } from 'rxjs';
+import { catchError, of, Observable } from 'rxjs';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { UserFormComponent } from '../../user-form/user-form';
 
@@ -77,8 +77,53 @@ export class AdminComponent implements OnInit {
   loadData() {
     this.loading = true;
 
-    // Load Users
-    this.userService.getAllUsers().pipe(
+    // Load current user first to determine permissions
+    this.userService.getCurrentUser().pipe(
+      catchError((err) => {
+        console.error('Failed to load current user', err);
+        return of(null);
+      })
+    ).subscribe((profile) => {
+      if (!profile) {
+        this.loading = false;
+        this.cd.detectChanges();
+        return;
+      }
+
+      const roleId = Number(profile?.roleId ?? -1);
+      const isAllSites = [2, 9].includes(roleId) || (profile?.sites && profile.sites.some((s: any) => s.isVip));
+
+      if (isAllSites) {
+        // Load all sites for super admins
+        this.siteService.getAllSites().pipe(
+          catchError(() => of([]))
+        ).subscribe((sites) => {
+          this.sites = sites || [];
+          this.loadAllFields();
+        });
+
+        // Load all users
+        this.fetchUsers(this.userService.getAllUsers());
+      } else {
+        // Use assigned sites
+        this.sites = profile?.sites || [];
+        this.loadAllFields();
+
+        // Load specific users if Site Admin
+        if (roleId === 7 && this.sites.length > 0) {
+          const primarySite = this.sites.find((s: any) => s.isPrimary) || this.sites[0];
+          const siteId = primarySite.siteId || primarySite.id;
+          this.fetchUsers(this.userService.getUsersForSite(siteId));
+        } else {
+          this.users = [];
+          this.cd.detectChanges();
+        }
+      }
+    });
+  }
+
+  private fetchUsers(source: Observable<any[]>) {
+    source.pipe(
       catchError((err) => {
         console.error('Failed to load users', err);
         return of([]);
@@ -102,35 +147,6 @@ export class AdminComponent implements OnInit {
       });
 
       this.cd.detectChanges();
-    });
-
-    // Load Sites & Fields based on user role
-    this.userService.getCurrentUser().pipe(
-      catchError((err) => {
-        console.error('Failed to load current user', err);
-        return of(null);
-      })
-    ).subscribe((profile) => {
-      if (!profile) {
-        this.loading = false;
-        this.cd.detectChanges();
-        return;
-      }
-
-      const roleId = profile?.roleId ?? -1;
-      const isAllSites = [2, 9].includes(Number(roleId)) || (profile?.sites && profile.sites.some((s: any) => s.isVip));
-
-      if (isAllSites) {
-        this.siteService.getAllSites().pipe(
-          catchError(() => of([]))
-        ).subscribe((sites) => {
-          this.sites = sites || [];
-          this.loadAllFields();
-        });
-      } else {
-        this.sites = profile?.sites || [];
-        this.loadAllFields(); // Load fields for their assigned sites
-      }
     });
   }
 
