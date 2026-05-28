@@ -332,6 +332,12 @@
           </div>
         </div>
 
+        @if (siteFormError) {
+          <div class="mt-4 p-3 bg-red-100 text-red-800 text-sm rounded-lg border border-red-200">
+            {{ siteFormError }}
+          </div>
+        }
+
         <div class="mt-6">
           <button type="submit" [disabled]="siteForm.invalid || isSubmittingSite" class="w-full bg-blue-600 text-white font-bold py-3 rounded-full shadow-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
             {{ isSubmittingSite ? 'CRÉATION...' : 'CRÉER LE SITE' }}
@@ -371,4 +377,3 @@
     </div>
   </div>
 }
-

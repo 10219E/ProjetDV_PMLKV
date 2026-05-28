@@ -56,6 +56,7 @@ export class AdminComponent implements OnInit {
     closingTime: new FormControl('22:00:00', [Validators.required])
   });
   isSubmittingSite = false;
+  siteFormError: string | null = null;
 
   // Create Field Modal
   showFieldForm = false;
@@ -325,6 +326,7 @@ export class AdminComponent implements OnInit {
 
   openSiteForm() {
     this.showSiteForm = true;
+    this.siteFormError = null;
     this.siteForm.reset({
       openingTime: '08:00:00',
       closingTime: '22:00:00'
@@ -341,6 +343,7 @@ export class AdminComponent implements OnInit {
     if (this.siteForm.invalid) return;
 
     this.isSubmittingSite = true;
+    this.siteFormError = null;
 
     // We send time strings "HH:mm:ss" as the backend Jackson expects strings or arrays for LocalTime
     const opening = this.siteForm.value.openingTime || '08:00:00';
@@ -364,9 +367,9 @@ export class AdminComponent implements OnInit {
         this.closeSiteForm();
         this.loadData(); // Reload sites
       },
-      error: () => {
+      error: (err) => {
         this.isSubmittingSite = false;
-        alert("Erreur lors de la création du site.");
+        this.siteFormError = err.error?.message || "Erreur lors de la création du site.";
         this.cd.detectChanges();
       }
     });
