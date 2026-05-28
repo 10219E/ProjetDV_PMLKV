@@ -9,9 +9,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -76,5 +78,64 @@ public class SiteController {
         return ResponseEntity.ok(simplified);
     }
 
+    @PostMapping(produces = "application/json", consumes = "application/json")
+    public ResponseEntity<SiteDto> newSite(@RequestBody Site site) {
+        logger.info("[SITE CONTROLLER] Creating new site");
+        Site saved = siteService.newSite(site);
+
+        List<?> sessions = null;
+        try {
+            sessions = siteService.fetchSessionTimesForSite(saved.getSiteId());
+        } catch (Exception ex) {
+            logger.warn("[SITE CONTROLLER] Failed to fetch sessions for site {} — leaving sessions=null", saved.getSiteId(), ex);
+        }
+
+        return ResponseEntity.ok(SiteDto.from(saved, sessions));
+    }
+
+    @PatchMapping(value = "/{siteId}", produces = "application/json")
+    public ResponseEntity<SiteDto> updateSite(@PathVariable Integer siteId, @RequestBody Map<String, Object> updates) {
+        logger.info("[SITE CONTROLLER] Updating site with id={}", siteId);
+
+        Optional<Site> siteOpt = siteService.fetchById(siteId);
+        if (siteOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Site updateData = new Site();
+
+        if (updates.containsKey("siteName")) {
+            updateData.setName((String) updates.get("siteName"));
+        }
+
+        if (updates.containsKey("siteAddress")) {
+            updateData.setAddress((String) updates.get("siteAddress"));
+        }
+
+        if (updates.containsKey("openingTime")) {
+            logger.warn("[SITE CONTROLLER] Received update for openingTime, process will have to recalculate sessions.");
+            updateData.setOpeningTime((LocalTime) updates.get("openingTime"));
+        }
+
+        if (updates.containsKey("closingTime")) {
+            updateData.setClosingTime((LocalTime) updates.get("closingTime"));
+        }
+
+        if (updates.containsKey("isActive")) {
+            updateData.setIsActive((Boolean) updates.get("isActive"));
+        }
+
+        return siteService.updateSite(siteId, updateData)
+                .map(updated -> {
+                    List<?> sessions = null;
+                    try {
+                        sessions = siteService.fetchSessionTimesForSite(updated.getSiteId());
+                    } catch (Exception ex) {
+                        logger.warn("[SITE CONTROLLER] Failed to fetch sessions for site {} — leaving sessions=null", updated.getSiteId(), ex);
+                    }
+                    return ResponseEntity.ok(SiteDto.from(updated, sessions));
+                })
+                .orElse(ResponseEntity.badRequest().build());
+    }
 }
 

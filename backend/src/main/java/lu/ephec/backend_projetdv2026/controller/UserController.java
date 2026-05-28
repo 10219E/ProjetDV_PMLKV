@@ -180,8 +180,6 @@ public class UserController {
             return ResponseEntity.notFound().build();
         }
 
-        User existingUser = userOpt.get();
-
         // Map updates to a partial User object for the service
         User updateData = new User();
 

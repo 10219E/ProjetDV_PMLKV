@@ -6,7 +6,9 @@ import lu.ephec.backend_projetdv2026.services.FieldService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -56,5 +58,45 @@ public class FieldController {
         return ResponseEntity.ok(FieldDto.from(field));
     }
 
-}
+    @PostMapping(produces = "application/json", consumes = "application/json")
+    public ResponseEntity<FieldDto> newField(@RequestBody Field field) {
+        Field saved = fieldService.newField(field);
+        return ResponseEntity.ok(FieldDto.from(saved));
+    }
 
+    @PatchMapping(value = "/{id}", produces = "application/json", consumes = "application/json")
+    public ResponseEntity<FieldDto> updateField(@PathVariable Integer id, @RequestBody Map<String, Object> updates) {
+        if (!fieldService.fieldExists(id)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Field updateData = new Field();
+
+        if (updates.containsKey("isIndoor")) {
+            updateData.setIsIndoor((Boolean) updates.get("isIndoor"));
+        }
+
+        if (updates.containsKey("isActive")) {
+            updateData.setIsActive((Boolean) updates.get("isActive"));
+        }
+
+        if (updates.containsKey("maintenanceFromDate")) {
+            String date = (String) updates.get("maintenanceFromDate");
+            if (date != null) {
+                updateData.setMaintenanceFromDate(LocalDate.parse(date));
+            }
+        }
+
+        if (updates.containsKey("maintenanceToDate")) {
+            String date = (String) updates.get("maintenanceToDate");
+            if (date != null) {
+                updateData.setMaintenanceToDate(LocalDate.parse(date));
+            }
+        }
+
+        return fieldService.updateField(id, updateData)
+                .map(updated -> ResponseEntity.ok(FieldDto.from(updated)))
+                .orElse(ResponseEntity.badRequest().build());
+    }
+
+}
