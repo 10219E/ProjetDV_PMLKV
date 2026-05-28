@@ -48,10 +48,10 @@ export class AdminComponent implements OnInit {
   showUserForm = false;
 
   userFilters = {
-    name: '',
-    email: '',
-    siteId: '',
-    isActive: '',
+    name: '' as string,
+    email: '' as string,
+    siteId: '' as string,
+    isActive: '' as string,
     hasDebt: false,
     hasPenalty: false
   };
