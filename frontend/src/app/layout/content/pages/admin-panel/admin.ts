@@ -9,9 +9,10 @@ import { FieldService } from '../../../../services/field.service';
 import { catchError, of, Observable } from 'rxjs';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { UserFormComponent } from '../../user-form/user-form';
+import { SiteDto, FieldDto } from '../../../../api';
 
 export function passwordStrengthValidator(): ValidatorFn {
-  const pattern = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@!\-\+&\$€])[A-Za-z0-9@!\-\+&\$€]{8,}$/;
+  const pattern = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@!\-+&$€])[A-Za-z0-9@!\-+&$€]{8,}$/;
   return (control: AbstractControl): ValidationErrors | null => {
     const v = control.value as string | null | undefined;
     if (!v) return { weakPassword: true };
@@ -33,6 +34,36 @@ export class AdminComponent implements OnInit {
   sites: any[] = [];
   fieldsBySiteId: { [key: number]: any[] } = {};
   expandedSiteId: number | null = null;
+
+  // Site Toggle
+  isTogglingSite = false;
+
+  // Field Maintenance Modal
+  showMaintenanceModal = false;
+  selectedFieldForMaintenance: any = null;
+  maintenanceForm = new FormGroup({
+    fromDate: new FormControl('', [Validators.required]),
+    toDate: new FormControl('', [Validators.required])
+  });
+  isSubmittingMaintenance = false;
+
+  // Create Site Modal
+  showSiteForm = false;
+  siteForm = new FormGroup({
+    name: new FormControl('', [Validators.required]),
+    address: new FormControl('', [Validators.required]),
+    openingTime: new FormControl('08:00:00', [Validators.required]),
+    closingTime: new FormControl('22:00:00', [Validators.required])
+  });
+  isSubmittingSite = false;
+
+  // Create Field Modal
+  showFieldForm = false;
+  selectedSiteIdForNewField: number | null = null;
+  fieldForm = new FormGroup({
+    isIndoor: new FormControl(true, [Validators.required])
+  });
+  isSubmittingField = false;
 
   // Password reset Modal state
   showPasswordModal = false;
@@ -192,6 +223,189 @@ export class AdminComponent implements OnInit {
         // Revert on error
         user.isActive = previousStatus;
         alert("Erreur lors de la mise à jour du statut de l'utilisateur.");
+        this.cd.detectChanges();
+      }
+    });
+  }
+
+  toggleSiteActiveStatus(site: any) {
+    const sid = site.siteId || site.id;
+    if (!sid) return;
+
+    this.isTogglingSite = true;
+    const previousStatus = site.isActive;
+    site.isActive = !site.isActive;
+
+    const siteUpdate: SiteDto = {
+      isActive: site.isActive
+    };
+
+    this.siteService.updateSite(sid, siteUpdate).subscribe({
+      next: () => {
+        this.isTogglingSite = false;
+        this.cd.detectChanges();
+      },
+      error: () => {
+        site.isActive = previousStatus;
+        this.isTogglingSite = false;
+        alert("Erreur lors de la mise à jour du statut du site.");
+        this.cd.detectChanges();
+      }
+    });
+  }
+
+  openMaintenanceModal(field: any) {
+    this.selectedFieldForMaintenance = field;
+    this.showMaintenanceModal = true;
+    this.maintenanceForm.reset({
+      fromDate: field.maintenanceFromDate || '',
+      toDate: field.maintenanceToDate || ''
+    });
+    this.cd.detectChanges();
+  }
+
+  closeMaintenanceModal() {
+    this.showMaintenanceModal = false;
+    this.selectedFieldForMaintenance = null;
+    this.cd.detectChanges();
+  }
+
+  submitMaintenance() {
+    if (this.maintenanceForm.invalid || !this.selectedFieldForMaintenance) return;
+
+    this.isSubmittingMaintenance = true;
+    const fid = this.selectedFieldForMaintenance.fieldId || this.selectedFieldForMaintenance.id;
+    const fieldUpdate: any = {
+      maintenanceFromDate: this.maintenanceForm.value.fromDate || null,
+      maintenanceToDate: this.maintenanceForm.value.toDate || null
+    };
+
+    this.fieldService.updateField(fid, fieldUpdate).subscribe({
+      next: () => {
+        this.selectedFieldForMaintenance.maintenanceFromDate = fieldUpdate.maintenanceFromDate;
+        this.selectedFieldForMaintenance.maintenanceToDate = fieldUpdate.maintenanceToDate;
+        this.isSubmittingMaintenance = false;
+        this.closeMaintenanceModal();
+        this.cd.detectChanges();
+      },
+      error: () => {
+        this.isSubmittingMaintenance = false;
+        alert("Erreur lors de la mise à jour des dates de maintenance.");
+        this.cd.detectChanges();
+      }
+    });
+  }
+
+  cancelMaintenance(field: any) {
+    const fid = field.fieldId || field.id;
+
+    // Calculate yesterday's date in YYYY-MM-DD format as a workaround
+    // since the backend might ignore null values in PATCH requests.
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    const fieldUpdate: any = {
+      maintenanceFromDate: yesterdayStr,
+      maintenanceToDate: yesterdayStr
+    };
+
+    this.fieldService.updateField(fid, fieldUpdate).subscribe({
+      next: () => {
+        field.maintenanceFromDate = yesterdayStr;
+        field.maintenanceToDate = yesterdayStr;
+        this.cd.detectChanges();
+      },
+      error: () => {
+        alert("Erreur lors de l'annulation de la maintenance.");
+        this.cd.detectChanges();
+      }
+    });
+  }
+
+  openSiteForm() {
+    this.showSiteForm = true;
+    this.siteForm.reset({
+      openingTime: '08:00:00',
+      closingTime: '22:00:00'
+    });
+    this.cd.detectChanges();
+  }
+
+  closeSiteForm() {
+    this.showSiteForm = false;
+    this.cd.detectChanges();
+  }
+
+  submitSite() {
+    if (this.siteForm.invalid) return;
+
+    this.isSubmittingSite = true;
+
+    // We send time strings "HH:mm:ss" as the backend Jackson expects strings or arrays for LocalTime
+    const opening = this.siteForm.value.openingTime || '08:00:00';
+    const closing = this.siteForm.value.closingTime || '22:00:00';
+
+    // Ensure they have the seconds part if only HH:mm is provided
+    const formattedOpening = opening.split(':').length === 2 ? `${opening}:00` : opening;
+    const formattedClosing = closing.split(':').length === 2 ? `${closing}:00` : closing;
+
+    const siteDto: SiteDto = {
+      name: this.siteForm.value.name!,
+      address: this.siteForm.value.address!,
+      openingTime: formattedOpening as any, // Cast to any because SiteDto interface expects LocalTime object
+      closingTime: formattedClosing as any,
+      isActive: true
+    };
+
+    this.siteService.createSite(siteDto).subscribe({
+      next: () => {
+        this.isSubmittingSite = false;
+        this.closeSiteForm();
+        this.loadData(); // Reload sites
+      },
+      error: () => {
+        this.isSubmittingSite = false;
+        alert("Erreur lors de la création du site.");
+        this.cd.detectChanges();
+      }
+    });
+  }
+
+  openFieldForm(siteId: number) {
+    this.selectedSiteIdForNewField = siteId;
+    this.showFieldForm = true;
+    this.fieldForm.reset({
+      isIndoor: true
+    });
+    this.cd.detectChanges();
+  }
+
+  closeFieldForm() {
+    this.showFieldForm = false;
+    this.selectedSiteIdForNewField = null;
+    this.cd.detectChanges();
+  }
+
+  submitField() {
+    if (this.fieldForm.invalid || !this.selectedSiteIdForNewField) return;
+
+    this.isSubmittingField = true;
+    const fieldDto: FieldDto = {
+      siteId: this.selectedSiteIdForNewField,
+      isIndoor: this.fieldForm.value.isIndoor!,
+      isActive: true
+    };
+
+    this.fieldService.createField(fieldDto).subscribe({
+      next: () => {
+        this.isSubmittingField = false;
+        this.closeFieldForm();
+        this.loadAllFields(); // Reload fields
+      },
+      error: () => {
+        this.isSubmittingField = false;
+        alert("Erreur lors de la création du terrain.");
         this.cd.detectChanges();
       }
     });

@@ -17,8 +17,6 @@ import { Observable }                                        from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
-import { Field } from '../model/field';
-// @ts-ignore
 import { FieldDto } from '../model/fieldDto';
 
 // @ts-ignore
@@ -310,17 +308,17 @@ export class FieldControllerService extends BaseService {
 
     /**
      * @endpoint post /api/fields
-     * @param field 
+     * @param fieldDto 
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public newField(field: Field, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<FieldDto>;
-    public newField(field: Field, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FieldDto>>;
-    public newField(field: Field, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FieldDto>>;
-    public newField(field: Field, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        if (field === null || field === undefined) {
-            throw new Error('Required parameter field was null or undefined when calling newField.');
+    public newField(fieldDto: FieldDto, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<FieldDto>;
+    public newField(fieldDto: FieldDto, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<FieldDto>>;
+    public newField(fieldDto: FieldDto, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<FieldDto>>;
+    public newField(fieldDto: FieldDto, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        if (fieldDto === null || fieldDto === undefined) {
+            throw new Error('Required parameter fieldDto was null or undefined when calling newField.');
         }
 
         let localVarHeaders = this.defaultHeaders;
@@ -362,7 +360,7 @@ export class FieldControllerService extends BaseService {
         return this.httpClient.request<FieldDto>('post', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
-                body: field,
+                body: fieldDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,

@@ -79,8 +79,19 @@ public class SiteController {
     }
 
     @PostMapping(produces = "application/json", consumes = "application/json")
-    public ResponseEntity<SiteDto> newSite(@RequestBody Site site) {
+    public ResponseEntity<SiteDto> newSite(@RequestBody SiteDto siteDto) {
         logger.info("[SITE CONTROLLER] Creating new site");
+        Site site = new Site();
+        site.setName(siteDto.getName());
+        site.setAddress(siteDto.getAddress());
+        if (siteDto.getOpeningTime() != null) {
+            site.setOpeningTime(siteDto.getOpeningTime());
+        }
+        if (siteDto.getClosingTime() != null) {
+            site.setClosingTime(siteDto.getClosingTime());
+        }
+        site.setIsActive(siteDto.getIsActive() != null ? siteDto.getIsActive() : true);
+
         Site saved = siteService.newSite(site);
 
         List<?> sessions = null;
@@ -114,11 +125,24 @@ public class SiteController {
 
         if (updates.containsKey("openingTime")) {
             logger.warn("[SITE CONTROLLER] Received update for openingTime, process will have to recalculate sessions.");
-            updateData.setOpeningTime((LocalTime) updates.get("openingTime"));
+            Object val = updates.get("openingTime");
+            if (val instanceof String) {
+                updateData.setOpeningTime(LocalTime.parse((String) val));
+            } else if (val instanceof Map) {
+                // If somehow it's still sent as an object
+                Map<String, Integer> m = (Map<String, Integer>) val;
+                updateData.setOpeningTime(LocalTime.of(m.getOrDefault("hour", 0), m.getOrDefault("minute", 0)));
+            }
         }
 
         if (updates.containsKey("closingTime")) {
-            updateData.setClosingTime((LocalTime) updates.get("closingTime"));
+            Object val = updates.get("closingTime");
+            if (val instanceof String) {
+                updateData.setClosingTime(LocalTime.parse((String) val));
+            } else if (val instanceof Map) {
+                Map<String, Integer> m = (Map<String, Integer>) val;
+                updateData.setClosingTime(LocalTime.of(m.getOrDefault("hour", 0), m.getOrDefault("minute", 0)));
+            }
         }
 
         if (updates.containsKey("isActive")) {

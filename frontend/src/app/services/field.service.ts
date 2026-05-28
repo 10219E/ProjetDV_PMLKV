@@ -1,14 +1,13 @@
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { FieldControllerService } from '../api/api/fieldController.service';
+import { FieldControllerService, FieldDto } from '../api';
 import { AuthService } from './auth.service';
-import {FieldDto} from '../api';
 
 @Injectable({ providedIn: 'root' })
 export class FieldService {
 
-  constructor(private fieldService: FieldControllerService, private authService: AuthService) {
+  constructor(private fieldController: FieldControllerService, private authService: AuthService) {
   }
 
   // Public helper to set Authorization header on generated API services when needed
@@ -27,12 +26,12 @@ export class FieldService {
   // NOTE: use the "active" endpoint so callers get only active fields by default
   public fetchFieldsBySite(siteId: number): Observable<any[]> {
     try {
-      this.setAuthHeader(this.fieldService);
+      this.setAuthHeader(this.fieldController);
     } catch (e) {
       // ignore
     }
     // Use getActiveFieldsBySite to avoid returning inactive fields to UI flows
-    return this.fieldService.getActiveFieldsBySite(siteId).pipe(
+    return this.fieldController.getActiveFieldsBySite(siteId).pipe(
       catchError((err) => {
         console.error('SessionService.fetchFieldsBySite (active) error', err);
         return of([]);
@@ -43,16 +42,26 @@ export class FieldService {
   // Get ALL fields
   public fetchAllFields(): Observable<FieldDto[]> {
     try {
-      this.setAuthHeader(this.fieldService);
+      this.setAuthHeader(this.fieldController);
     } catch (e) {
       // ignore
     }
 
-    return this.fieldService.getAllFields().pipe(
+    return this.fieldController.getAllFields().pipe(
       catchError((err) => {
         console.error('SessionService.getAllFields error', err);
         return of([]);
       })
     );
+  }
+
+  // Create a field
+  public createField(fieldDto: FieldDto): Observable<FieldDto> {
+    return this.fieldController.newField(fieldDto as any);
+  }
+
+  // Update a field
+  public updateField(id: number, fieldDto: FieldDto): Observable<FieldDto> {
+    return this.fieldController.updateField(id, fieldDto as any);
   }
 }

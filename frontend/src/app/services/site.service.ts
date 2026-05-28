@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { SiteControllerService } from '../api';
+import { SiteControllerService, SiteDto } from '../api';
 import { Observable } from 'rxjs';
 import { Site } from '../api';
 import { AuthService } from './auth.service';
@@ -28,5 +28,13 @@ export class SiteService {
   getAllSites(active?: boolean): Observable<Site[]> {
     this.setAuthHeader();
     return this.siteController.getAllSites(active);
+  }
+
+  createSite(siteDto: SiteDto): Observable<SiteDto> {
+    return this.siteController.newSite(siteDto as any);
+  }
+
+  updateSite(id: number, siteDto: SiteDto): Observable<SiteDto> {
+    return this.siteController.updateSite(id, siteDto as any);
   }
 }

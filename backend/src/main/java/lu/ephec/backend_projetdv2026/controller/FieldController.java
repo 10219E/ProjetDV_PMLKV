@@ -2,6 +2,7 @@ package lu.ephec.backend_projetdv2026.controller;
 
 import lu.ephec.backend_projetdv2026.dto.FieldDto;
 import lu.ephec.backend_projetdv2026.models.Field;
+import lu.ephec.backend_projetdv2026.models.Site;
 import lu.ephec.backend_projetdv2026.services.FieldService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -59,7 +60,19 @@ public class FieldController {
     }
 
     @PostMapping(produces = "application/json", consumes = "application/json")
-    public ResponseEntity<FieldDto> newField(@RequestBody Field field) {
+    public ResponseEntity<FieldDto> newField(@RequestBody FieldDto fieldDto) {
+        Field field = new Field();
+        field.setIsIndoor(fieldDto.getIsIndoor());
+        field.setIsActive(fieldDto.getIsActive() != null ? fieldDto.getIsActive() : true);
+        field.setMaintenanceFromDate(fieldDto.getMaintenanceFromDate());
+        field.setMaintenanceToDate(fieldDto.getMaintenanceToDate());
+
+        if (fieldDto.getSiteId() != null) {
+            Site site = new Site();
+            site.setSiteId(fieldDto.getSiteId());
+            field.setSite(site);
+        }
+
         Field saved = fieldService.newField(field);
         return ResponseEntity.ok(FieldDto.from(saved));
     }

@@ -17,8 +17,6 @@ import { Observable }                                        from 'rxjs';
 import { OpenApiHttpParams, QueryParamStyle } from '../query.params';
 
 // @ts-ignore
-import { Site } from '../model/site';
-// @ts-ignore
 import { SiteDto } from '../model/siteDto';
 
 // @ts-ignore
@@ -213,17 +211,17 @@ export class SiteControllerService extends BaseService {
 
     /**
      * @endpoint post /api/sites
-     * @param site 
+     * @param siteDto 
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      * @param options additional options
      */
-    public newSite(site: Site, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<SiteDto>;
-    public newSite(site: Site, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<SiteDto>>;
-    public newSite(site: Site, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<SiteDto>>;
-    public newSite(site: Site, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
-        if (site === null || site === undefined) {
-            throw new Error('Required parameter site was null or undefined when calling newSite.');
+    public newSite(siteDto: SiteDto, observe?: 'body', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<SiteDto>;
+    public newSite(siteDto: SiteDto, observe?: 'response', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpResponse<SiteDto>>;
+    public newSite(siteDto: SiteDto, observe?: 'events', reportProgress?: boolean, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<HttpEvent<SiteDto>>;
+    public newSite(siteDto: SiteDto, observe: any = 'body', reportProgress: boolean = false, options?: {httpHeaderAccept?: 'application/json', context?: HttpContext, transferCache?: boolean}): Observable<any> {
+        if (siteDto === null || siteDto === undefined) {
+            throw new Error('Required parameter siteDto was null or undefined when calling newSite.');
         }
 
         let localVarHeaders = this.defaultHeaders;
@@ -265,7 +263,7 @@ export class SiteControllerService extends BaseService {
         return this.httpClient.request<SiteDto>('post', `${basePath}${localVarPath}`,
             {
                 context: localVarHttpContext,
-                body: site,
+                body: siteDto,
                 responseType: <any>responseType_,
                 ...(withCredentials ? { withCredentials } : {}),
                 headers: localVarHeaders,
