@@ -172,7 +172,7 @@
 
     <div class="flex justify-end">
       <!-- disable submit when loading or when form is invalid to prevent creating with incomplete/invalid data -->
-      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed" [disabled]="loading || form.invalid">{{ loading ? 'Création...' : 'Créer le Match' }}</button>
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed" [disabled]="loading || form.invalid || !allInvitesFound()">{{ loading ? 'Création...' : 'Créer le Match' }}</button>
     </div>
   </form>
 </div>

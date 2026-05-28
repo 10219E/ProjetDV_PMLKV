@@ -222,6 +222,17 @@ export class MyMatches implements OnInit {
     return (this.inviteForm.get('invites') as FormArray).controls;
   }
 
+  allInvitesFound(): boolean {
+    const invites = this.inviteForm.get('invites') as FormArray;
+    if (!invites || invites.length === 0) return true;
+    for (let i = 0; i < invites.length; i++) {
+      const val = invites.at(i).value;
+      if (!val) continue; // if field is empty, it might be allowed depending on requirements, but here we usually have 4 players total.
+      if (this.inviteStates[i]?.status !== 'found') return false;
+    }
+    return true;
+  }
+
   getInviteControl(index: number): any {
     return (this.inviteForm.get('invites') as FormArray).at(index);
   }

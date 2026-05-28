@@ -183,7 +183,7 @@
         </div>
         <div class="mt-6 flex justify-end gap-3 border-t pt-4">
           <button type="button" (click)="hideInviteForm()" class="px-4 py-2 border rounded hover:bg-gray-50">Annuler</button>
-          <button type="button" (click)="submitReinvites()" [disabled]="inviteForm.invalid || loading" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
+          <button type="button" (click)="submitReinvites()" [disabled]="inviteForm.invalid || !allInvitesFound() || loading" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
             {{ loading ? 'Chargement...' : 'Conclure' }}
           </button>
         </div>

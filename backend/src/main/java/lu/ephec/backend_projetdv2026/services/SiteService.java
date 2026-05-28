@@ -26,11 +26,12 @@ public class SiteService {
     private final JPASiteSessionsRepo jpaSiteSessionsRepo;
     private final JPAFieldRepo jpaFieldRepo;
     private final JPAMatchRepo jpaMatchRepo;
+    private final JPAMatchPlayersRepo jpaMatchPlayersRepo;
 
     private static final Logger logger = LoggerFactory.getLogger(SiteService.class);
 
     // InjDep Interface Sites
-    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo, SiteSessionsJsonHandler siteSessionsJsonHandler, JPASiteSessionsRepo jpaSiteSessionsRepo, JPAFieldRepo jpaFieldRepo, JPAMatchRepo jpaMatchRepo) {
+    public SiteService(JPASiteRepo jpaSiteRepo, JPASiteClosureDaysRepo jpaClosureDaysRepo, SiteSessionsJsonHandler siteSessionsJsonHandler, JPASiteSessionsRepo jpaSiteSessionsRepo, JPAFieldRepo jpaFieldRepo, JPAMatchRepo jpaMatchRepo, JPAMatchPlayersRepo jpaMatchPlayersRepo) {
 
         this.jpaSiteRepo = jpaSiteRepo;
         this.jpaClosureDaysRepo = jpaClosureDaysRepo;
@@ -38,6 +39,7 @@ public class SiteService {
         this.jpaSiteSessionsRepo = jpaSiteSessionsRepo;
         this.jpaFieldRepo = jpaFieldRepo;
         this.jpaMatchRepo = jpaMatchRepo;
+        this.jpaMatchPlayersRepo = jpaMatchPlayersRepo;
     }
 
     ////SITES OPERATIONS////
@@ -230,7 +232,10 @@ public class SiteService {
                     } else if (match.getType().equals("private")) {
                         match.setPrivStatus("cancelled");
                     }
+                    // Delete associated Match Players first (due to FK constraint)
+                    jpaMatchPlayersRepo.deleteByMatch_MatchId(match.getMatchId());
                 });
+
                 jpaMatchRepo.saveAll(matchesOnSite);
             }
 
@@ -439,5 +444,3 @@ public class SiteService {
     }
 
 }
-
-
