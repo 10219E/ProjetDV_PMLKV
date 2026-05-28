@@ -197,7 +197,7 @@
                             <div class="flex items-center gap-2">
                               <span class="font-bold text-gray-700">Terrain #{{ field.fieldId || field.id }}</span>
                               <span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-semibold shadow-sm">
-                                {{ field.isIndoor ? 'Indoor' : 'Outdoor' }}
+                                {{ field.isIndoor ? 'Intérieur' : 'Extérieur' }}
                               </span>
                               @if (field.maintenanceFromDate || field.maintenanceToDate) {
                                 <span class="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded font-semibold animate-pulse">
@@ -362,11 +362,11 @@
         <div class="flex justify-around items-center">
           <label class="flex items-center gap-2 cursor-pointer group">
             <input type="radio" [value]="true" formControlName="isIndoor" class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
-            <span class="text-lg font-medium group-hover:text-blue-600 transition-colors">Indoor</span>
+            <span class="text-lg font-medium group-hover:text-blue-600 transition-colors">Intérieur</span>
           </label>
           <label class="flex items-center gap-2 cursor-pointer group">
             <input type="radio" [value]="false" formControlName="isIndoor" class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
-            <span class="text-lg font-medium group-hover:text-blue-600 transition-colors">Outdoor</span>
+            <span class="text-lg font-medium group-hover:text-blue-600 transition-colors">Extérieur</span>
           </label>
         </div>
 
