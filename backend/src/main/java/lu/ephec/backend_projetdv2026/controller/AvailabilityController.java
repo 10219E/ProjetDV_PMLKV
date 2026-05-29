@@ -26,7 +26,7 @@ public class AvailabilityController {
         this.availabilityService = availabilityService;
     }
 
-   // Get available sessions for a field on a specific date, it checks which sessions are already booked
+   // Get available sessions for a field on a specific date; it checks which sessions are already booked
     @GetMapping(value = "/{siteId}/{fieldId}", produces = "application/json")
     public ResponseEntity<AvailabilityDto> getAvailableSessions(
             @Parameter(description = "ID of the site", required = true)
