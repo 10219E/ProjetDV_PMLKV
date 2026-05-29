@@ -100,20 +100,8 @@ public class AvailabilityController {
 
         startDate = startDate.plusDays(2); //we need to allow 2 days buffer to not mess with scheduler logic
 
-        // 0 = invite (Membre externe invité) -> max 5 days
-        // 1 = subscribed (Membre with subscription to at least one site) -> max 14 days
-        // 2 = all_site (Membre VIP multi-sites) -> max 21 days
-        // 7 = site_admin (site administrator) -> admin: 3 months (~90 days)
-        // 9 = as_admin (super administrator) -> admin: 3 months (~90 days)
-
-        int range = 0;
-        if (roledId == 0) {range = 5;} //done:as populating the db setting to 90 instead of 5
-        if (roledId == 1) {range = 14;} //done:as populating the db setting to 90 instead of 14
-        if (roledId == 2) {range = 21;} //done:as populating the db setting to 90 instead of 21
-        if (roledId == 7 || roledId == 9) {range = 90;}
-
-        range = range -1; //to account for binary logic - counting from 0
-        LocalDate endDate = startDate.plusDays(range);
+        //Calculate end date based on booking rules in database
+        LocalDate endDate = availabilityService.getBookingEndDate(roledId.shortValue(), startDate);
 
         try {
             // Validate date range
