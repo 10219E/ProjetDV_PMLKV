@@ -6,7 +6,7 @@ import lu.ephec.backend_projetdv2026.models.SiteSessions;
 import lu.ephec.backend_projetdv2026.repo.JPAFieldRepo;
 import lu.ephec.backend_projetdv2026.repo.JPAMatchRepo;
 import lu.ephec.backend_projetdv2026.repo.JPASiteSessionsRepo;
-import lu.ephec.backend_projetdv2026.services.sitefieldbymatch.SiteFieldsByMatchService;
+import lu.ephec.backend_projetdv2026.repo.JPAUserBookingRepo;
 import lu.ephec.backend_projetdv2026.services.validation.SiteSessionsJsonHandler;
 import lu.ephec.backend_projetdv2026.services.validation.ValidationBoiler;
 import org.slf4j.Logger;
@@ -27,14 +27,17 @@ public class AvailabilityService {
     private final JPASiteSessionsRepo jpaSiteSessionsRepo;
     private final JPAFieldRepo jpaFieldRepo;
     private final JPAMatchRepo jpaMatchRepo;
+    private final JPAUserBookingRepo jpaUserBookingRepo;
     private final SiteSessionsJsonHandler siteSessionsJsonHandler;
     private static final Logger logger = LoggerFactory.getLogger(AvailabilityService.class);
 
     public AvailabilityService(JPASiteSessionsRepo jpaSiteSessionsRepo, JPAFieldRepo jpaFieldRepo,
-                               JPAMatchRepo jpaMatchRepo, SiteSessionsJsonHandler siteSessionsJsonHandler) {
+                               JPAMatchRepo jpaMatchRepo, JPAUserBookingRepo jpaUserBookingRepo,
+                               SiteSessionsJsonHandler siteSessionsJsonHandler) {
         this.jpaSiteSessionsRepo = jpaSiteSessionsRepo;
         this.jpaFieldRepo = jpaFieldRepo;
         this.jpaMatchRepo = jpaMatchRepo;
+        this.jpaUserBookingRepo = jpaUserBookingRepo;
         this.siteSessionsJsonHandler = siteSessionsJsonHandler;
     }
 
@@ -105,5 +108,15 @@ public class AvailabilityService {
 
         public void setEndTime(LocalTime endTime) {this.endTime = endTime;}
 
+    }
+    
+    ///BOOKING-RESERVATION LOGIC
+
+    public LocalDate getBookingEndDate(Short roleId, LocalDate startDate) {
+        int range = jpaUserBookingRepo.findAllowedDurationByRoleId(roleId)
+                .orElse(5); // Default to 5 if not found
+
+        // We subtract 1 to account for binary logic - counting from 0 (today + range - 1)
+        return startDate.plusDays(range - 1);
     }
 }
