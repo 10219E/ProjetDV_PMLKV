@@ -15,5 +15,6 @@ export interface FinancialRecordDto {
     userFullName?: string;
     siteName?: string;
     paymentMethod?: string;
+    status?: string;
 }
 

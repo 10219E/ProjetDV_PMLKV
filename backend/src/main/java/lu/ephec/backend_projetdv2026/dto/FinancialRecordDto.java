@@ -14,5 +14,5 @@ public class FinancialRecordDto {
     private String userFullName;
     private String siteName;
     private String paymentMethod;
+    private String status;
 }
-

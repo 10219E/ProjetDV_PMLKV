@@ -106,7 +106,8 @@ export class AdminComponent implements OnInit {
     clientName: '',
     siteId: '',
     dateFrom: '',
-    dateTo: ''
+    dateTo: '',
+    status: 'clear'
   };
 
   constructor(
@@ -183,7 +184,20 @@ export class AdminComponent implements OnInit {
 
   loadFinancialStats() {
     this.loadingStats = true;
+    this.financialRecords = []; // Reset current records to show loading state clearly
     let obs: Observable<FinancialRecordDto[]>;
+
+    // If role is still null (async race condition), wait a bit and retry once
+    if (this.userRole === null) {
+      setTimeout(() => {
+        if (this.userRole !== null) this.loadFinancialStats();
+        else {
+          this.loadingStats = false;
+          this.cd.detectChanges();
+        }
+      }, 500);
+      return;
+    }
 
     if (this.userRole === 9) {
       obs = this.statsService.getFinancialReport();
@@ -225,6 +239,7 @@ export class AdminComponent implements OnInit {
 
   get filteredFinancialRecords() {
     return this.financialRecords.filter(r => {
+      if (this.statsFilters.status && r.status !== this.statsFilters.status) return false;
       if (this.statsFilters.clientName && !r.userFullName?.toLowerCase().includes(this.statsFilters.clientName.toLowerCase())) return false;
       if (this.statsFilters.siteId && r.siteName !== this.sites.find(s => String(s.siteId || s.id) === String(this.statsFilters.siteId))?.name) {
          // Fallback check if siteId doesn't match name directly
@@ -248,7 +263,12 @@ export class AdminComponent implements OnInit {
   switchTab(tab: 'users' | 'sites' | 'stats') {
     this.activeTab = tab;
     if (tab === 'stats') {
-      this.loadFinancialStats();
+      // Ensure we have user role before loading stats, or reload everything
+      if (this.userRole === null) {
+        this.loadData();
+      } else {
+        this.loadFinancialStats();
+      }
     }
     this.cd.detectChanges();
   }
