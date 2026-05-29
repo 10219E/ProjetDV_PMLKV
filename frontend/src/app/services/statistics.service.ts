@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { StatisticsService as ApiStatisticsService, FinancialRecordDto } from '../api';
+import { StatisticsControllerService as ApiStatisticsService, FinancialRecordDto } from '../api';
 import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
 

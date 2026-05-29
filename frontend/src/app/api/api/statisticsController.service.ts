@@ -29,14 +29,13 @@ import { BaseService } from '../api.base.service';
 @Injectable({
   providedIn: 'root'
 })
-export class StatisticsService extends BaseService {
+export class StatisticsControllerService extends BaseService {
 
     constructor(protected httpClient: HttpClient, @Optional() @Inject(BASE_PATH) basePath: string|string[], @Optional() configuration?: Configuration) {
         super(basePath, configuration);
     }
 
     /**
-     * Get detailed financial report of all cleared payments
      * @endpoint get /api/statistics/financial-report
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
@@ -88,7 +87,6 @@ export class StatisticsService extends BaseService {
     }
 
     /**
-     * Get detailed financial report of all cleared payments for a specific site
      * @endpoint get /api/statistics/financial-report/{siteId}
      * @param siteId ID of the site
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
