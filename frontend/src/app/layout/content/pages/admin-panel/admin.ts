@@ -6,10 +6,11 @@ import { HomeAccountHeader } from '../../header/header';
 import { UserService } from '../../../../services/user.service';
 import { SiteService } from '../../../../services/site.service';
 import { FieldService } from '../../../../services/field.service';
+import { StatisticsService } from '../../../../services/statistics.service';
 import { catchError, of, Observable } from 'rxjs';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { UserFormComponent } from '../../user-form/user-form';
-import { SiteDto, FieldDto } from '../../../../api';
+import { SiteDto, FieldDto, FinancialRecordDto } from '../../../../api';
 
 export function passwordStrengthValidator(): ValidatorFn {
   const pattern = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@!\-+&$€])[A-Za-z0-9@!\-+&$€]{8,}$/;
@@ -27,13 +28,19 @@ export function passwordStrengthValidator(): ValidatorFn {
   templateUrl: './admin.html'
 })
 export class AdminComponent implements OnInit {
-  activeTab: 'users' | 'sites' = 'users';
+  activeTab: 'users' | 'sites' | 'stats' = 'users';
   loading = false;
 
   users: any[] = [];
   sites: any[] = [];
   fieldsBySiteId: { [key: number]: any[] } = {};
   expandedSiteId: number | null = null;
+
+  // Statistics
+  financialRecords: FinancialRecordDto[] = [];
+  loadingStats = false;
+  userRole: number | null = null;
+  userSites: any[] = [];
 
   // Site Toggle
   isTogglingSite = false;
@@ -95,15 +102,35 @@ export class AdminComponent implements OnInit {
     hasPenalty: false
   };
 
+  statsFilters = {
+    clientName: '',
+    siteId: '',
+    dateFrom: '',
+    dateTo: '',
+    status: 'clear'
+  };
+
   constructor(
     private userService: UserService,
     private siteService: SiteService,
     private fieldService: FieldService,
+    private statsService: StatisticsService,
     private cd: ChangeDetectorRef
-  ) {}
+  ) {
+    this.setDefaultStatsDates();
+  }
 
   ngOnInit() {
     this.loadData();
+  }
+
+  private setDefaultStatsDates() {
+    const now = new Date();
+    const lastMonth = new Date();
+    lastMonth.setMonth(now.getMonth() - 1);
+
+    this.statsFilters.dateFrom = lastMonth.toISOString().split('T')[0];
+    this.statsFilters.dateTo = now.toISOString().split('T')[0];
   }
 
   loadData() {
@@ -122,8 +149,9 @@ export class AdminComponent implements OnInit {
         return;
       }
 
-      const roleId = Number(profile?.roleId ?? -1);
-      const isAllSites = [2, 9].includes(roleId) || (profile?.sites && profile.sites.some((s: any) => s.isVip));
+      this.userRole = Number(profile?.roleId ?? -1);
+      this.userSites = profile?.sites || [];
+      const isAllSites = [2, 9].includes(this.userRole);
 
       if (isAllSites) {
         // Load all sites for super admins
@@ -142,7 +170,7 @@ export class AdminComponent implements OnInit {
         this.loadAllFields();
 
         // Load specific users if Site Admin
-        if (roleId === 7 && this.sites.length > 0) {
+        if (this.userRole === 7 && this.sites.length > 0) {
           const primarySite = this.sites.find((s: any) => s.isPrimary) || this.sites[0];
           const siteId = primarySite.siteId || primarySite.id;
           this.fetchUsers(this.userService.getUsersForSite(siteId));
@@ -152,6 +180,97 @@ export class AdminComponent implements OnInit {
         }
       }
     });
+  }
+
+  loadFinancialStats() {
+    this.loadingStats = true;
+    this.financialRecords = []; // Reset current records to show loading state clearly
+    let obs: Observable<FinancialRecordDto[]>;
+
+    // If role is still null (async race condition), wait a bit and retry once
+    if (this.userRole === null) {
+      setTimeout(() => {
+        if (this.userRole !== null) this.loadFinancialStats();
+        else {
+          this.loadingStats = false;
+          this.cd.detectChanges();
+        }
+      }, 500);
+      return;
+    }
+
+    if (this.userRole === 9) {
+      obs = this.statsService.getFinancialReport();
+    } else if (this.userRole === 7 && this.userSites.length > 0) {
+      // For Site Admin, we use their primary site or first site
+      const primarySite = this.userSites.find((s: any) => s.isPrimary) || this.userSites[0];
+      obs = this.statsService.getFinancialReportBySite(primarySite.siteId || primarySite.id);
+    } else {
+      obs = of([]);
+    }
+
+    obs.pipe(
+      catchError(err => {
+        console.error('Failed to load stats', err);
+        return of([]);
+      })
+    ).subscribe(data => {
+      console.log('Statistics Data received:', data);
+
+      // Handle both raw arrays and wrapped objects (OpenAPI standard)
+      if (Array.isArray(data)) {
+          this.financialRecords = [...data];
+      } else if (data && typeof data === 'object') {
+          // Check for common wrappers like object.body or records
+          if (Array.isArray((data as any).body)) {
+              this.financialRecords = [...(data as any).body];
+          } else {
+              // Try to iterate keys if it's an object acting like a map, but we expect an array
+              this.financialRecords = [];
+          }
+      } else {
+          this.financialRecords = [];
+      }
+
+      this.loadingStats = false;
+      this.cd.detectChanges();
+    });
+  }
+
+  get filteredFinancialRecords() {
+    return this.financialRecords.filter(r => {
+      if (this.statsFilters.status && r.status !== this.statsFilters.status) return false;
+      if (this.statsFilters.clientName && !r.userFullName?.toLowerCase().includes(this.statsFilters.clientName.toLowerCase())) return false;
+      if (this.statsFilters.siteId && r.siteName !== this.sites.find(s => String(s.siteId || s.id) === String(this.statsFilters.siteId))?.name) {
+         // Fallback check if siteId doesn't match name directly
+         const selectedSite = this.sites.find(s => String(s.siteId || s.id) === String(this.statsFilters.siteId));
+         if (r.siteName !== (selectedSite?.name || selectedSite?.siteName)) return false;
+      }
+      if (this.statsFilters.dateFrom && r.paymentDate && new Date(r.paymentDate) < new Date(this.statsFilters.dateFrom)) return false;
+      if (this.statsFilters.dateTo) {
+        const toDate = new Date(this.statsFilters.dateTo);
+        toDate.setHours(23, 59, 59);
+        if (r.paymentDate && new Date(r.paymentDate) > toDate) return false;
+      }
+      return true;
+    });
+  }
+
+  get totalFinancialRevenue(): number {
+    return this.filteredFinancialRecords.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  }
+
+  switchTab(tab: 'users' | 'sites' | 'stats') {
+    this.activeTab = tab;
+    if (tab === 'stats') {
+      // Ensure we have user role before loading stats, or reload everything
+      if (this.userRole === null) {
+        this.loadData();
+      } else {
+        this.loadFinancialStats();
+      }
+    }
+    this.cd.detectChanges();
   }
 
   private fetchUsers(source: Observable<any[]>) {

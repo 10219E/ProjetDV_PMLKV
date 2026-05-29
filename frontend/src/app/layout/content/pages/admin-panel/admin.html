@@ -11,17 +11,23 @@
         }
 
         <div class="flex gap-4 border-b pb-2 mb-6">
-          <button (click)="activeTab = 'users'"
+          <button (click)="switchTab('users')"
                   [class.border-b-2]="activeTab === 'users'"
                   [class.border-blue-600]="activeTab === 'users'"
                   class="pb-2 font-medium hover:text-blue-600 transition-colors">
             Utilisateurs
           </button>
-          <button (click)="activeTab = 'sites'"
+          <button (click)="switchTab('sites')"
                   [class.border-b-2]="activeTab === 'sites'"
                   [class.border-blue-600]="activeTab === 'sites'"
                   class="pb-2 font-medium hover:text-blue-600 transition-colors">
             Sites
+          </button>
+          <button (click)="switchTab('stats')"
+                  [class.border-b-2]="activeTab === 'stats'"
+                  [class.border-blue-600]="activeTab === 'stats'"
+                  class="pb-2 font-medium hover:text-blue-600 transition-colors">
+            Statistiques
           </button>
         </div>
 
@@ -32,19 +38,19 @@
 
           <!-- Filtres -->
           <div class="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col gap-2">
-            <h2 class="font-semibold text-gray-600 m-0">Filtres</h2>
-            <div class="flex flex-wrap gap-4 items-end">
+            <h2 class="font-semibold text-gray-600 m-0 text-sm italic">Filtres</h2>
+            <div class="flex flex-wrap gap-4">
               <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Nom</label>
-                <input type="text" [(ngModel)]="userFilters.name" placeholder="Nom..." class="border border-gray-300 rounded p-1.5 text-sm w-32 focus:ring-blue-500">
+                <input type="text" [(ngModel)]="userFilters.name" placeholder="Nom..." class="border border-gray-300 rounded p-1.5 text-sm w-32 focus:ring-blue-500 h-[42px]">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Email</label>
-                <input type="text" [(ngModel)]="userFilters.email" placeholder="Email..." class="border border-gray-300 rounded p-1.5 text-sm w-40 focus:ring-blue-500">
+                <input type="text" [(ngModel)]="userFilters.email" placeholder="Email..." class="border border-gray-300 rounded p-1.5 text-sm w-40 focus:ring-blue-500 h-[42px]">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Site</label>
-                <select [(ngModel)]="userFilters.siteId" class="border border-gray-300 rounded p-1.5 text-sm min-w-32 focus:ring-blue-500">
+                <select [(ngModel)]="userFilters.siteId" class="border border-gray-300 rounded p-1.5 text-sm min-w-32 focus:ring-blue-500 h-[42px]">
                   <option value="">Tous</option>
                   @for (site of sites; track site.siteId || site.id) {
                     <option [value]="site.siteId || site.id">{{ site.name || site.siteName || site.siteId }}</option>
@@ -53,19 +59,50 @@
               </div>
               <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Statut</label>
-                <select [ngModel]="userFilters.isActive" (ngModelChange)="userFilters.isActive = $event" class="border border-gray-300 rounded p-1.5 text-sm min-w-24 focus:ring-blue-500">
-                  <option value="">Tous</option>
-                  <option value="true">Actif</option>
-                  <option value="false">Inactif</option>
-                </select>
+                <div class="flex bg-gray-100/50 rounded-lg border border-gray-200 p-1 h-[42px]">
+                  <button (click)="userFilters.isActive = ''"
+                          [class.bg-white]="userFilters.isActive === ''"
+                          [class.shadow-sm]="userFilters.isActive === ''"
+                          class="px-3 py-1 text-xs font-bold rounded-md transition-all">Tous</button>
+                  <button (click)="userFilters.isActive = 'true'"
+                          [class.bg-green-100]="userFilters.isActive === 'true'"
+                          [class.text-green-800]="userFilters.isActive === 'true'"
+                          [class.shadow-sm]="userFilters.isActive === 'true'"
+                          class="px-3 py-1 text-xs font-bold rounded-md transition-all">Actifs</button>
+                  <button (click)="userFilters.isActive = 'false'"
+                          [class.bg-red-100]="userFilters.isActive === 'false'"
+                          [class.text-red-800]="userFilters.isActive === 'false'"
+                          [class.shadow-sm]="userFilters.isActive === 'false'"
+                          class="px-3 py-1 text-xs font-bold rounded-md transition-all">Inactifs</button>
+                </div>
               </div>
-              <div class="flex items-center gap-2 mb-1.5">
-                <input type="checkbox" id="f-debt" [(ngModel)]="userFilters.hasDebt" class="rounded border-gray-300">
-                <label for="f-debt" class="text-sm font-semibold text-gray-700">Dette (non nul)</label>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Dette</label>
+                <div class="flex bg-gray-100/50 rounded-lg border border-gray-200 p-1 h-[42px]">
+                  <button (click)="userFilters.hasDebt = false"
+                          [class.bg-white]="!userFilters.hasDebt"
+                          [class.shadow-sm]="!userFilters.hasDebt"
+                          class="px-4 py-1 text-xs font-bold rounded-md transition-all">Sans</button>
+                  <button (click)="userFilters.hasDebt = true"
+                          [class.bg-orange-100]="userFilters.hasDebt"
+                          [class.text-orange-800]="userFilters.hasDebt"
+                          [class.shadow-sm]="userFilters.hasDebt"
+                          class="px-4 py-1 text-xs font-bold rounded-md transition-all">Non Nulle</button>
+                </div>
               </div>
-              <div class="flex items-center gap-2 mb-1.5">
-                <input type="checkbox" id="f-pen" [(ngModel)]="userFilters.hasPenalty" class="rounded border-gray-300">
-                <label for="f-pen" class="text-sm font-semibold text-gray-700">Pénalité (non nul)</label>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Pénalité</label>
+                <div class="flex bg-gray-100/50 rounded-lg border border-gray-200 p-1 h-[42px]">
+                  <button (click)="userFilters.hasPenalty = false"
+                          [class.bg-white]="!userFilters.hasPenalty"
+                          [class.shadow-sm]="!userFilters.hasPenalty"
+                          class="px-4 py-1 text-xs font-bold rounded-md transition-all">Sans</button>
+                  <button (click)="userFilters.hasPenalty = true"
+                          [class.bg-red-100]="userFilters.hasPenalty"
+                          [class.text-red-800]="userFilters.hasPenalty"
+                          [class.shadow-sm]="userFilters.hasPenalty"
+                          class="px-4 py-1 text-xs font-bold rounded-md transition-all">Non Nulle</button>
+                </div>
               </div>
             </div>
           </div>
@@ -76,7 +113,7 @@
                 <tr>
                   <th class="px-4 py-3 font-semibold">Nom</th>
                   <th class="px-4 py-3 font-semibold">Email</th>
-                  <th class="px-4 py-3 font-semibold">Sites</th>
+                  <th class="px-4 py-3 font-semibold">Établissement</th>
                   <th class="px-4 py-3 font-semibold text-center">Actif</th>
                   <th class="px-4 py-3 font-semibold text-center">Dette</th>
                   <th class="px-4 py-3 font-semibold text-center">Pénalité</th>
@@ -225,6 +262,119 @@
                   </div>
                 }
               </div>
+            }
+          </div>
+        }
+
+        @if (activeTab === 'stats') {
+          <div class="space-y-6">
+            <h3 class="font-bold text-xl text-gray-800">Rapport Financier Détaillé</h3>
+
+            <!-- Filtres Stats -->
+            <div class="mb-4 bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex flex-col gap-2">
+              <div class="flex flex-wrap gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Statut</label>
+                  <div class="flex bg-gray-100/50 rounded-lg border border-gray-200 p-1">
+                    <button (click)="statsFilters.status = 'clear'"
+                            [class.bg-green-100]="statsFilters.status === 'clear'"
+                            [class.text-green-800]="statsFilters.status === 'clear'"
+                            [class.shadow-sm]="statsFilters.status === 'clear'"
+                            class="px-6 py-1.5 text-sm font-bold rounded-md transition-all">Encaissés</button>
+                    <button (click)="statsFilters.status = 'pending'"
+                            [class.bg-red-100]="statsFilters.status === 'pending'"
+                            [class.text-red-800]="statsFilters.status === 'pending'"
+                            [class.shadow-sm]="statsFilters.status === 'pending'"
+                            class="px-6 py-1.5 text-sm font-bold rounded-md transition-all">En Attente</button>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Nom Client</label>
+                  <input type="text" [(ngModel)]="statsFilters.clientName" placeholder="Rechercher..." class="border border-gray-300 rounded p-1.5 text-sm w-40 focus:ring-blue-500 h-[42px]">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Site</label>
+                  <select [(ngModel)]="statsFilters.siteId" class="border border-gray-300 rounded p-1.5 text-sm min-w-32 focus:ring-blue-500 h-[42px]">
+                    <option value="">Tous les sites</option>
+                    @for (site of sites; track site.siteId || site.id) {
+                      <option [value]="site.siteId || site.id">{{ site.name || site.siteName }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Depuis le</label>
+                  <input type="date" [(ngModel)]="statsFilters.dateFrom" class="border border-gray-300 rounded p-1.5 text-sm focus:ring-blue-500 h-[42px]">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Jusqu'au</label>
+                  <input type="date" [(ngModel)]="statsFilters.dateTo" class="border border-gray-300 rounded p-1.5 text-sm focus:ring-blue-500 h-[42px]">
+                </div>
+              </div>
+            </div>
+
+            @if (loadingStats) {
+              <div class="text-sm text-gray-600 animate-pulse">Chargement des statistiques financières...</div>
+            } @else {
+              @if (filteredFinancialRecords.length > 0) {
+                <div class="overflow-x-auto shadow-sm rounded-lg border border-gray-200">
+                  <table class="min-w-full bg-white text-left text-sm">
+                    <thead class="bg-gray-100 text-gray-700 font-bold">
+                      <tr>
+                        <th class="px-4 py-3">Date</th>
+                        <th class="px-4 py-3">Client</th>
+                        <th class="px-4 py-3">Établissement</th>
+                        <th class="px-4 py-3 text-center">Statut</th>
+                        <th class="px-4 py-3 text-center">Méthode</th>
+                        <th class="px-4 py-3 text-right">Encaissement</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                      @for (record of filteredFinancialRecords; track $index) {
+                        <tr class="hover:bg-gray-50 transition-colors">
+                          <td class="px-4 py-3 text-gray-600">{{ record.paymentDate | date:'dd/MM/yyyy HH:mm' }}</td>
+                          <td class="px-4 py-3 font-medium text-gray-800">{{ record.userFullName }}</td>
+                          <td class="px-4 py-3 text-gray-600">
+                            {{ record.siteName }}
+                          </td>
+                          <td class="px-4 py-3 text-center">
+                            <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase"
+                                  [class.bg-green-100]="record.status === 'clear'" [class.text-green-800]="record.status === 'clear'"
+                                  [class.bg-orange-100]="record.status === 'pending'" [class.text-orange-800]="record.status === 'pending'">
+                              {{ record.status === 'clear' ? 'Encaissé' : 'En Attente' }}
+                            </span>
+                          </td>
+                          <td class="px-4 py-3 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100">
+                              @if (record.status === 'pending') {
+                                Impayé
+                              } @else {
+                                {{ record.paymentMethod === 'CARD' ? 'Carte' : (record.paymentMethod === 'COUNTER' ? 'Comptoir' : record.paymentMethod) }}
+                              }
+                            </span>
+                          </td>
+                          <td class="px-4 py-3 text-right font-bold" [class.text-red-600]="record.status === 'pending'" [class.text-green-700]="record.status === 'clear'">
+                            {{ record.amount | currency:'EUR' }}
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                    <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-bold">
+                      <tr>
+                        <td colspan="5" class="px-4 py-4 text-right text-gray-700 uppercase tracking-wider">Total ({{ statsFilters.status === 'clear' ? 'Recettes' : 'En attente' }})</td>
+                        <td class="px-4 py-4 text-right font-black text-xl bg-gray-100" [class.text-green-800]="statsFilters.status === 'clear'" [class.text-red-700]="statsFilters.status === 'pending'">
+                          {{ totalFinancialRevenue | currency:'EUR' }}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              } @else {
+                <div class="p-12 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-gray-500">
+                  <div class="text-4xl mb-2">📊</div>
+                  <p class="font-medium text-lg">Aucune donnée financière trouvée</p>
+                  <p class="text-sm">Essayez de modifier vos filtres ou de sélectionner une autre plage de dates.</p>
+                </div>
+              }
             }
           </div>
         }

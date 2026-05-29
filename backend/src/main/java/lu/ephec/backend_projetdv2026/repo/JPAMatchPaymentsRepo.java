@@ -49,4 +49,24 @@ public interface JPAMatchPaymentsRepo extends JpaRepository<MatchPayments, Integ
 
     // Count pending payments
     Integer countByStatus(String status);
+
+    //Fetch all related payments (clear or pending) ordered by date descending, including site and user information.
+    @Query("SELECT p FROM MatchPayments p " +
+           "JOIN FETCH p.match m " +
+           "JOIN FETCH m.field f " +
+           "JOIN FETCH f.site s " +
+           "JOIN FETCH p.user u " +
+           "WHERE p.status IN ('clear', 'pending') " +
+           "ORDER BY p.paymentDate DESC")
+    List<MatchPayments> findAllFinancialPaymentsWithDetails();
+
+    //Fetch all related payments for a specific site, ordered by date descending including match, field, site and user details.
+    @Query("SELECT p FROM MatchPayments p " +
+           "JOIN FETCH p.match m " +
+           "JOIN FETCH m.field f " +
+           "JOIN FETCH f.site s " +
+           "JOIN FETCH p.user u " +
+           "WHERE s.siteId = :siteId AND p.status IN ('clear', 'pending') " +
+           "ORDER BY p.paymentDate DESC")
+    List<MatchPayments> findAllFinancialPaymentsBySiteWithDetails(@Param("siteId") Integer siteId);
 }

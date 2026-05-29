@@ -4,6 +4,7 @@ export * from './availabilityDto';
 export * from './declinedPlayersDto';
 export * from './field';
 export * from './fieldDto';
+export * from './financialRecordDto';
 export * from './infoControllerDto';
 export * from './invitesDto';
 export * from './localTime';
