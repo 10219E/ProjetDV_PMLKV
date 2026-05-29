@@ -24,13 +24,13 @@ public class StatisticsController {
 
     private final StatisticsService statisticsService;
 
-    @GetMapping("/financial-report")
+    @GetMapping(value = "/financial-report", produces = "application/json")
     @Operation(summary = "Get detailed financial report of all cleared payments")
     public ResponseEntity<List<FinancialRecordDto>> getFinancialReport() {
         return ResponseEntity.ok(mapToDto(statisticsService.getDetailedFinancialReport()));
     }
 
-    @GetMapping("/financial-report/{siteId}")
+    @GetMapping(value = "/financial-report/{siteId}", produces = "application/json")
     @Operation(summary = "Get detailed financial report of all cleared payments for a specific site")
     public ResponseEntity<List<FinancialRecordDto>> getFinancialReportBySite(
             @Parameter(description = "ID of the site", required = true)
