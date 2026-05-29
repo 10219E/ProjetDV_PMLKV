@@ -13,7 +13,7 @@ api/matchPaymentController.service.ts
 api/matchPlayerController.service.ts
 api/migrateUserController.service.ts
 api/siteController.service.ts
-api/statistics.service.ts
+api/statisticsController.service.ts
 api/testLoginController.service.ts
 api/userController.service.ts
 api/userRegistrationController.service.ts
